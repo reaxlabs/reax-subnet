@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0rc9.post6 — s1-lite brake: tier-order cap order_ratio 1.0 -> 0.5 (validator)
+
+`WEIGHTS_VERSION_KEY` is unchanged (1240). The average weight per miner in a tier may again be at most half of the average
+per miner in the tier above (as before 1.2.0rc7.post4); the excess moves up to the tier above, never to a lower tier and
+never burned. Tier budgets are unchanged. Miners need no update.
+
 ## Unreleased
 
 ### Several machines behind one inference hotkey (miner-only, `REAX_FEATURE_MULTINODE`, default off)
