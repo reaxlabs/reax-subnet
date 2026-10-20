@@ -26,14 +26,18 @@ Rules (all from the validator's own measurements, nothing the engine reports is 
 
 from __future__ import annotations
 
+import hashlib
 import math
 import re
 from dataclasses import asdict, dataclass, field
 from typing import Any, Mapping, Optional, Sequence
 
+from . import competition_split as _cs
+from .engconfigs import PINNED_REFERENCE_NOISE_STD, required_engine_margin
 from .engthresholds import THRESHOLDS as _T
 from .s1scoring import logit_distance
 
+ENGINE_BLOCK_SECONDS = 12.0
 PROTOCOL_ENG = "reax-eng/1"
 # Image references are kept short enough that the whole commitment fits the chain's 128-byte raw field.
 _COMMIT_RE = re.compile(
@@ -64,6 +68,7 @@ class TrackParams:
     max_latency_ratio: float = _T["max_latency_ratio"]
     min_gain: float = _T["min_gain"]  # must beat the reference by 3 % to count at all
     margin: float = _T["margin"]  # must beat the champion's score by 3 % to take the title
+    reference_noise_std: float = PINNED_REFERENCE_NOISE_STD
     confirmations: int = _T["confirmations"]  # separate sessions (new containers, fresh items; may follow in the same cycle) that must all clear the bar
     confirm_gap_blocks: int = _T["confirm_gap_blocks"]  # ... at least this many blocks apart (0: a fresh session right after the first is enough)
     eval_budget_s: float = 2700.0  # one evaluation, start to finish; over budget = the candidate fails
@@ -74,6 +79,7 @@ class TrackParams:
     request_timeout_s: float = 60.0
 
     def __post_init__(self) -> None:
+        required_engine_margin(self.reference_noise_std)
         ok = (
             self.temperature > 0 and self.timed_items >= 8 and 1 <= self.concurrency <= 256 and self.runs >= 1
             and 0 < self.mean_tau <= self.item_tau and 0 < self.min_top_agreement <= 1
@@ -81,6 +87,11 @@ class TrackParams:
             and self.determinism_items <= self.timed_items and self.confirmations >= 1
             and self.confirm_gap_blocks >= 0 and self.eval_budget_s > 0 and self.max_infra_attempts >= 1
             and 0 < self.reference_drift < 1
+            and self.determinism_items >= 1 and self.latency_items >= 1 and self.probe_pairs >= 0
+            and 0 < self.start_timeout_s < math.inf and 0 < self.request_timeout_s < math.inf
+            and all(math.isfinite(x) for x in (
+                self.temperature, self.mean_tau, self.item_tau, self.min_top_agreement, self.determinism_tau,
+                self.max_latency_ratio, self.min_gain, self.margin, self.eval_budget_s, self.reference_drift))
         )
         if not ok:
             raise ValueError(f"invalid track parameters for {self.name}")
@@ -269,6 +280,9 @@ class Champion:
         return cls(raw["digest"], raw["hotkey"], raw["uid"], float(raw["score"]), raw["crowned_block"])
 
 
+CYCLE_EVENTS_MAX = 100
+
+
 @dataclass
 class TrackState:
     results: dict[str, EvalResult] = field(default_factory=dict)  # digest -> latest result
@@ -278,7 +292,27 @@ class TrackState:
     challenger: Optional[dict[str, Any]] = None
     attempts: dict[str, int] = field(default_factory=dict)  # digest -> inconclusive tries so far
     not_owner: set[str] = field(default_factory=set)  # "digest:hotkey" pairs whose image is bound to another hotkey
+    owners: dict[str, str] = field(default_factory=dict)  # digest -> hotkey its image label named when it was verified
+    champion_invalid: int = 0
+    champion_last_session: str = ""
     history: list[dict[str, Any]] = field(default_factory=list)  # title changes, newest last (max 50)
+    # cycle_end / session_void per cycle: audit only, kept apart so they cannot push title changes out of ``history``
+    cycle_events: list[dict[str, Any]] = field(default_factory=list)  # newest last (max CYCLE_EVENTS_MAX)
+
+    def add_cycle_event(self, event: dict[str, Any]) -> None:
+        self.cycle_events.append(event)
+        del self.cycle_events[:-CYCLE_EVENTS_MAX]
+
+    def reset_measurements(self, block: int, why: str) -> None:
+        """Drop everything that was measured (results, champion, challenger, strikes) but keep what was observed on chain
+        or verified about images (first sightings, image owners). Used when the measurement context changed: scores of
+        another reference, weights, track configuration or chain are not evidence about the current one."""
+        self.history.append({"block": block, "event": "context_changed", "reason": why,
+                             "dropped_champion": self.champion.digest if self.champion else None,
+                             "dropped_results": len(self.results)})
+        self.results, self.attempts = {}, {}
+        self.champion, self.challenger = None, None
+        self.champion_invalid, self.champion_last_session = 0, ""
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -288,7 +322,11 @@ class TrackState:
             "challenger": self.challenger,
             "attempts": self.attempts,
             "not_owner": sorted(self.not_owner),
+            "owners": self.owners,
             "history": self.history[-50:],
+            "cycle_events": self.cycle_events[-CYCLE_EVENTS_MAX:],
+            "champion_invalid": self.champion_invalid,
+            "champion_last_session": self.champion_last_session,
         }
 
     @classmethod
@@ -303,8 +341,78 @@ class TrackState:
             raise ValueError("challenger must be an object")
         st.attempts = {d: int(n) for d, n in raw.get("attempts", {}).items()}
         st.not_owner = set(raw.get("not_owner", []))
+        st.owners = {str(d): str(h) for d, h in raw.get("owners", {}).items()}
+        st.champion_invalid = int(raw.get("champion_invalid", 0))
+        st.champion_last_session = str(raw.get("champion_last_session", ""))
         st.history = list(raw.get("history", []))[-50:]
+        st.cycle_events = list(raw.get("cycle_events", []))[-CYCLE_EVENTS_MAX:]
         return st
+
+
+def effective_block(block: int) -> int:
+    """The block a commitment counts at: its own, but a commitment made before the engine track opened counts as made at
+    the opening block (competition_split.ENGINE_PRE_OPEN_AS_START / ENGINE_TRACK_START_BLOCK). 0 (unknown) stays 0."""
+    start = _cs.ENGINE_TRACK_START_BLOCK
+    if not _cs.ENGINE_PRE_OPEN_AS_START or start is None or block <= 0:
+        return block
+    return max(block, start)
+
+
+_start_hash: Optional[str] = None
+
+
+def set_start_block_hash(value: Optional[str]) -> None:
+    """The hash of ENGINE_TRACK_START_BLOCK as read from the chain (hex, 0x optional); None = not known yet."""
+    global _start_hash
+    v = str(value).lower().removeprefix("0x") if value else ""
+    _start_hash = v or None
+
+
+def start_block_hash() -> Optional[str]:
+    return _start_hash
+
+
+# The opening block's hash is read only this many blocks after it, so a reorg of the chain head cannot give two
+# validators different hashes (the first successful read is kept for the whole process).
+START_HASH_CONFIRM_BLOCKS = 12
+
+
+async def sync_start_block_hash(chain: Any, head_block: int, timeout: float) -> None:
+    """Fill the opening block's hash from ``chain.block_hash`` once the block is START_HASH_CONFIRM_BLOCKS deep; until
+    then the tie order falls back to uid. A chain without ``block_hash`` or a failed read leaves it unset. Used by the
+    validator and by the competition worker (remote mode), which computes first_seen and the champion."""
+    import asyncio
+    import logging
+
+    start = _cs.ENGINE_TRACK_START_BLOCK
+    reader = getattr(chain, "block_hash", None)
+    if (not _cs.ENGINE_PRE_OPEN_AS_START or start is None or reader is None or _start_hash
+            or head_block < start + START_HASH_CONFIRM_BLOCKS):
+        return
+    log = logging.getLogger(__name__)
+    try:
+        value = await asyncio.wait_for(asyncio.to_thread(reader, start), timeout)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("engine opening block hash not readable: %r", exc)
+        return
+    if isinstance(value, str) and value:
+        set_start_block_hash(value)
+        log.info("engine opening block %d hash %s", start, value)
+
+
+def tie_key(block: int, hotkey: str, digest: str) -> str:
+    """Order among commitments that count at the opening block: the hash above; "" for every other commitment, and for
+    all of them while the opening block hash is not known (then the uid decides, as before)."""
+    start, bh = _cs.ENGINE_TRACK_START_BLOCK, _start_hash
+    if not _cs.ENGINE_PRE_OPEN_AS_START or start is None or not bh or block <= 0 or block > start:
+        return ""
+    return hashlib.sha256(f"reax-eng-tie/1|{bh}|{hotkey}|{digest}".encode()).hexdigest()
+
+
+def commit_order(s: "Submission", unknown_block: int = 0) -> tuple[int, str, int]:
+    """Sort key of a submission: (effective commitment block, opening tie hash, uid). ``unknown_block`` is used when the
+    chain gave no commitment block."""
+    return (effective_block(s.block or unknown_block), tie_key(s.block, s.hotkey, s.digest), s.uid)
 
 
 def observe(state: TrackState, subs: Sequence[Submission], block: int,
@@ -316,9 +424,9 @@ def observe(state: TrackState, subs: Sequence[Submission], block: int,
     ignored for that hotkey. With binding (the image names its hotkey) every committer is eligible here and the
     runner rejects the ones the image is not bound to (``not_owner``), so nobody can squat a published digest.
     """
-    for s in sorted(subs, key=lambda s: (s.block or block, s.uid)):
+    for s in sorted(subs, key=lambda s: commit_order(s, block)):
         seen = state.first_seen.get(s.digest)
-        when = s.block or block
+        when = effective_block(s.block or block)
         if seen is None or when < seen[0]:
             state.first_seen[s.digest] = (when, s.hotkey)
     eligible = []
@@ -334,7 +442,7 @@ def observe(state: TrackState, subs: Sequence[Submission], block: int,
 def pending(state: TrackState, eligible: Sequence[Submission], limit: int) -> list[Submission]:
     """Not yet evaluated digests, oldest commitment first, at most ``limit``."""
     todo = [s for s in eligible if s.digest not in state.results]
-    todo.sort(key=lambda s: (state.attempts.get(s.digest, 0), s.block or state.first_seen[s.digest][0], s.uid))
+    todo.sort(key=lambda s: (state.attempts.get(s.digest, 0), *commit_order(s, state.first_seen[s.digest][0])))
     return todo[:limit]
 
 
@@ -344,7 +452,7 @@ def track_thresholds(params: TrackParams) -> dict[str, Any]:
 
 
 def _valid(r: Optional[EvalResult], params: TrackParams) -> bool:
-    return r is not None and r.ok and r.score >= 1.0 + params.min_gain
+    return r is not None and r.ok and r.score >= 1.0 + max(params.min_gain, required_engine_margin(params.reference_noise_std))
 
 
 def _mkey(m: Sequence[Any]) -> str:
@@ -375,21 +483,32 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
       the same ``margin`` (and the champion bar). A near-copy that merely scores a little higher, or one that misses
       the champion bar, leaves its confirmations untouched.
     """
-    live = {s.digest: s for s in eligible}
+    live = {(s.digest, s.hotkey): s for s in eligible}  # an identical digest committed by a second hotkey is another entry
     ch = state.champion
     if ch is not None:
-        sub = live.get(ch.digest)
+        sub = live.get((ch.digest, ch.hotkey))
         r = state.results.get(ch.digest)
-        if sub is None or sub.hotkey != ch.hotkey or not _valid(r, params):
+        withdrawn = sub is None
+        if r is not None:
+            key = r.session or f"block:{r.block}"
+            if key != state.champion_last_session:
+                state.champion_last_session = key
+                state.champion_invalid = 0 if _valid(r, params) else state.champion_invalid + 1
+                if state.champion_invalid == 1:
+                    state.history.append({"block": block, "event": "champion_recheck", "digest": ch.digest})
+        if withdrawn or state.champion_invalid >= 2:
             state.history.append({"block": block, "event": "vacated", "digest": ch.digest, "hotkey": ch.hotkey})
             ch = None
-        else:
-            ch.score = min(ch.score, r.score)  # held at the minimum over the sessions that measured it
+            state.champion_invalid = 0
+            state.champion_last_session = ""
+        elif _valid(r, params):
+            ch.score = min(ch.score, r.score)
             ch.uid = sub.uid
-    bar = ch.score * (1.0 + params.margin) if ch is not None else 0.0
+    bar = ch.score * (1.0 + max(params.margin, required_engine_margin(params.reference_noise_std))) if ch is not None else 0.0
     contenders = sorted(
         (s for s in eligible if _valid(state.results.get(s.digest), params)),
-        key=lambda s: (-state.results[s.digest].score, state.first_seen[s.digest][0], s.uid),
+        key=lambda s: (-state.results[s.digest].score, effective_block(state.first_seen[s.digest][0]),
+                       tie_key(s.block, s.hotkey, s.digest), s.uid),
     )
     best = next((s for s in contenders if ch is None or s.digest != ch.digest), None)
     c = state.challenger
@@ -408,7 +527,7 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
                 cand = None  # the bar rose (new champion score) above what it was measured at
     if best is not None and (cand is None or best.digest != cand.digest):
         rb = state.results[best.digest]
-        beats_pending = cand is None or rb.score >= _pooled(c["measurements"]) * (1.0 + params.margin)
+        beats_pending = cand is None or rb.score >= _pooled(c["measurements"]) * (1.0 + max(params.margin, required_engine_margin(params.reference_noise_std)))
         if rb.score >= bar and beats_pending:
             cand = best
             c = {"digest": best.digest, "hotkey": best.hotkey, "measurements": [[rb.block, rb.score, rb.session]]}
@@ -419,6 +538,8 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
         if len(c["measurements"]) >= params.confirmations:
             # Winner's curse: the title is held at the lowest of the confirming measurements.
             score = min(m[1] for m in c["measurements"])
+            state.champion_invalid = 0
+            state.champion_last_session = state.results[cand.digest].session or f"block:{state.results[cand.digest].block}"
             state.history.append({"block": block, "event": "crowned", "digest": cand.digest, "hotkey": cand.hotkey,
                                   "score": round(score, 4), "pooled": round(_pooled(c["measurements"]), 4),
                                   "sessions": len(c["measurements"])})
@@ -431,7 +552,7 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
 def confirmation_due(state: TrackState, eligible: Sequence[Submission], params: TrackParams) -> bool:
     """A pending challenger that still needs another session (it may run right after the first, same cycle)."""
     c = state.challenger
-    return (c is not None and len(c["measurements"]) < params.confirmations
+    return bool(state.champion is not None and state.champion_invalid) or (c is not None and len(c["measurements"]) < params.confirmations
             and any(s.digest == c["digest"] and s.hotkey == c["hotkey"] for s in eligible))
 
 
@@ -442,9 +563,61 @@ def needs_remeasurement(state: TrackState, eligible: Sequence[Submission]) -> li
     if c is not None:
         out += [s for s in eligible if s.digest == c["digest"] and s.hotkey == c["hotkey"]]
     ch = state.champion
-    if ch is not None and out:
+    if ch is not None and (out or state.champion_invalid):
         out += [s for s in eligible if s.digest == ch.digest and s.hotkey == ch.hotkey]
     return out
+
+
+def champion_fraction(reward: RewardParams, age_blocks: int) -> float:
+    """The champion's part of the engine share ``age_blocks`` after its crowning (linear decay to the floor)."""
+    age = max(0, age_blocks)
+    return reward.champion_start - (reward.champion_start - reward.champion_floor) * min(1.0, age / reward.decay_blocks)
+
+
+def former_champions(state: TrackState) -> list[dict[str, Any]]:
+    """Champions that were crowned and later replaced, newest crowning first, from the ``history`` events
+    (``crowned`` / ``vacated`` / ``context_changed``): ``{"digest", "hotkey", "block", "score"}``. The current champion, a
+    vacated one and everything before a context change are not in the list. History keeps the last 50 events."""
+    out: list[dict[str, Any]] = []
+    for e in state.history:
+        kind = e.get("event")
+        if kind == "context_changed":
+            out = []
+        elif kind == "crowned":
+            out = [f for f in out if (f["digest"], f["hotkey"]) != (e.get("digest"), e.get("hotkey"))]
+            out.append({"digest": e.get("digest"), "hotkey": e.get("hotkey"), "block": e.get("block"),
+                        "score": e.get("score")})
+        elif kind == "vacated":
+            out = [f for f in out if (f["digest"], f["hotkey"]) != (e.get("digest"), e.get("hotkey"))]
+    ch = state.champion
+    return [f for f in reversed(out) if ch is None or (f["digest"], f["hotkey"]) != (ch.digest, ch.hotkey)]
+
+
+def waiting_uids(state: TrackState, eligible: Sequence[Submission], block: int,
+                 coldkeys: Mapping[int, str]) -> list[int]:
+    """Engine keep-alive candidates (competition_split.ENGINE_KA_*): eligible submissions without a result whose image
+    was pulled and bound to the committing hotkey (``owners``), first seen (effective commitment block) at most
+    ENGINE_KA_MAX_HOURS ago, at most one per coldkey (a missing coldkey counts as its own), oldest first, at most
+    ENGINE_KA_MAX_ENTRIES. Pure; fails closed on a missing owner record."""
+    max_blocks = _cs.ENGINE_KA_MAX_HOURS * 3600.0 / ENGINE_BLOCK_SECONDS
+    cands = []
+    for s in eligible:
+        first = state.first_seen.get(s.digest)
+        if s.digest in state.results or state.owners.get(s.digest) != s.hotkey or first is None:
+            continue
+        since = effective_block(first[0])
+        if since <= 0 or since > block + 5 or block - since > max_blocks:
+            continue
+        cands.append((commit_order(s, first[0]), s))
+    out: list[int] = []
+    seen: set[str] = set()
+    for _, s in sorted(cands, key=lambda c: c[0]):
+        ck = coldkeys.get(s.uid) or f"uid:{s.uid}"
+        if ck in seen or s.uid in out:
+            continue
+        seen.add(ck)
+        out.append(s.uid)
+    return out[: _cs.ENGINE_KA_MAX_ENTRIES]
 
 
 def competition_weights(state: TrackState, eligible: Sequence[Submission], params: TrackParams,
@@ -453,11 +626,11 @@ def competition_weights(state: TrackState, eligible: Sequence[Submission], param
     ch = state.champion
     if ch is None:
         return {}
-    age = max(0, block - ch.crowned_block)
-    frac = reward.champion_start - (reward.champion_start - reward.champion_floor) * min(1.0, age / reward.decay_blocks)
+    frac = champion_fraction(reward, block - ch.crowned_block)
     others = sorted(
         (s for s in eligible if s.digest != ch.digest and _valid(state.results.get(s.digest), params)),
-        key=lambda s: (-state.results[s.digest].score, state.first_seen[s.digest][0], s.uid),
+        key=lambda s: (-state.results[s.digest].score, effective_block(state.first_seen[s.digest][0]),
+                       tie_key(s.block, s.hotkey, s.digest), s.uid),
     )[: reward.runner_ups]
     weights = {ch.uid: frac}
     if not others:

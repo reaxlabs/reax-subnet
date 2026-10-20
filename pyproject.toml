@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reax-subnet"
-version = "1.2.0rc9.post3"
+version = "1.2.0rc9.post5"
 description = "REAX Bittensor subnet: miners serve an approved decision model, validators verify fidelity"
 readme = "README.md"
 license = {text = "MIT"}
@@ -43,6 +43,7 @@ reax-engine-submit = "reax_subnet.engcli:submit_main"
 reax-spec-eval = "reax_subnet.spec.cli:main"
 reax-competition-worker = "reax_subnet.worker:main"
 reax-award-approve = "reax_subnet.award:main"
+reax-runtime-relay = "reax_subnet.multinode:relay_main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -60,5 +61,7 @@ asyncio_mode = "auto"
 markers = [
     "model: needs torch/transformers and a downloaded Hugging Face model",
     "localnet: needs a running local subtensor (scripts/localnet)",
+    "fla_checksum: runs the real published-FLA-config checksum verification",
     "gpu: needs Docker, the NVIDIA runtime, a GPU and a model directory (REAX_SPEC_TEST_MODEL); skipped by default",
+    "real_opening: keep the release engine opening block (competition_split.ENGINE_TRACK_START_BLOCK) instead of switching it off",
 ]

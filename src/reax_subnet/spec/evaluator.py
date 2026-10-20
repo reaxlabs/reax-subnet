@@ -78,6 +78,30 @@ TWIN_ORDER_JSD_BITS = 0.05     # ... with at least 3 labels, and a mean JSD belo
 TWIN_TIE = 1e-6
 TWIN_MIN_ITEMS = 50            # items valid for both models needed for any verdict
 TWIN_MIN_ORDER_ITEMS = 20      # items with at least 3 labels needed for the order rule
+# Near-copy rules (REAX_SPEC_NC_R1/R2/R3, all off by default; with all off the behaviour is bit for bit the one above).
+# R1: a twin or weight parent (the incumbent included) must also be beaten on competence by this many points (and 2 paired SE).
+TWIN_COMP_FLOOR = 1.0
+# R2: the probabilities of one model raised to a power s (= its letter logits scaled by s) and renormalised; the best s on
+# this grid is tried against the other model. A pure temperature copy then has a JSD of numerical noise at its s.
+TWIN_TEMP_GRID = tuple(round(0.40 + 0.05 * i, 2) for i in range(43))     # 0.40 .. 2.50
+NC_ALPHA_TOL = 0.05            # R3: derived when cos > 0.98 and |alpha - 1| < this, whatever the relative L2 distance
+TWIN_REL_TIE = 1e-6            # R2: two probabilities are tied when they differ by at most this share of the larger
+# Near-champion rule (REAX_SPEC_NC_NEAR_CHAMP, off by default; decided 19 Oct 2026, announced in #92 before it is switched on).
+# A challenger whose weights are close to the incumbent's on the validator's delta sketch (cos > NEAR_CHAMP_COS or relative
+# L2 < NEAR_CHAMP_REL, the incumbent's delta as the reference) must, on every draw that decides it against the incumbent
+# (first draw, close call, confirmation), also answer more items correctly than the incumbent and gain at least
+# max(the draw's margin, NEAR_CHAMP_FLOOR) points. Rescaling the champion's answer letters or adding weight noise moves the
+# calibration part of the score, not the answers; this asks a near copy for better answers and a clear lead.
+# "Items right" here is the most probable label being the gold one (``ItemScore.top_hit``): unlike the scored correctness
+# (noul decision thresholds, rounded expected level), a temperature (one scale for all answer letters) cannot change it. Also close: cos >
+# NEAR_CHAMP_ALPHA_COS and the challenger's delta has the champion's length along it (|alpha - 1| < NEAR_CHAMP_ALPHA_TOL),
+# i.e. the champion plus noise orthogonal to its change, however much (critic-nc F2; no legitimate entry comes near it).
+# A challenger on another declared base is sketched against the champion's base for this comparison (critic-nc F1).
+NEAR_CHAMP_COS = 0.995
+NEAR_CHAMP_REL = 0.15
+NEAR_CHAMP_ALPHA_COS = 0.98
+NEAR_CHAMP_ALPHA_TOL = 0.05
+NEAR_CHAMP_FLOOR = 3.0
 
 
 @dataclass(frozen=True)
@@ -87,25 +111,55 @@ class BehaviourStats:
     mean_abs: float       # mean absolute probability difference per option
     same_order: float     # share of the items with at least 3 labels that have the labels in the same order
     order_items: int = 0  # items with at least 3 labels (the base of ``same_order``)
+    jsd_temp_bits: float | None = None   # R2: lowest mean JSD over the temperature grid (None = R2 off)
+    temp_scale: float | None = None      # R2: the grid power that reached it
 
     def twin(self) -> bool:
         if self.items < TWIN_MIN_ITEMS:
             return False
+        if self.jsd_temp_bits is not None and self.jsd_temp_bits < TWIN_JSD_BITS:
+            return True
         return self.jsd_bits < TWIN_JSD_BITS or (self.order_items >= TWIN_MIN_ORDER_ITEMS
                                                  and self.same_order >= TWIN_SAME_ORDER and self.jsd_bits < TWIN_ORDER_JSD_BITS)
 
     def as_dict(self) -> dict[str, float]:
-        return {"items": self.items, "jsd": round(self.jsd_bits, 6), "abs": round(self.mean_abs, 6), "order": round(self.same_order, 4),
-                "order_items": self.order_items}
+        out = {"items": self.items, "jsd": round(self.jsd_bits, 6), "abs": round(self.mean_abs, 6), "order": round(self.same_order, 4),
+               "order_items": self.order_items}
+        if self.jsd_temp_bits is not None:
+            out.update(jsd_temp=round(self.jsd_temp_bits, 6), temp_scale=self.temp_scale)
+        return out
 
 
-def _order(p: Sequence[float]) -> tuple[int, ...]:
+def _order(p: Sequence[float], rel_tie: bool = False) -> tuple[int, ...]:
+    if rel_tie:   # R2: a tie is a relative notion (tail probabilities of 1e-9 differ by far less than 1e-6 absolute)
+        return tuple(0 if abs(a - b) <= TWIN_REL_TIE * max(a, b) else (1 if a > b else -1) for i, a in enumerate(p) for b in p[i + 1:])
     return tuple(0 if abs(a - b) < TWIN_TIE else (1 if a > b else -1) for i, a in enumerate(p) for b in p[i + 1:])
 
 
-def behaviour_stats(rows: Sequence[Mapping[str, Any]], a: Sequence[Any], b: Sequence[Any]) -> BehaviourStats:
-    """Per-item option distributions of two models on the same rows, compared."""
+def _jsd_over_grid(va: Sequence[float], vb: Sequence[float]) -> list[float]:
+    """JSD (bits) between normalise(va ** s) and vb for every s of TWIN_TEMP_GRID (an unusable grid point gives 1.0)."""
+    out: list[float] = []
+    for s in TWIN_TEMP_GRID:
+        pw = [x ** s if x > 0 else 0.0 for x in va]
+        z = math.fsum(pw)
+        if z <= 0:
+            out.append(1.0)
+            continue
+        j = 0.0
+        for x, y in zip(pw, vb):
+            x /= z
+            m = (x + y) / 2
+            j += (x * math.log2(x / m) if x > 0 else 0.0) + (y * math.log2(y / m) if y > 0 else 0.0)
+        out.append(max(0.0, j / 2))
+    return out
+
+
+def behaviour_stats(rows: Sequence[Mapping[str, Any]], a: Sequence[Any], b: Sequence[Any], *, temp_invariant: bool = False,
+                    rel_tie: bool = False) -> BehaviourStats:
+    """Per-item option distributions of two models on the same rows, compared. ``temp_invariant`` / ``rel_tie``: near-copy
+    rule R2 (a temperature-invariant JSD and a relative order tie); both off = the original statistics."""
     jsd = mad = 0.0
+    grid = [0.0] * len(TWIN_TEMP_GRID)
     same = n = n_order = 0
     for r, pa, pb in zip(rows, a, b):
         labels = [str(x) for x in r["labels"]]
@@ -118,13 +172,18 @@ def behaviour_stats(rows: Sequence[Mapping[str, Any]], a: Sequence[Any], b: Sequ
             m = (x + y) / 2
             j += (x * math.log2(x / m) if x > 0 else 0.0) + (y * math.log2(y / m) if y > 0 else 0.0)
         jsd += max(0.0, j / 2)
+        if temp_invariant:
+            grid = [g + x for g, x in zip(grid, _jsd_over_grid(va, vb))]
         mad += sum(abs(x - y) for x, y in zip(va, vb)) / len(labels)
         if len(labels) >= 3:
-            same += _order(va) == _order(vb)
+            same += _order(va, rel_tie) == _order(vb, rel_tie)
             n_order += 1
         n += 1
     if n == 0:
         return BehaviourStats(0, 1.0, 1.0, 0.0)
+    if temp_invariant:
+        k = min(range(len(grid)), key=lambda i: (grid[i], i))
+        return BehaviourStats(n, jsd / n, mad / n, same / n_order if n_order else 0.0, n_order, grid[k] / n, TWIN_TEMP_GRID[k])
     return BehaviourStats(n, jsd / n, mad / n, same / n_order if n_order else 0.0, n_order)
 
 
@@ -168,6 +227,8 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
             if c is None or f"{s.hotkey}|{c.text()}" != s.key:
                 continue
             res.append((uid_c[0], float(s.score)))
+            if isinstance(s.champion_since_ts, (int, float)) and math.isfinite(s.champion_since_ts):
+                res.crowned.setdefault(uid_c[0], float(s.champion_since_ts))
             if len(res) >= C.MAX_LEADERS:
                 break
         out[track_id] = res
@@ -518,6 +579,8 @@ class SpecEvaluator:
         self._playoff_waits: set[str] = set()   # tracks whose cohort playoff waited for budget in the last cycle
         self._cycle_prepared: dict[str, _Prepared | None] = {}
         self._cycle_skips: dict[str, int] = {}
+        self._cycle_fetch_rejections: dict[str, int] = {}
+        self._probes_halted = False    # a hub infrastructure error (429, 5xx, timeout) ends this cycle's probing
         self._retry_tracks: set[str] = set()
         self._host_failed: set[str] = set()
         self._oversize_used = False
@@ -526,6 +589,7 @@ class SpecEvaluator:
         self._base_ids: dict[tuple, str] = {}    # (base dir, its files and sizes) -> tensor hash of the base model
         self._seed = T.load_sketch_seed(cfg.work_dir)   # secret sample positions of the delta sketch; never logged
         self._seed_id = T.seed_id(self._seed)
+        self._near_cache: dict[tuple[str, str, str], T.DeltaStats | None] = {}   # near-champion rule: (incumbent, challenger, seed id)
         os.makedirs(os.path.join(cfg.work_dir, "models"), exist_ok=True)
         os.makedirs(os.path.join(cfg.work_dir, "sketches"), exist_ok=True)
 
@@ -542,11 +606,18 @@ class SpecEvaluator:
             self._pools.clear()
             self._cycle_prepared.clear()
             self._cycle_skips.clear()
+            self._cycle_fetch_rejections.clear()
+            self._probes_halted = False
             self._retry_tracks.clear()
             self._oversize_used = False
             self._gmed_warned.clear()
             for tdef in active:
                 self._sync(tdef, snapshot, now)
+            for tdef in active:
+                try:
+                    await self._retry_waiting(tdef, snapshot, now)
+                except Exception:  # noqa: BLE001 - a failed metadata probe must not stop other tracks
+                    log.exception("track %s: repo availability probes failed", tdef.track_id)
             # start the windows of the entries that qualify now, before a long evaluation cycle can eat their lead
             mark_provisional(self.state, [t.track_id for t in active], snapshot, self.clock())
             ST.save(self.state, self.cfg.state_path)
@@ -719,7 +790,7 @@ class SpecEvaluator:
         for s in ts.submissions.values():
             if s.status == ST.CHAMPION and s.serve_retry_pending:
                 return True
-            # an entry waiting for its repo is retried on that track's turn anyway; it alone does not claim a share
+            # waiting repos get metadata probes each cycle; an unavailable entry alone does not claim a share
             if s.status == ST.QUEUED and not s.reason.startswith("waiting"):
                 return True
             if (s.status == ST.PENDING_CONFIRM and not s.confirm_draw and s.confirm_after_ts is not None
@@ -745,6 +816,47 @@ class SpecEvaluator:
                 shutil.rmtree(p, ignore_errors=True)
 
     # ----------------------------------------------------- submission preparation
+
+    def _fetch_failure(self, tdef: C.TrackDef, sub: ST.Submission, snap: Snapshot, now: float,
+                       exc: F.FetchError) -> None:
+        """Apply the existing fetch failure rules to a download or a due metadata retry."""
+        ts = self.state.track(tdef.track_id)
+        if sub.status == ST.WITHDRAWN:
+            # only ever prepared as a parent (critic C1): an unfetchable withdrawn parent drops out of the group,
+            # its record (and a later carry-over) is not touched
+            sub.reason = f"withdrawn; parent not fetchable: {exc}"[:300]
+            return None
+        rejects = (exc.kind == "rejected" or (exc.kind == "unavailable" and
+                   ((sub.hash_named and sub.unavailable_fetches + 1 >= C.MAX_ATTEMPTS) or
+                    (not sub.hash_named and snap.block > sub.first_seen_block + C.PUBLISH_DEADLINE_BLOCKS))))
+        if rejects and self._cycle_fetch_rejections.get(tdef.track_id, 0) >= MAX_SKIPS_PER_CYCLE:
+            sub.reason, sub.wait_kind = f"waiting for the repo: {exc}"[:300], ST.WAIT_MINER
+            return None
+        if exc.kind == "rejected":
+            sub.status, sub.reason = ST.REJECTED, str(exc)[:300]
+            ts.log(now, f"rejected {sub.key[:12]}: {sub.reason[:120]}")
+        elif exc.kind == "infra":
+            sub.reason, sub.wait_kind = f"waiting for the repo: {exc}"[:300], ST.WAIT_INFRA
+            ts.log(now, f"fetch deferred {sub.key[:12]}: infrastructure failure, not counted: {str(exc)[:100]}")
+        elif sub.hash_named:
+            sub.unavailable_fetches += 1
+            if sub.unavailable_fetches >= C.MAX_ATTEMPTS:
+                sub.status, sub.reason = ST.REJECTED, f"no longer available ({sub.unavailable_fetches} fetches failed)"
+                sub.serve_retry_pending = False
+                if ts.champion == sub.key:
+                    ts.champion = ""
+                ts.log(now, f"rejected {sub.key[:12]}: {sub.reason}")
+            else:
+                sub.reason, sub.wait_kind = f"waiting for the repo: {exc}"[:300], ST.WAIT_MINER
+        elif not sub.hash_named and snap.block > sub.first_seen_block + C.PUBLISH_DEADLINE_BLOCKS:
+            sub.status, sub.reason = ST.REJECTED, f"not available within {C.PUBLISH_DEADLINE_BLOCKS} blocks: {exc}"[:300]
+            ts.log(now, f"expired {sub.key[:12]}")
+        else:
+            # Missing/private revisions are skipped and re-checked, never serve-failure strikes.
+            sub.reason, sub.wait_kind = f"waiting for the repo: {exc}"[:300], ST.WAIT_MINER
+        if sub.status == ST.REJECTED:
+            self._cycle_fetch_rejections[tdef.track_id] = self._cycle_fetch_rejections.get(tdef.track_id, 0) + 1
+        return None
 
     async def _prepare(self, tdef: C.TrackDef, sub: ST.Submission, snap: Snapshot, now: float) -> _Prepared | None:
         """Fetch and check one submission. None = not usable now (the status says why)."""
@@ -775,34 +887,7 @@ class SpecEvaluator:
             log.warning("fetch %s deferred (host I/O): %s", sub.key[:12], exc)
             return None
         except F.FetchError as exc:
-            if sub.status == ST.WITHDRAWN:
-                # only ever prepared as a parent (critic C1): an unfetchable withdrawn parent drops out of the group,
-                # its record (and a later carry-over) is not touched
-                sub.reason = f"withdrawn; parent not fetchable: {exc}"[:300]
-                return None
-            if exc.kind == "rejected":
-                sub.status, sub.reason = ST.REJECTED, str(exc)[:300]
-                ts.log(now, f"rejected {sub.key[:12]}: {sub.reason[:120]}")
-            elif exc.kind == "infra":
-                sub.reason, sub.wait_kind = f"waiting for the repo: {exc}"[:300], ST.WAIT_INFRA
-                ts.log(now, f"fetch deferred {sub.key[:12]}: infrastructure failure, not counted: {str(exc)[:100]}")
-            elif sub.hash_named:
-                sub.unavailable_fetches += 1
-                if sub.unavailable_fetches >= C.MAX_ATTEMPTS:
-                    sub.status, sub.reason = ST.REJECTED, f"no longer available ({sub.unavailable_fetches} fetches failed)"
-                    sub.serve_retry_pending = False
-                    if ts.champion == sub.key:
-                        ts.champion = ""
-                    ts.log(now, f"rejected {sub.key[:12]}: {sub.reason}")
-                else:
-                    sub.reason, sub.wait_kind = f"waiting for the repo: {exc}"[:300], ST.WAIT_MINER
-            elif not sub.hash_named and snap.block > sub.first_seen_block + C.PUBLISH_DEADLINE_BLOCKS:
-                sub.status, sub.reason = ST.REJECTED, f"not available within {C.PUBLISH_DEADLINE_BLOCKS} blocks: {exc}"[:300]
-                ts.log(now, f"expired {sub.key[:12]}")
-            else:
-                # Missing/private revisions are skipped and re-checked, never serve-failure strikes.
-                sub.reason, sub.wait_kind = f"waiting for the repo: {exc}"[:300], ST.WAIT_MINER
-            return None
+            return self._fetch_failure(tdef, sub, snap, now, exc)
         sub.unavailable_fetches = 0
         sub.wait_kind = ""
         assert ins.hashes is not None
@@ -1034,6 +1119,62 @@ class SpecEvaluator:
         base_dir = self.base_provider(sub.base_model) if sub.base_model else None
         return self._base_identity(base_dir) if base_dir else ""
 
+    @staticmethod
+    def _is_near(st: "T.DeltaStats") -> bool:
+        """Close to the champion's weights (near-champion rule): cos > 0.995, or relative L2 < 0.15, or the champion's change
+        plus orthogonal noise (cos > 0.98 and alpha within 0.05 of 1)."""
+        if not (st.compared > 0 and st.norm_a > 0):
+            return False
+        return (st.cosine > NEAR_CHAMP_COS or st.relative_l2 < NEAR_CHAMP_REL
+                or (st.cosine > NEAR_CHAMP_ALPHA_COS and abs(st.alpha - 1.0) < NEAR_CHAMP_ALPHA_TOL))
+
+    def _near_champ(self, ch: ST.Submission, champ: ST.Submission, ch_path: str = "") -> "T.DeltaStats | None":
+        """The delta-sketch comparison of ``ch`` with the incumbent (near-champion rule), or None when it cannot be made
+        (logged and recorded as ``comparable: false``). Both on the same resolved base: the stored sketches. A challenger
+        that declares another base (any public repo can be declared, the champion's own included) is sketched again from
+        its served weights against the CHAMPION's base, so a changed manifest does not hide a copy; tensors that do not
+        match the champion's base by name and shape give no comparison (another architecture: not close)."""
+        if champ.key == ch.key or not self._sketch_current(champ):
+            return None
+        base = self._resolved_base(champ)
+        same = bool(base) and base == self._resolved_base(ch)
+        ck = (champ.key, ch.key, self._seed_id)
+        if ck in self._near_cache:
+            return self._near_cache[ck]   # None here: the weights do not map onto the champion's base (cached, it cannot change)
+        try:
+            ref = T.load_sketch(self._sketch_path(champ))
+            if same and self._sketch_current(ch):
+                other = T.load_sketch(self._sketch_path(ch))
+            else:
+                base_dir = self.base_provider(champ.base_model) if champ.base_model else None
+                if base_dir is None or not ch_path or not os.path.isdir(ch_path):
+                    log.warning("near-champion check %s vs %s: not comparable (champion's base or the served weights missing)",
+                                ch.key[:12], champ.key[:12])
+                    return None
+                other = T.delta_sketch_ex(ch_path, base_dir, seed=self._seed).deltas
+                cov = T.sketch_coverage(other, ch_path, base_dir)
+                if not cov.enough():   # critic-nc2 #1: another layout (or another architecture): recorded, never silently "far"
+                    log.info("near-champion check %s vs %s: only %.1f%% of the champion's base maps onto the weights: not comparable",
+                             ch.key[:12], champ.key[:12], 100 * cov.fraction)
+                    self._near_cache[ck] = None
+                    return None
+        except Exception as e:   # unreadable sketch or weights: not comparable this time (recorded, retried next draw)
+            log.warning("near-champion check %s vs %s: %s", ch.key[:12], champ.key[:12], e)
+            return None
+        self._near_cache[ck] = T.compare_sketches(ref, other)
+        return self._near_cache[ck]
+
+    @staticmethod
+    def _lineage(ts: ST.TrackState, key: str) -> list[str]:
+        """``[key, parent, grandparent, ...]`` along ``derived_from`` (each key once, so a cycle ends the walk)."""
+        out: list[str] = []
+        k = key
+        while k and k not in out:
+            out.append(k)
+            sub = ts.submissions.get(k)
+            k = sub.derived_from if sub is not None else ""
+        return out
+
     def _near_check(self, ts: ST.TrackState, sub: ST.Submission, model_dir: str) -> tuple[str, str]:
         """Weight change against the resolved declared base, compared with earlier submissions on the same base.
 
@@ -1066,9 +1207,10 @@ class SpecEvaluator:
             if not self._earlier(other, sub) or not self._sketch_current(other):
                 continue    # another seed or rule samples other positions: not comparable (_refresh_sketches renews it)
             stats = T.compare_sketches(T.load_sketch(self._sketch_path(other)), sketch)
-            if stats.derived():
+            if stats.derived(alpha_tol=NC_ALPHA_TOL if self.cfg.nc_r3 else None):
                 sub.derived_from, sub.derived_how = other.key, "weights"
-                ts.log(self.clock(), f"{sub.key[:12]} is derived from {other.key[:12]} (cos {stats.cosine:.3f}, rel {stats.relative_l2:.3f})")
+                ts.log(self.clock(), f"{sub.key[:12]} is derived from {other.key[:12]} (cos {stats.cosine:.3f}, rel {stats.relative_l2:.3f}"
+                                       + (f", alpha {stats.alpha:.3f})" if self.cfg.nc_r3 else ")"))
                 break
         T.save_sketch(sketch, self._sketch_path(sub), sk.seed_id)
         return "", ""
@@ -1153,18 +1295,34 @@ class SpecEvaluator:
         return self._cycle_prepared[sub.key]
 
     async def _retry_waiting(self, tdef: C.TrackDef, snap: Snapshot, now: float) -> None:
-        # One oldest-due retry per track/cycle, even when another track spent the inference budget.
-        # Success regains normal immunity/commitment priority; failure spends only a skip.
+        # Probe waiting entries up to the per-track bound, without downloading. Ordinary 401s spend no skips.
         if tdef.track_id in self._retry_tracks:
             return
         self._retry_tracks.add(tdef.track_id)
-        waiting = [s for s in self.state.track(tdef.track_id).submissions.values()
-                   if s.status in (ST.QUEUED, ST.PENDING_CONFIRM) and s.reason.startswith(WAITING_FOR_REPO)
-                   and now - self._retry_at(s) >= C.RETRY_UNAVAILABLE_S]
-        if waiting and self._free_bytes(self.cfg.work_dir) >= self.cfg.min_free_bytes:
-            retry = min(waiting, key=lambda s: (self._retry_at(s), s.first_seen_block, s.uid, s.key))
-            if await self._prepare_cycle(tdef, retry, snap, now) is not None:
-                retry.reason, retry.wait_kind = "", ""
+        waiting = sorted((s for s in self.state.track(tdef.track_id).submissions.values()
+                          if s.status in (ST.QUEUED, ST.PENDING_CONFIRM) and s.reason.startswith(WAITING_FOR_REPO)),
+                         key=lambda s: (s.first_seen_block, s.uid, s.key))
+        for sub in waiting[:C.WAIT_REPO_PROBES_PER_CYCLE]:
+            if self._probes_halted:
+                return
+            retry_due = now - self._retry_at(sub) >= C.RETRY_UNAVAILABLE_S
+            try:
+                await self.fetcher.probe(SpecCommitment(sub.track_id, sub.repo, sub.revision))
+            except F.FetchError as exc:
+                if exc.kind == "infra":
+                    # 429/5xx/timeout: the hub is struggling, not the miner. Stop hitting it until the next cycle
+                    # (sequential 60 s timeouts would also stall the cycle); no attempt is counted.
+                    self._probes_halted = True
+                    return
+                # Keep the existing deadline/attempt rules and rejection bound; ordinary 401s cost no skip.
+                if retry_due:
+                    sub.last_fetch_ts = now
+                    self._fetch_failure(tdef, sub, snap, now, exc)
+                continue
+            # Metadata cannot repair a local staging/disk error. Preserve its download retry delay.
+            if sub.wait_kind == ST.WAIT_INFRA and not retry_due:
+                continue
+            sub.reason, sub.wait_kind = "", ""
 
     async def _run_track(self, tdef: C.TrackDef, snap: Snapshot, now: float) -> None:
         ts = self.state.track(tdef.track_id)
@@ -1204,7 +1362,8 @@ class SpecEvaluator:
         if self._track_cap is not None:
             budget = min(budget, self._track_cap)
         queued = queue_order([s for s in ts.ordered(ST.QUEUED)
-                              if not s.reason.startswith("waiting") or now - self._retry_at(s) >= C.RETRY_UNAVAILABLE_S], snap)
+                              if not s.reason.startswith(WAITING_FOR_REPO)
+                              and (not s.reason.startswith("waiting") or now - self._retry_at(s) >= C.RETRY_UNAVAILABLE_S)], snap)
         if self.cfg.v3_decisions:
             # v3: an entry in a close call takes its one extra first-stage draw before fresh entries; like the confirmation
             # group, one earlier draw per group (joining the exclusions of different draws could exhaust the pool)
@@ -1229,7 +1388,7 @@ class SpecEvaluator:
             ts.log(now, "infrastructure failure: insufficient free disk before download; nothing counted")
             return
 
-        cands = due if confirm_mode else sorted(queued, key=lambda s: s.reason.startswith(WAITING_FOR_REPO))
+        cands = due if confirm_mode else queued
         champ = ts.submissions.get(ts.champion) if ts.champion else None
         want = budget - (1 if champ is not None else 0)
         if want < 1 and not (champ and champ.serve_retry_pending):
@@ -1267,6 +1426,14 @@ class SpecEvaluator:
                 pp = models.get(pk) or await self._prepare_cycle(tdef, par, snap, now)
                 if pp is not None:
                     dependencies[pk] = pp
+            if self.cfg.nc_r3:   # R3: the root parents of a derived parent are served too (they must be beaten as well)
+                for ak in self._lineage(ts, p.sub.key)[1:]:
+                    anc = ts.submissions.get(ak)
+                    if anc is None or anc is champ or ak in dependencies:
+                        continue
+                    ap = models.get(ak) or await self._prepare_cycle(tdef, anc, snap, now)
+                    if ap is not None:
+                        dependencies[ak] = ap
             group_size = len(models.keys() | dependencies.keys())
             if group_size > budget:
                 # Only the first complete comparison can exceed a share, once per cycle. No global overspend.
@@ -1278,6 +1445,10 @@ class SpecEvaluator:
             models.update(dependencies)
             if par is not None and par is not champ and pk in dependencies:
                 parents[pk] = dependencies[pk]
+            if self.cfg.nc_r3:
+                for ak in self._lineage(ts, p.sub.key)[1:]:
+                    if ak in dependencies and ak != pk and ts.submissions.get(ak) is not champ:
+                        parents[ak] = dependencies[ak]
             prepared.append(p)
         # A queued parent may sort behind its child by immunity. Its serve also fills its challenger role,
         # even if the dependency group filled the budget before the loop reached that queue position.
@@ -1380,7 +1551,7 @@ class SpecEvaluator:
             log.exception("track %s: behavioural near-duplicate check failed, no twins this group", tdef.track_id)
             twins = {}
         self._decide(ts, tdef, [p.sub for p in prepared if p.sub.key in results], results, champ, confirm_mode, draw_id, seed, now,
-                     twins)
+                     twins, paths={p.sub.key: p.path for p in prepared})
         if confirm_mode:
             self._cohort_step(ts, now)    # a lone confirmed entry of a complete cohort is crowned in the same cycle
 
@@ -1462,7 +1633,7 @@ class SpecEvaluator:
             for o in served:
                 if o.sub is c.sub or not self._earlier(o.sub, c.sub):
                     continue
-                st = behaviour_stats(rows, probs_of(o), probs_of(c))
+                st = behaviour_stats(rows, probs_of(o), probs_of(c), temp_invariant=self.cfg.nc_r2, rel_tie=self.cfg.nc_r2)
                 measured[o.sub.key] = st.as_dict()
                 if st.twin():
                     out.setdefault(c.sub.key, []).append(o.sub.key)
@@ -1487,8 +1658,9 @@ class SpecEvaluator:
 
     def _decide(self, ts: ST.TrackState, tdef: C.TrackDef, challengers: list[ST.Submission], results: dict[str, list[SC.ItemScore]],
                 champ: ST.Submission | None, confirm_mode: bool, draw_id: str, seed: int, now: float,
-                twins: Mapping[str, Sequence[str]] | None = None) -> None:
-        """``twins``: per challenger, the earlier submissions it answers like on this draw (``_behaviour_twins``)."""
+                twins: Mapping[str, Sequence[str]] | None = None, paths: Mapping[str, str] | None = None) -> None:
+        """``twins``: per challenger, the earlier submissions it answers like on this draw (``_behaviour_twins``).
+        ``paths``: the served model directories (near-champion rule: a challenger on another base is sketched again)."""
         twins = twins or {}
         v3 = self.cfg.v3_decisions
         # cross-author items (stage 2 plumbing, off unless the pool has the tier and X_TIER_MODE says so): scored apart; in
@@ -1542,7 +1714,10 @@ class SpecEvaluator:
             champ.last_eval_ts = now
             if champ.key in xs:   # the incumbent's own gap on this draw (the reference for the others' G_med)
                 champ.history.append({"draw": draw_id, "kind": "incumbent", **xrec(champ.key)})
-        for pk in {c.derived_from for c in challengers if c.derived_from}:
+        parent_keys = {c.derived_from for c in challengers if c.derived_from}
+        if self.cfg.nc_r3:
+            parent_keys |= {ak for c in challengers for ak in self._lineage(ts, c.key)[1:]}
+        for pk in parent_keys:
             if (pk in results and pk in ts.submissions and (champ is None or pk != champ.key)
                     and ts.submissions[pk].status != ST.WITHDRAWN):   # critic C2: keep the score a carry-over restores
                 scored(ts.submissions[pk])
@@ -1562,14 +1737,42 @@ class SpecEvaluator:
             # the incumbent included: the full margin over each, also on the confirmation draw
             must_beat = [k for k in twins.get(ch.key, ()) if k in results]
             par = ts.submissions.get(ch.derived_from) if ch.derived_from else None
-            if par is not None and par.key in results and par.key != (current.key if current else "") and par.key not in must_beat:
+            if par is not None and par.key in results and par.key not in must_beat and (
+                    self.cfg.nc_r1 or par.key != (current.key if current else "")):   # R1: the incumbent parent counts too
                 must_beat.append(par.key)
+            if self.cfg.nc_r3:   # R3: an entry derived from a derived entry inherits the root parents
+                must_beat += [k for k in self._lineage(ts, ch.key)[1:] if k in results and k not in must_beat]
+            comp_txt = ""
             for pk in must_beat:
-                pse = SC.paired_se(results[ch.key], results[pk], seed)
+                if self.cfg.nc_r1:
+                    pse, cse = SC.paired_se_parts(results[ch.key], results[pk], seed)
+                    cgain = SC.score_items(results[ch.key]).competence - SC.score_items(results[pk]).competence
+                    if cgain < max(TWIN_COMP_FLOOR, M.SE_MULTIPLE * cse):
+                        parent_ok = False
+                        comp_txt = f"; does not beat {pk[:12]} on competence ({cgain:+.2f})"
+                    ch.history.append({"draw": draw_id, "kind": "comp_gate", "vs": pk, "comp_gain": round(cgain, 4), "comp_se": round(cse, 4)})
+                else:
+                    pse = SC.paired_se(results[ch.key], results[pk], seed)
                 gain_p = total[ch.key] - total[pk]
                 parent_gain = gain_p if parent_gain is None else min(parent_gain, gain_p)
                 parent_ok = parent_ok and gain_p >= M.required_margin(pse)
-            parent_txt = "" if parent_ok else f"; does not beat its parent ({parent_gain:+.2f})"
+            parent_txt = "" if parent_ok else f"; does not beat its parent ({parent_gain:+.2f})" + comp_txt
+            if self.cfg.nc_near_champ and current is not None and inc_items is not None and gain is not None:
+                near = self._near_champ(ch, current, (paths or {}).get(ch.key, ""))
+                if near is None:
+                    ch.history.append({"draw": draw_id, "kind": "near_champ", "vs": current.key, "comparable": False})
+                elif self._is_near(near):
+                    n_ch = sum(it.valid and it.top_hit for it in results[ch.key])
+                    n_inc = sum(it.valid and it.top_hit for it in inc_items)
+                    need = max(M.required_margin(se), NEAR_CHAMP_FLOOR)
+                    near_ok = n_ch > n_inc and gain >= need
+                    ch.history.append({"draw": draw_id, "kind": "near_champ", "vs": current.key, "cos": round(near.cosine, 4),
+                                       "rel": round(near.relative_l2, 4), "alpha": round(near.alpha, 4), "correct": n_ch, "inc_correct": n_inc,
+                                       "gain": gain, "need": need, "ok": near_ok})
+                    if not near_ok:
+                        parent_ok = False
+                        parent_txt += (f"; close to the champion's weights (cos {near.cosine:.3f}, rel {near.relative_l2:.3f}): "
+                                       f"needs more items right ({n_ch} vs {n_inc}) and a gain of {need:.2f} ({gain:+.2f})")
             if not confirm_mode:
                 fp = M.first_pass(ch.score, inc_total, se, entry_floor=self._entry_floor(tdef))
                 row = {"draw": draw_id, "kind": "first", "score": ch.score, "incumbent": inc_total, "gain": fp.gain, "delta": fp.delta,
@@ -2127,8 +2330,18 @@ class SpecEvaluator:
             must_beat = [k for k in twins.get(s.key, ()) if k in results]
             if s.derived_from in results and s.derived_from not in must_beat:
                 must_beat.append(s.derived_from)
-            short = [k for k in must_beat
-                     if total[s.key] - total[k] < M.required_margin(SC.paired_se(results[s.key], results[k], seed))]
+            if self.cfg.nc_r3:
+                must_beat += [k for k in self._lineage(ts, s.key)[1:] if k in results and k not in must_beat]
+            if self.cfg.nc_r1:
+                short = []
+                for k in must_beat:
+                    pse, cse = SC.paired_se_parts(results[s.key], results[k], seed)
+                    cgain = SC.score_items(results[s.key]).competence - SC.score_items(results[k]).competence
+                    if total[s.key] - total[k] < M.required_margin(pse) or cgain < max(TWIN_COMP_FLOOR, M.SE_MULTIPLE * cse):
+                        short.append(k)
+            else:
+                short = [k for k in must_beat
+                         if total[s.key] - total[k] < M.required_margin(SC.paired_se(results[s.key], results[k], seed))]
             if short:
                 ts.log(now, f"{s.key[:12]} not crowned: does not beat {short[0][:12]} by the full margin on the playoff draw")
                 continue

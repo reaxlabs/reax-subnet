@@ -1,0 +1,4870 @@
+{
+  "autotune_entries": {
+    "003c65c880e3df4b7354442bd4246c0b": {
+      "autotune_key": [
+        128,
+        75,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "004ab271b09227fd3c88b99ddb209607": {
+      "autotune_key": [
+        128,
+        101,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "0071d83e2db8c9148c0f03ee34b8d71e": {
+      "autotune_key": [
+        128,
+        56,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "02e6e8517e527840af546cdb42334ac4": {
+      "autotune_key": [
+        128,
+        49,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "0553f601a2801216a8606855a4189c42": {
+      "autotune_key": [
+        128,
+        106,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "05ba6bed06ca9e25cc2ad25303c0e349": {
+      "autotune_key": [
+        128,
+        145,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "0a70d11a9402d4294dd3d591a00a8ff4": {
+      "autotune_key": [
+        128,
+        126,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "0bc19354dd96c84cf9339134d2a17081": {
+      "autotune_key": [
+        128,
+        59,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "0c1a9f37f92dd13c7ab87fc3a7322ced": {
+      "autotune_key": [
+        128,
+        159,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "0c8e72bf6b5af34c0b5f9546d4eb2ef1": {
+      "autotune_key": [
+        128,
+        143,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "0d937513d7f7b28ade5a0c3fecda0a6d": {
+      "autotune_key": [
+        128,
+        97,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "0ec2458de3d3bf4b5033da1f2fc2f87a": {
+      "autotune_key": [
+        128,
+        84,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "0ed860463781512adc58b9e12b510df4": {
+      "autotune_key": [
+        128,
+        237,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "0f46c3a503133bba9c70842a005f3daf": {
+      "autotune_key": [
+        128,
+        44,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "11717144c86e7031206b08a5c0e52932": {
+      "autotune_key": [
+        128,
+        181,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "117b3740095e75df7d80052c39667594": {
+      "autotune_key": [
+        128,
+        83,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "11d01f6028dd98637dc2555b0218cbf1": {
+      "autotune_key": [
+        128,
+        187,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "1209d8c95c15dc8b5a92b797bd3dc35f": {
+      "autotune_key": [
+        128,
+        73,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "13af1432d6f53484e9bad6b46bf2438c": {
+      "autotune_key": [
+        128,
+        186,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "157376310735556f015b8ac2dc6e9e2e": {
+      "autotune_key": [
+        128,
+        19,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "157d95e9a7e0fe1131bd1aac14ec22d4": {
+      "autotune_key": [
+        128,
+        183,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "159e2eca745ded159c8be7aa641ecbea": {
+      "autotune_key": [
+        128,
+        182,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "16b2e303f57d8a9eed330747e9f47ac8": {
+      "autotune_key": [
+        128,
+        205,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "18be402f2eaea1d80853034453c49aa7": {
+      "autotune_key": [
+        128,
+        180,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "192bb430a13bdcf4d4d7c983f17704c8": {
+      "autotune_key": [
+        128,
+        74,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "1b96f1802f4f63f5c872de3d1972ad8a": {
+      "autotune_key": [
+        128,
+        29,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "1bd3514896412db3f4e5d33947898dc4": {
+      "autotune_key": [
+        128,
+        163,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "1f96eed392823fbd24728f063ba11c51": {
+      "autotune_key": [
+        128,
+        161,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "1fad3c0c704c171d8706f2d67c1f306e": {
+      "autotune_key": [
+        128,
+        255,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "21250b9a7c2ab6e9f43836e699c1ecb3": {
+      "autotune_key": [
+        128,
+        179,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "22f206d114621049e3210e1ed7cd1e7c": {
+      "autotune_key": [
+        128,
+        141,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "24693204b64df216494e2948ce57bfcd": {
+      "autotune_key": [
+        128,
+        231,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "246bcd09bb9fab2a10dccb3785664a3e": {
+      "autotune_key": [
+        128,
+        63,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "259a20948e5dee0f8046f0223f897c95": {
+      "autotune_key": [
+        128,
+        46,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "26ff6db9448cafd3c7f492ae07031b32": {
+      "autotune_key": [
+        128,
+        36,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "283cb158cfc20fb9ced3e639f01e51bc": {
+      "autotune_key": [
+        128,
+        107,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "28cf0ca62a9f7e0b9355894cf58b313f": {
+      "autotune_key": [
+        128,
+        230,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "29fc9254fece1d494126496590cbf014": {
+      "autotune_key": [
+        128,
+        160,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "2a9694c970bc58be7b92008f424e3028": {
+      "autotune_key": [
+        128,
+        167,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "2b3f5a9a7cf8ba651f80452eab5cc450": {
+      "autotune_key": [
+        128,
+        151,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "2bbb09d5f92f69dcfcf9d2f01512837a": {
+      "autotune_key": [
+        128,
+        123,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "2ce7d874a814694b43550e5d3bf554bb": {
+      "autotune_key": [
+        128,
+        64,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "2e909440450b7065307446beb6b6f9d2": {
+      "autotune_key": [
+        128,
+        174,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "31f69d72bb2ebd6e18f453b63be79db4": {
+      "autotune_key": [
+        128,
+        119,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "3337731ee71bf642f56a748ea1aab501": {
+      "autotune_key": [
+        128,
+        38,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "346a22b5ab96d7fc92b6c54fd183bb23": {
+      "autotune_key": [
+        128,
+        196,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "3473f8f4492e4580a9568a2ce4e67366": {
+      "autotune_key": [
+        128,
+        232,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "3527d130e8f6f1415c6d24df9821e638": {
+      "autotune_key": [
+        128,
+        10,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "38a91cdec6afb45c9d24e1017e1d21d1": {
+      "autotune_key": [
+        128,
+        200,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "3926ee4fc54587837ae9fc47c4fd0ff4": {
+      "autotune_key": [
+        128,
+        108,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "3a538f19f0c1d635c3352581ed8e8da2": {
+      "autotune_key": [
+        128,
+        154,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "3be3d085fc56263dc9d29f2d4de79368": {
+      "autotune_key": [
+        128,
+        117,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "3cfb2753abd30a1471fb991cddbae620": {
+      "autotune_key": [
+        128,
+        146,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "3d8e80fe1ed67302faf332d17d0ac1a1": {
+      "autotune_key": [
+        128,
+        247,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "3f2cd7a3a429540e08f0e4dd8ac9afc5": {
+      "autotune_key": [
+        128,
+        26,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "424d41ef00a3161badd7f960c34e6ece": {
+      "autotune_key": [
+        128,
+        4,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "42fb8d400ac3c8a64dac55f3dd03e585": {
+      "autotune_key": [
+        128,
+        122,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "439d493be8fe1159bd65368245a4aa60": {
+      "autotune_key": [
+        128,
+        31,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "43c0f2010bbbb5bb5d85a3cb5c3601fe": {
+      "autotune_key": [
+        128,
+        138,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4428efed4dad8b48293a1e8f871eba4b": {
+      "autotune_key": [
+        128,
+        207,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "442b82c901f3da27922fd54380bc54ba": {
+      "autotune_key": [
+        128,
+        225,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "49e16fa1a715a8913c54c4ff9ce61aa9": {
+      "autotune_key": [
+        128,
+        24,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "49feda728414835e54048468abd808ab": {
+      "autotune_key": [
+        128,
+        21,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4a144fe687b74957073ebd146c9514a3": {
+      "autotune_key": [
+        128,
+        103,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4a1e971d03f47ae1e4a664990a098af0": {
+      "autotune_key": [
+        128,
+        233,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4a7dcf09fb6c9ef96fd5a843bc3cce5c": {
+      "autotune_key": [
+        128,
+        220,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4ac4f7764d2db5fbbdfc630c9e959354": {
+      "autotune_key": [
+        128,
+        131,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4bee2c7d4edf63b54f8d019f76a3c980": {
+      "autotune_key": [
+        128,
+        201,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4c0d7bbb514b06b0b1791a1cb982f8f6": {
+      "autotune_key": [
+        128,
+        140,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4ceb13904f4fc2954d29fbca5409758d": {
+      "autotune_key": [
+        128,
+        156,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4d73cda20cb0ac293413b185064ab882": {
+      "autotune_key": [
+        128,
+        251,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4d74ed783a418e402891da7308a58d85": {
+      "autotune_key": [
+        128,
+        158,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4efbaf2abd2b6074a683e249b1d0f042": {
+      "autotune_key": [
+        128,
+        212,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4f41780653c057abb4ebdbed7329a633": {
+      "autotune_key": [
+        128,
+        77,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4f7d00ab9063f086ce36b50b35a81f98": {
+      "autotune_key": [
+        128,
+        48,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "4fd03afe5e70034874bfa5c8ea9d29af": {
+      "autotune_key": [
+        128,
+        81,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "51fe7ec9f2b070e3aad43b4878b603e0": {
+      "autotune_key": [
+        128,
+        169,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5275b27f8c2d85216353b560215794d2": {
+      "autotune_key": [
+        128,
+        87,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "52b94bc7f6e66d688376ab03f41f5011": {
+      "autotune_key": [
+        128,
+        125,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "537e2c0bafde3680c8e3465f1fb234de": {
+      "autotune_key": [
+        128,
+        132,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "553860b3206072a8cf6ed8c5ae85afe2": {
+      "autotune_key": [
+        128,
+        35,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "56207f6a70b4fa9fb114a68cd9320797": {
+      "autotune_key": [
+        128,
+        204,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "56404f494b5af6bbbd6215f874750099": {
+      "autotune_key": [
+        128,
+        94,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "57f93c08735118a0b07e796268d8e680": {
+      "autotune_key": [
+        128,
+        51,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "591ced9f0b071d7d5a741d78aa40e3af": {
+      "autotune_key": [
+        128,
+        34,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5958b9b17508b374855eb42ae8c49988": {
+      "autotune_key": [
+        128,
+        113,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "59aca09093720a53438f9739db0fb57d": {
+      "autotune_key": [
+        128,
+        99,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "59e2453d4d086ca07ff70ef5a9ee77f1": {
+      "autotune_key": [
+        128,
+        221,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "59f2c037b63600b752fc7c78bdf529c4": {
+      "autotune_key": [
+        128,
+        216,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5a150e6b0fe064390c1274548b7c0ecd": {
+      "autotune_key": [
+        128,
+        55,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5a4752850ca5c91f52e3f4789fbced63": {
+      "autotune_key": [
+        128,
+        184,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5c1b951d672df1d2fe0fef14028ace80": {
+      "autotune_key": [
+        128,
+        193,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5c34da91e0b5f5ce1a4a0d011eab0c21": {
+      "autotune_key": [
+        128,
+        254,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5e2749ef127e996df5416ed7e424a288": {
+      "autotune_key": [
+        128,
+        95,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5e9a18e5eabe17529ed1356e8059321d": {
+      "autotune_key": [
+        128,
+        239,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5f2765bb54e35dda53e344c76a167c6c": {
+      "autotune_key": [
+        128,
+        208,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5f3774481291d5dbe8025110bf5cdfff": {
+      "autotune_key": [
+        128,
+        121,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "5fa500477075f4cf0d3e50466ce029aa": {
+      "autotune_key": [
+        128,
+        128,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6003bee20af205e16410f1983eadd67c": {
+      "autotune_key": [
+        128,
+        17,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "610c52b77ba699f945528f3fb4e34755": {
+      "autotune_key": [
+        128,
+        69,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "62afda906d664f7f33c38ccbdf017c29": {
+      "autotune_key": [
+        128,
+        118,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "630cbe37fffa85e4d29c7c68f3cd64de": {
+      "autotune_key": [
+        128,
+        222,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "663b124e4f551a62e2fc9c58e2d24d48": {
+      "autotune_key": [
+        128,
+        88,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6875efb4622c2bdf224393e772310d88": {
+      "autotune_key": [
+        128,
+        219,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "68c25491b32ce640bfa9532aad1e131c": {
+      "autotune_key": [
+        128,
+        41,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "69b8739aa7091ce08292806a279691a2": {
+      "autotune_key": [
+        128,
+        210,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6a5149de5c37304e620a00cbad6bdec7": {
+      "autotune_key": [
+        128,
+        61,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6b419788330d3468ef22dc741ec9d7f7": {
+      "autotune_key": [
+        128,
+        22,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6bc2b57d9035425140554c225e667aad": {
+      "autotune_key": [
+        128,
+        5,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6c73553ddf5bf80c7d7291b5e12a49c3": {
+      "autotune_key": [
+        128,
+        192,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6ca809c36b8b4cda5731f4d5d0f5fd17": {
+      "autotune_key": [
+        128,
+        60,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6e237838a5c353409b986cd7f159a904": {
+      "autotune_key": [
+        128,
+        111,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6e567ba2dfe438455a6322896ae9ad13": {
+      "autotune_key": [
+        128,
+        209,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6ea3dd05615c8f2d055eb375165c0c29": {
+      "autotune_key": [
+        128,
+        250,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "6eb1c7f656989cb032264addfc114579": {
+      "autotune_key": [
+        128,
+        188,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "704c252760953816f759fa4db556107f": {
+      "autotune_key": [
+        128,
+        195,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "709a8b786b5a297fde5fee6ad82b3450": {
+      "autotune_key": [
+        128,
+        217,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "726a02abd4e042417de1487896e70ccb": {
+      "autotune_key": [
+        128,
+        211,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "729cb4dc4ded91c7f49b1c01f3aea2dc": {
+      "autotune_key": [
+        128,
+        71,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "731c17ac89fb7ca57733e0c6092c1f8f": {
+      "autotune_key": [
+        128,
+        139,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "746ed43b2263807628353da8811c0294": {
+      "autotune_key": [
+        128,
+        189,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "74c778ba5a8785ba9853346a4e82d44c": {
+      "autotune_key": [
+        128,
+        149,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "74db28b09196fa0a5e06b6749381bde2": {
+      "autotune_key": [
+        128,
+        70,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "75d2313169c8237007be01ed6d14826b": {
+      "autotune_key": [
+        128,
+        68,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "766f5d85181a50242cad4c146de165db": {
+      "autotune_key": [
+        128,
+        190,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "76b452461e49b8c905537ba169705cec": {
+      "autotune_key": [
+        128,
+        177,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "770e1608665016c224765e429c0463f6": {
+      "autotune_key": [
+        128,
+        148,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "771587ca44446421bd72bab56689ca71": {
+      "autotune_key": [
+        128,
+        150,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "784f3159cc2cd43031692c34f0ce7926": {
+      "autotune_key": [
+        128,
+        76,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "78700431e71acda14b7df078e204ce18": {
+      "autotune_key": [
+        128,
+        102,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "79d0f1e8fa7ea16700cf39e36d152bde": {
+      "autotune_key": [
+        128,
+        213,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "7a34caee5a2dd02586a76647d53b0747": {
+      "autotune_key": [
+        128,
+        85,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "7af8df8557838d60b7a9673c75d48402": {
+      "autotune_key": [
+        128,
+        229,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "7bf76d12f90b95bbddff57fbc8fe3c39": {
+      "autotune_key": [
+        128,
+        25,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "7c5f103b55aea3b24307e4bd11e77407": {
+      "autotune_key": [
+        128,
+        215,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "7c6a5d20e4c3ff7e6971db3725e4bb6f": {
+      "autotune_key": [
+        128,
+        54,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "7d8b054d0f383d0da5149aba61550aea": {
+      "autotune_key": [
+        128,
+        67,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "7e2d02ce45e4f072828b4c73e16fe0af": {
+      "autotune_key": [
+        128,
+        3,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "7f5ac7b40f3148a2a37d2ab6bd63b657": {
+      "autotune_key": [
+        128,
+        171,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "801422dba59f6c5e144328aabdd135a3": {
+      "autotune_key": [
+        128,
+        32,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "801afd1319f696a807f661dc0716dfe5": {
+      "autotune_key": [
+        128,
+        96,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "8050c4b753748cf6d1f947264733bfbb": {
+      "autotune_key": [
+        128,
+        52,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "82287942189f2bff9e65da47eadc5abd": {
+      "autotune_key": [
+        128,
+        241,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "83324d47936ca4e72d4812908f9abaa8": {
+      "autotune_key": [
+        128,
+        100,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "835985cdcc0536e098e5197e37eadf69": {
+      "autotune_key": [
+        128,
+        155,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "837afa436bfab6256a535e9360403f34": {
+      "autotune_key": [
+        128,
+        27,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "83b2ac835d574b6370cadb10c16d1fe4": {
+      "autotune_key": [
+        128,
+        153,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "849b9637dbe12b3d0b769d7ad02be37d": {
+      "autotune_key": [
+        128,
+        218,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "878a9638751a7375a0fb15d3a7767659": {
+      "autotune_key": [
+        128,
+        1,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 8
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 1
+      }
+    },
+    "87c993ac4858bff6042f319bec1647f7": {
+      "autotune_key": [
+        128,
+        8,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "8827081d0dda52c9376b3a1d97a82a8e": {
+      "autotune_key": [
+        128,
+        23,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "891bbda270d1b2c9f77a0738076d1b4d": {
+      "autotune_key": [
+        128,
+        164,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "89357537f224e825a7367418329c21d0": {
+      "autotune_key": [
+        128,
+        93,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "89575fb6a560e60b36a863836d7a3a51": {
+      "autotune_key": [
+        128,
+        234,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "89d2cb2e8a818ce3ecb80bd340ba42b6": {
+      "autotune_key": [
+        128,
+        18,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "8b2df20a903c02bd41a85a949a6fda39": {
+      "autotune_key": [
+        128,
+        252,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "8b3c06b704734063681b4cc40954bee3": {
+      "autotune_key": [
+        128,
+        147,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "8bbc77ce411e1e4fee00b5e669811c38": {
+      "autotune_key": [
+        128,
+        202,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "8d57f13f12c45317341a79c99340b69d": {
+      "autotune_key": [
+        128,
+        136,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "8ed4ce6068f4a0e82abf2028ee0ffa96": {
+      "autotune_key": [
+        128,
+        98,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "8f9ff793f01ed7af1a0014ebbe57e3cb": {
+      "autotune_key": [
+        128,
+        198,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "90856c5272d2c52eaaa08e7fd52f637e": {
+      "autotune_key": [
+        128,
+        135,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "91b9289c43a2d1b21042009d44c57b8a": {
+      "autotune_key": [
+        128,
+        6,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "9488e7193a5617559c749203e748c4da": {
+      "autotune_key": [
+        128,
+        235,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "96810bdcfe6785d881ca876930fd7d95": {
+      "autotune_key": [
+        128,
+        116,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "992587f54757c07fda5e3844a26f4ddf": {
+      "autotune_key": [
+        128,
+        105,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "9ac8d780bbc21e440db45dd602e2e95d": {
+      "autotune_key": [
+        128,
+        236,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "9ae92768302c83f017d563633d61eed3": {
+      "autotune_key": [
+        128,
+        89,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "9cc82ae9899fa51df88a668743d9f880": {
+      "autotune_key": [
+        128,
+        90,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "9de3fa8308d56a9254068efeffd6e70f": {
+      "autotune_key": [
+        128,
+        157,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "9e266deacc41bcc37bf28015f301ef76": {
+      "autotune_key": [
+        128,
+        175,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "9ee82943567a0023bb874b7ded27cff8": {
+      "autotune_key": [
+        128,
+        80,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "a10453829fb545fd2e01acfb4a809d17": {
+      "autotune_key": [
+        128,
+        13,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "a15a63f2e32ee7c25de80663af0e6c0a": {
+      "autotune_key": [
+        128,
+        66,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "a2c9d6cf96c29ebed795632c6c98417b": {
+      "autotune_key": [
+        128,
+        42,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "a4e45a1f65f05374fa8d96ff189976f9": {
+      "autotune_key": [
+        128,
+        242,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "a7f6ccea7ca30d91f1f53ac8d0f5371b": {
+      "autotune_key": [
+        128,
+        253,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "a861ef4f9c46f2f2787e9b701699be44": {
+      "autotune_key": [
+        128,
+        245,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "ab079566edd7fa22e0127e2484b882ab": {
+      "autotune_key": [
+        128,
+        47,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "ab5448074343fa23fddacb934d5fb412": {
+      "autotune_key": [
+        128,
+        92,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "abf6507f172a593490ceb0a72f286193": {
+      "autotune_key": [
+        128,
+        114,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "aec76b66508d5e884ffcc743e8f55a92": {
+      "autotune_key": [
+        128,
+        30,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "af31bd0f02169a4c9d892636e9e273f3": {
+      "autotune_key": [
+        128,
+        185,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "b057d3ecaa3079088875d7456bea89a9": {
+      "autotune_key": [
+        128,
+        162,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "b255a2a5ed6b28328a6c7cf1fbed07c2": {
+      "autotune_key": [
+        128,
+        112,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "b35c6bfa2cd85845ba58306ee63e28b1": {
+      "autotune_key": [
+        128,
+        9,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "b4b4ed9dccb4dd3c339c85409aaeda5d": {
+      "autotune_key": [
+        128,
+        40,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "b64090a85e13119b2b9d6da44b47fb1e": {
+      "autotune_key": [
+        128,
+        33,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "b71305f6244240cbdda73e34bf6e8463": {
+      "autotune_key": [
+        128,
+        243,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "b751f035bb7b81dfad5d0be314c1bcd9": {
+      "autotune_key": [
+        128,
+        166,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "b77913d90a7aad750fac231457305346": {
+      "autotune_key": [
+        128,
+        130,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "b9242e87bec344028398165e552af8a7": {
+      "autotune_key": [
+        128,
+        197,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "b9fe7892640acbc5536d405bc0e68a6a": {
+      "autotune_key": [
+        128,
+        133,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "bd8734e29b9704051fe467ede8e8cc03": {
+      "autotune_key": [
+        128,
+        14,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "bdf7e7a7efa2e6ceb1f809824df28cf8": {
+      "autotune_key": [
+        128,
+        224,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "bfc83c922d6dc27a3ce9b85ce7a05401": {
+      "autotune_key": [
+        128,
+        86,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "bff0e15707afbb300092c8b143771ffa": {
+      "autotune_key": [
+        128,
+        223,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "c004fefe9cf7b56746836048a2ceef38": {
+      "autotune_key": [
+        128,
+        129,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "c30956688856246a04fa23b308d8faed": {
+      "autotune_key": [
+        128,
+        127,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "c39c159634377c459eccde8a272f74fe": {
+      "autotune_key": [
+        128,
+        12,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "c4bd829813f0f68fd930963167000d56": {
+      "autotune_key": [
+        128,
+        227,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "c6845cfadefbc0ff785b367823715459": {
+      "autotune_key": [
+        128,
+        172,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "c74a0b7dcfd45664a52931c5ff99f3d0": {
+      "autotune_key": [
+        128,
+        240,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "c88df048b3591171c5cce4ac9d3257c5": {
+      "autotune_key": [
+        128,
+        79,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "c903661fbe95a29dee6d112c3f436e1b": {
+      "autotune_key": [
+        128,
+        191,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "ca0063adb2e2388726e8ea1d74805063": {
+      "autotune_key": [
+        128,
+        249,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "cb55a9c75b5e190b607bbbcf10d499df": {
+      "autotune_key": [
+        128,
+        170,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "ccba1265fd4fbbddd80167b9b050a4c9": {
+      "autotune_key": [
+        128,
+        110,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "ce5b3f1096b05f0c9c1e9e7296dfeac4": {
+      "autotune_key": [
+        128,
+        142,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "d333692f40dda21d857d1740bf22154e": {
+      "autotune_key": [
+        128,
+        226,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "d4e411f29afbb396dcfe1455427e5178": {
+      "autotune_key": [
+        128,
+        28,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "d522f744092358110c9ad2cc5f54b501": {
+      "autotune_key": [
+        128,
+        16,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "d5d06ef098eeacb8f4b45108c02e8696": {
+      "autotune_key": [
+        128,
+        178,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "d5d40be2025ed11198418892288d5652": {
+      "autotune_key": [
+        128,
+        57,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "d5ffd2f70a70e13ac03901bd22a150a7": {
+      "autotune_key": [
+        128,
+        15,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "d64c1e9286cf2fca5455c05aa0e69bef": {
+      "autotune_key": [
+        128,
+        43,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "d6adeaf1e5fd951a7bfda89e157b7547": {
+      "autotune_key": [
+        128,
+        91,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "d70afc9c1fe4a386a1ca8777ab49d932": {
+      "autotune_key": [
+        128,
+        50,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "dbaaf0399e2aae7951b56d9edfd4451b": {
+      "autotune_key": [
+        128,
+        45,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "dc81b586aa0c0469e808bf24cd51c0f2": {
+      "autotune_key": [
+        128,
+        165,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "dd9861b0d1f3ba743b8d5bf5f4dd7c35": {
+      "autotune_key": [
+        128,
+        109,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "de06293f9b9bc51247734636346f23a8": {
+      "autotune_key": [
+        128,
+        58,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "df6e90d663c80685e8ae05fce928ad31": {
+      "autotune_key": [
+        128,
+        78,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "e06cac1c40117e4aec43f4b21eb4c27a": {
+      "autotune_key": [
+        128,
+        120,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "e183642558ea6e247bf7568c194c657c": {
+      "autotune_key": [
+        128,
+        244,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "e19965e082b861f637bf4bab6abe025b": {
+      "autotune_key": [
+        128,
+        20,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "e310af42191cc40baf20ec461f8d7fdd": {
+      "autotune_key": [
+        128,
+        206,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "e3749e567cc906ffbc037ceb1046e893": {
+      "autotune_key": [
+        128,
+        104,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "e4c4d377cc46546ebca2c4d25ed6a8d2": {
+      "autotune_key": [
+        128,
+        214,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "e68c06f9c83ea7e1fb09142d9edc82f5": {
+      "autotune_key": [
+        128,
+        199,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "e77d8742c709dcecf86b878ad780896b": {
+      "autotune_key": [
+        128,
+        115,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "ea014bd555260b9d2dd26526d5b52b06": {
+      "autotune_key": [
+        128,
+        176,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "eadca55e5be25288c8e751b793ad159e": {
+      "autotune_key": [
+        128,
+        62,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "eca743e0790be43b6867d648e9430f67": {
+      "autotune_key": [
+        128,
+        2,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 32
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 8
+      }
+    },
+    "ed00e272befcee0576474ca56719baf6": {
+      "autotune_key": [
+        128,
+        228,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "ed3d3025494235783678caea5e2528c6": {
+      "autotune_key": [
+        128,
+        144,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "ee869a7e2b1870e82eeda559f4fe7cfc": {
+      "autotune_key": [
+        128,
+        248,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f1645565d54735168e7f76645deba955": {
+      "autotune_key": [
+        128,
+        65,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f17f0c9515d8f9a03a230f9b6303955c": {
+      "autotune_key": [
+        128,
+        134,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f1ae59a73fb2446251208159a4d87998": {
+      "autotune_key": [
+        128,
+        256,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f1ee24b103a13943dea9a285721e134f": {
+      "autotune_key": [
+        128,
+        238,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f2544498bea196ef6cf48cc1fbb6d0ed": {
+      "autotune_key": [
+        128,
+        246,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f3cfac5c0e43a816990d90f47b895723": {
+      "autotune_key": [
+        128,
+        203,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f3d683e6f8db68193220df420e0db826": {
+      "autotune_key": [
+        128,
+        168,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f44702dfc86a96df1de10439f5c5575a": {
+      "autotune_key": [
+        128,
+        7,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f67948a8216d01d8be93e4427f4b6d88": {
+      "autotune_key": [
+        128,
+        53,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f6d620c0ab21e69ac643d3e42b0342e9": {
+      "autotune_key": [
+        128,
+        137,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f769727bf5b0c822a6a2cedc875ae35c": {
+      "autotune_key": [
+        128,
+        173,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f7ffe68dc60d005e3ff2ae1f37b2ed4c": {
+      "autotune_key": [
+        128,
+        72,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "f908eca8dde0cceea0b32004c948b9ca": {
+      "autotune_key": [
+        128,
+        82,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "fb21b54e9e2a684be948f2763030907f": {
+      "autotune_key": [
+        128,
+        124,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "fb66f24d6d8a81ecf6a0a0e4e1f593a7": {
+      "autotune_key": [
+        128,
+        37,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "fc613db432ecc2c79054a5ebb0b0f104": {
+      "autotune_key": [
+        128,
+        39,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "fe2e43a7c21c6a4814d2636f3004d7dc": {
+      "autotune_key": [
+        128,
+        11,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "fefcd62f38be0f148a6654466ef4a2b3": {
+      "autotune_key": [
+        128,
+        152,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    },
+    "ffad7ca052d7e4019173dcafe9e13020": {
+      "autotune_key": [
+        128,
+        194,
+        "torch.bfloat16",
+        "torch.bfloat16",
+        "torch.float32"
+      ],
+      "config": {
+        "ir_override": null,
+        "kwargs": {
+          "BT": 16
+        },
+        "maxnreg": null,
+        "num_ctas": 1,
+        "num_stages": 3,
+        "num_warps": 4
+      }
+    }
+  },
+  "kernel_name": "l2norm_fwd_kernel",
+  "triton_version": "3.7.1"
+}

@@ -101,7 +101,7 @@ them. Items never repeat inside the timed runs, so a legitimate exact-match cach
 | Pull from an internal address / huge images | registry allowlist, manifest size cap (15 GB compressed) before the pull, pull timeout, image removed after the evaluation and on every failure path | unit tests |
 | Rebuild the champion with a trivial change | must beat the champion by the 3 % margin | local: `c_ref`, `c_tiny` |
 | Lucky measurement (winner's curse) | the title changes only after a second, fresh session (new containers, new secret items; it may follow the first in the same cycle) also clears the bar; it is held at the lower score, and the champion's own score is held at the minimum of its measurements, so a lucky re-measurement cannot raise the bar | unit tests, local chain |
-| Engine that degrades after winning | the champion is re-measured whenever it is challenged; a failed re-measurement vacates the title | unit tests |
+| Engine that degrades after winning | the champion is re-measured whenever it is challenged; two consecutive invalid measurement sessions vacate the title; the first triggers a re-check | unit tests |
 | Escape from the container | no network, no capabilities, read-only, pids/memory caps, optional gVisor; the docker socket lives only in the competition worker, which holds no wallet or token (COMPETITIONS.md, "Where the competitions run") | review item (section 8) |
 
 ## 5. Who wins
@@ -160,8 +160,10 @@ The split between serving and the competitions is defined once in [COMPETITIONS.
    with all runtimes up and one `reax-engine-eval` run.
 4. Testnet run with at least two independent validators to confirm they agree on the champion.
 5. Release: version bump, release notes, miner docs, and a short public page ("make the REAX Engine faster").
-6. Licence condition for submissions (winners' source must be published under Apache-2.0 before a merge into the
-   reference runtime); the payout itself does not require a merge.
+6. Licence condition for submissions: entrants license their changes to the licensor of the REAX Engine (the REAX
+   Engine License 1.0 grants this on submission); the REAX parts stay under the REAX Engine License, and versions released
+   before the licence change stay Apache-2.0. A winner's change may be merged into the reference runtime under these terms;
+   the payout itself does not require a merge.
 
 ### Open items from the code review (not fixed on the branch)
 
@@ -178,3 +180,131 @@ The split between serving and the competitions is defined once in [COMPETITIONS.
 - Track `pplx-27b` for the 27B REAX Engine (96 GB GPUs; the reference = current reax-engine FP8 build).
 - Adopting a champion as the new reference runtime (new manifest; serving miners switch).
 - A signed public scoreboard per validator (helps miners and audits).
+
+
+## Reference determinism release gate
+
+Every Docker engine (reference and candidate, including the separate worker and CLI)
+receives `FLA_CACHE_MODE=strict` and `FLA_CONFIG_DIR=/opt/reax/fla-configs/<GPU-class-directory>`.
+`engconfigs.GPU_CONFIG_DIRS` maps the exact `nvidia-smi --query-gpu=name` value to a
+directory; `PUBLISHED_GPU_CLASSES` admits only classes with published, measured configs.
+Unknown/unpublished hardware produces a logged, persisted `session_void` event before
+containers start.
+
+**What is pinned.** One class is published: `NVIDIA RTX PRO 6000 Blackwell Server Edition`
+(`runtimes/s1-fast/fla-configs/rtx-pro-6000-blackwell-server/`: six kernel config files,
+`_meta.json`, `SHA256SUMS`, provenance in the README). They were measured on an idle GPU of that
+class with the reference image `ghcr.io/reaxlabs/reax-engine-s1-fast@sha256:9bd41632e33bd90377f7e29bdb9410b18cfe1fb557200160b9ebe9222abcecea`
+(fla 0.5.2, Triton 3.7.1). `engconfigs.PINNED_CONFIG_MANIFEST_SHA256` pins the hash of `SHA256SUMS`,
+which pins every file. The Workstation Edition has no configs and stays VOID.
+
+**How they reach the engines.** The reference image ships no configs and its entrypoint
+does not call `engfla`; strict mode is read by the fla library inside the image itself
+(`fla.ops.utils.cache`: exact key match, `FLA_CONFIG_DIR/<kernel>.json`). The runner therefore
+bind-mounts the directory read-only at the `FLA_CONFIG_DIR` path into **every** engine container
+(reference and candidate: identical files, nothing for a miner to ship or tamper with; the root
+filesystem stays read-only). The host directory is `runtimes/s1-fast/fla-configs` of the validator's
+checkout, or `REAX_ENGINE_FLA_CONFIG_ROOT`. Before every session `engconfigs.verify_published_configs`
+checks `SHA256SUMS` against the pin, every file against `SHA256SUMS`, no extra/missing/symlinked files;
+any mismatch makes the session VOID (no result, score, strike or attempt).
+
+**Coverage caveat.** Only the six kernels decorated with `@fla_cache_autotune` consume the pins
+(`chunk_local_cumsum_scalar_kernel`, `l2norm_fwd_kernel`, `chunk_gated_delta_rule_fwd_kernel_h_blockdim64`,
+`chunk_fwd_kernel_o`, `recompute_w_u_fwd_kernel`, `chunk_gated_delta_rule_fwd_kkt_solve_kernel`; seven
+measured autotune keys). `l2norm_fwd_kernel` is additionally pinned for every row bucket NB 3-256 (up to
+16.7M rows) to BT=16/num_warps=4, the config the reference engine forces itself, because some of its
+configs round differently (a minority bit-class) and a candidate without its own pin would otherwise
+autotune it for large prefill calls. Of ~196 fla autotuners only these ran in the measured 2k-item workload; plain
+`@triton.autotune` kernels would still autotune at runtime if a workload reached them. Strict mode
+also falls back to timing autotune on an exact-key miss: `engfla.require_fla_configs` (which forbids
+that) is not part of image 9bd41632, so a candidate using other shapes can autotune. The
+repeatability self-check below and the reference comparisons are the guards for that.
+
+**Reproducing.** Miners run their engine with the same `-e FLA_CACHE_MODE=strict -e
+FLA_CONFIG_DIR=/opt/reax/fla-configs/rtx-pro-6000-blackwell-server` and
+`-v <checkout>/runtimes/s1-fast/fla-configs/rtx-pro-6000-blackwell-server:/opt/reax/fla-configs/rtx-pro-6000-blackwell-server:ro`
+on a Server Edition GPU, after `sha256sum -c SHA256SUMS` in that directory. Serving runtimes built from
+`runtimes/s1-fast/Dockerfile` also contain the directory and the `engfla` wrapper.
+
+Before the candidate is loaded, each session repeats the same public seeded check set
+(seed `0x52454158`, `timed_items` items) twice on the reference, using the existing
+mean/item distance and top-choice correctness gates. Missing answers or a failing
+self-comparison make the session VOID: no result, score, miner strike or infrastructure
+attempt is recorded; a `session_void` history event survives worker restarts. This is a
+repeatability check, not an independent proof of the reference's accuracy or a
+cross-process comparison with a golden answer set. GPU release validation must also
+compare answers across fresh idle/loaded starts.
+
+A first invalid champion session retains its held score and schedules a fresh re-check
+(in the confirmation loop when available, otherwise next cycle). Only two consecutive
+invalid sessions vacate the title; a valid measurement resets the streak. Reprocessing
+the same session cannot increment the count, and VOID sessions do not count as invalid.
+Withdrawal/change of the champion's committed hotkey still vacates immediately.
+The invalid count and last session identity are persisted with backward-compatible defaults.
+
+Both the minimum gain over the reference and the margin over a champion or pending
+challenger use at least `max(3%, 3 * reference_noise_std)`. The noise unit is
+`sample_std(fresh_process_reference_throughputs) / mean(throughputs)`.
+`engconfigs.PINNED_REFERENCE_NOISE_STD` is 0.00167 (11 idle fresh-process reference samples on the
+Server Edition: mean 65.70 dec/s), so the margin stays at the 3 % floor; it is part of the frozen rules
+hash (`engthresholds.py`). With multiple admitted GPU classes the single release noise constant must
+conservatively cover all classes. A second fresh
+session is still required to crown a challenger.
+
+Serving verification uses the same s1-fast sidecar/JevK5 FLA kernel path, with broader
+0.20 mean / 2.0 per-item tolerances. Its rules and container environment are unchanged
+by this engine-only patch; the runtime image gains the config directory for competition
+use. Before opening the engine track, the release owner must measure serving-side drift
+and decide separately whether to deploy pinned configs to serving runtimes.
+
+## Security: runner hardening and submission review (unreleased)
+
+**Runtime (release mode / finney).** Every engine, reference and candidate, runs under gVisor. `preflight()` and the start
+itself refuse unless `REAX_ENGINE_DOCKER_RUNTIME=runsc` is set **and** `docker info` lists a `runsc` runtime; if `docker info`
+cannot be read the answer is no (fail closed). The `runsc` entry must also point at a binary named `runsc` and carry
+`--network=none` and `--nvproxy=true` in its `runtimeArgs` (daemon.json), otherwise it is not accepted. The result is a `session_void` event: no score, strike or attempt is
+recorded and no container is started. Development networks and the testnet keep working without runsc.
+
+**Container flags** (all engines): `--network none --read-only --cap-drop ALL --security-opt no-new-privileges`,
+`/tmp` as tmpfs `rw,exec,nosuid,nodev,size=16g` (exec stays for Triton's JIT), and
+`NVIDIA_DRIVER_CAPABILITIES=compute,utility` so an image's own ENV cannot widen the driver capabilities.
+
+**Paused-candidate GPU check (`REAX_ENGINE_NVML_CHECK=1`).** The check matches `docker top` PIDs against `nvidia-smi pmon`.
+Under runsc `docker top` reports the sandbox's *internal* PIDs, which never equal the host PIDs of the sentry that owns
+the GPU, so the check would always say "idle": a claim that looks like protection and is none. It is therefore
+**explicitly disabled under runsc** (a warning is logged at start-up and the engine gets no `gpu_busy` probe) instead of
+being matched through sandbox host PIDs, which could not be validated without GPU hardware and would break silently when
+the runtime changes. What still covers queued GPU work of a paused candidate under runsc: the reference is measured
+alone first and every later reference run must stay within the drift bound of that baseline (otherwise the session is
+inconclusive), and `docker pause` freezes the sandbox's tasks. The per-PID check remains available under runc (development).
+
+**Cycle gate (optional).** With `REAX_ENGINE_CYCLE_GATE_FILE` set, a cycle starts only while the file exists (regular
+file) and its mtime is younger than `REAX_ENGINE_CYCLE_GATE_MAX_AGE_MIN` (default 60 min); the gate is checked again before
+every session, so closing it stops the cycle after the running session. A cycle that ran appends a `cycle_end` event
+(`evaluated`, `gate_open`) to the state history and the log. An orchestrator touches the file when the reference rotation
+allows candidate runs and removes it before the rotation. Unset: behaviour as before, no event.
+
+**Pre-run submission check.** Before the first run of a digest (`engreview.py`, nothing of the image is executed;
+`docker image inspect`, then `docker create` + `docker cp` of known files) the validator records
+`<review dir>/reviews/<digest>.json` and rejects, with the reason in the result, an image that: runs as root (`User` root,
+`0`, or root group; no `User` is only a warning because the runner forces `--user 10002:10002`), exposes ports, declares
+`VOLUME`s (anonymous volumes are writable under `--read-only`), sets proxy / `LD_PRELOAD` / `LD_AUDIT` in `Env`, carries
+privileged hints (`--privileged`, `docker.sock`, `nsenter`, `cap_add`, ...) in Entrypoint, Cmd, Env or labels, has no
+Entrypoint/Cmd, is above 40 GB unpacked, or is not linux/amd64|arm64. Tokenizer and config files
+(`tokenizer.json`, `tokenizer_config.json`, `config.json`, `vocab.json`, ...) at the usual image paths (`/`, `/app`,
+`/model`, `/models`, `/opt/model`, `/opt/reax`, `/srv`, `/workspace`, the image's `WorkingDir`) must be byte-identical to
+the reference image's file at the same path, else to the pinned weights directory's file of that name; a symlink or
+oversized file is a violation, a file with nothing to compare to is a warning. A bare file name matches across
+directories only for tokenizer and vocabulary files; `config.json` / `generation_config.json` are matched by name only
+inside `/model`, `/models`, `/opt/model` (an engine's own `/app/config.json` is not the model's). If the reference image's
+copy and the weights directory's copy of the same file disagree, the validator is misconfigured and the session is void
+(no record is written). No file is copied out of an image whose configuration is already rejected, and a copied file is cut
+off at 64 MiB. A `rejected` record is final for its digest; to re-check a digest after fixing a validator-side cause, delete
+`<review dir>/reviews/<digest>.json` (the next cycle checks it again). The list of paths is a screen, not a proof:
+an engine can read any path, which is why the review gate below exists.
+
+**Review gate (release mode only).** A digest runs only after the operator created the empty file
+`<review dir>/REVIEWED/<digest>` (64 hex characters, no `sha256:`; a symlink does not count) following the isolated
+Claude review of the image and the record. Until then the digest is `awaiting review`: it is logged, not run, not recorded,
+no infrastructure attempt is counted, and later cycles leave it out so unreviewed submissions cannot use up
+`REAX_ENGINE_MAX_EVALS` slots. Outside release mode the static check runs and rejects, but no marker is needed.

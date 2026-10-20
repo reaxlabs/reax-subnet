@@ -12,6 +12,9 @@
 | `REAX_MODEL` | `s1-fast` with mechanism s1 / `qwen3-4b-instruct-2507` with mpm1 | with `REAX_MECHANISM=s1`: `s1-fast` or `s1-pro` (the REAX reference model this process serves or references); with mpm1: `qwen3-4b-instruct-2507` |
 | `REAX_S1_FAST_RUNTIME_URL` / `REAX_S1_PRO_RUNTIME_URL` | none (required for each model used with mechanism s1) | loopback http URL of that model's runtime sidecar (must start with `http://127.`, `http://localhost` or `http://[::1]`; a non-loopback URL aborts startup). `hash` selects the hash test runtime and needs `REAX_ALLOW_DEV_MODELS=1` |
 | `REAX_S1_FAST_RUNTIME_URLS` / `REAX_S1_PRO_RUNTIME_URLS` | none | several runtime sidecars of one model behind one hotkey (miner; docs/MINER.md "Several GPUs or machines behind one hotkey"): comma-separated `URL` or `URL|TOKEN_FILE`; literal loopback or private-network IPs only (10/8, 172.16/12, 192.168/16, `fc00::/7`). Exclusive with the single-URL variable. Defaults of `REAX_MAX_CONCURRENT`, `REAX_PER_CALLER_CONCURRENCY` and `REAX_PER_CALLER_PER_MINUTE` are multiplied by the number of backends |
+| `REAX_FEATURE_MULTINODE` | `0` | miner, s1-fast / s1-pro: `1` takes the workers from `REAX_WORKERS_FILE`, each behind a `reax-runtime-relay` (docs/MINER.md "Several machines in different places", docs/DESIGN-MULTINODE.md). Excludes `REAX_<MODEL>_RUNTIME_URL(S)` |
+| `REAX_WORKERS_FILE` | none (required with multinode) | JSON `{"model", "workers": [{"name", "url", "key_file", "fingerprint"?, "max_inflight"?}]}`; https needs the relay certificate's SHA-256 fingerprint, plain http only private/VPN addresses; one link key per worker. Re-read every 10 s |
+| `REAX_WORKERS_MIN_HEALTHY` | `1` | multinode: workers that must pass at start; also kept in rotation while workers are removed |
 | `REAX_ALLOW_PUBLIC_RUNTIME` | `0` | `1` lets the `..._RUNTIME_URLS` list name public IPs or DNS names; the runtime token travels in clear text unless the URL is `https://`, and the miner warns at every start. Prefer a private network or VPN |
 | `REAX_RUNTIME_TOKEN_FILE` | none (required with mechanism s1) | path of the shared internal token file; a config error stops startup unless it names a readable, non-empty file, and an authenticated test decision against the runtime follows at start. The sidecar must hold the same secret (sidecar: `S1M_INTERNAL_TOKEN` env or `S1M_INTERNAL_TOKEN_FILE`) |
 | `REAX_DEVICE` | `cuda` | mpm1 only (the s1 model runs in its own sidecar): `cuda`, `cuda:<n>` or `cpu`. Startup fails if CUDA is requested but unavailable |
@@ -83,7 +86,10 @@ networks only with `REAX_FEATURE_ENGINE_COMPETITION=1`. The start time and the s
 |---|---|---|
 | `REAX_COMPETITIONS_MODE` | `local` (finney: unset = serving-only, `local` only when set explicitly) | `local` = the validator runs the competitions itself; `remote` = it only reads the state files of `reax-competition-worker` (needs only `REAX_COMPETITIONS_STATE_DIR`, no docker socket, no sealed data); `off` = 100 % inference. See [COMPETITIONS.md](COMPETITIONS.md) |
 | `REAX_COMPETITIONS_STATE_DIR` | — | absolute directory with `engine-competition.json` and `spec-state.json`: read-only for a `remote` validator, writable for the worker. Files older than 26 h count as missing |
-| `REAX_ENGINE_NVML_CHECK` | `0` | `1`: sample `nvidia-smi pmon` for the paused candidate's PIDs during every reference window (worker / local mode) |
+| `REAX_ENGINE_NVML_CHECK` | `0` | `1`: sample `nvidia-smi pmon` for the paused candidate's PIDs during every reference window (worker / local mode); ignored under runsc |
+| `REAX_ENGINE_REVIEW_DIR` | `<REAX_ENGINE_WORKDIR>/review` | submission-check records (`reviews/<digest>.json`) and, on finney, the operator's `REVIEWED/<digest>` markers |
+| `REAX_ENGINE_CYCLE_GATE_FILE` | unset | if set, an engine cycle runs (and starts further sessions) only while this file exists and is fresh; each cycle ends with a `cycle_end` event |
+| `REAX_ENGINE_CYCLE_GATE_MAX_AGE_MIN` | `60` | freshness of the gate file in minutes (mtime) |
 | `REAX_ENGINE_REFERENCE` | release constant `config.ENGINE_REFERENCE_IMAGE` | reference engine image, `<image>@sha256:<digest>`; **development networks only** (finney refuses it) |
 | `REAX_SPEC_SEALED_DIR` | — | sealed pools of the use-case tracks, read-only (specialist evaluator, [SPECIALIST-TRACKS.md](SPECIALIST-TRACKS.md)) |
 | `REAX_ENGINE_WEIGHTS_DIR` | — | pinned model weights, mounted read-only into every engine |
@@ -94,3 +100,16 @@ networks only with `REAX_FEATURE_ENGINE_COMPETITION=1`. The start time and the s
 | `REAX_ENGINE_MAX_EVALS` | `4` | new submissions measured per cycle, oldest commitment first |
 | `REAX_ENGINE_WORKDIR` / `REAX_ENGINE_STATE_PATH` | `~/.reax/engines` / `~/.reax/engine-competition.json` | socket directories and logs / champion state |
 | `REAX_ENGINE_DEV_PARAMS` | — | JSON overrides of track and reward parameters (development networks only; refused on finney) |
+
+## Worker relay (`reax-runtime-relay`, multinode)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `REAX_MODEL` | `s1-fast` | `s1-fast` or `s1-pro` (the relay refuses s1-lite and s1-cpu) |
+| `REAX_S1_FAST_RUNTIME_URL` / `REAX_S1_PRO_RUNTIME_URL` | none (required) | this machine's sidecar, loopback only |
+| `REAX_RUNTIME_TOKEN_FILE` | none (required) | the sidecar's token file |
+| `REAX_RELAY_KEY_FILE` | none (required) | this worker's link key (hex, at least 32 bytes: `openssl rand -hex 32`); the same file content goes into the gateway's `key_file` |
+| `REAX_RELAY_HOST` / `REAX_RELAY_PORT` | none / `8190` | listen address; without TLS only a private or VPN address |
+| `REAX_RELAY_TLS_CERT` / `REAX_RELAY_TLS_KEY` | none | self-signed certificate and key; the relay logs the fingerprint for the gateway at start |
+| `REAX_RELAY_MAX_INFLIGHT` | `64` | decisions passed to the sidecar at once |
+

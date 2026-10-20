@@ -8,6 +8,8 @@ be tied to the exact rules that produced it, and a state written under other rul
 
 from __future__ import annotations
 
+from .engconfigs import PINNED_REFERENCE_NOISE_STD
+
 import hashlib
 import json
 from typing import Any, Mapping
@@ -21,6 +23,7 @@ THRESHOLDS: dict[str, Any] = {
     "determinism_tau": 0.05,  # re-run at concurrency 1 must reproduce the timed answers
     "probe_pairs": 16,  # anti-cache probe pairs
     # speed
+    "reference_noise_std": PINNED_REFERENCE_NOISE_STD,  # measured on the published Server Edition (engconfigs)
     "min_gain": 0.03,  # must beat the reference by 3 % to count at all
     "margin": 0.03,  # must beat the champion (and a pending challenger) by 3 % to displace it
     "max_latency_ratio": 1.25,  # concurrency-1 latency vs the reference
@@ -46,4 +49,4 @@ def thresholds_sha256(thresholds: Mapping[str, Any] = THRESHOLDS) -> str:
 
 # Pinned in tests/test_engcomp.py (and checked against the tracks in use at start): editing THRESHOLDS without
 # updating this digest and the CHANGELOG fails the suite.
-FROZEN_SHA256 = "1d4b170f11c8d028a4b0a988996aa6f3332d4be3cfcf3de8d44299d09340c07a"
+FROZEN_SHA256 = "c973e35f186a49e081322b0432f58d566f68c843030451c139266be4412eb320"

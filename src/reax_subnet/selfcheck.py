@@ -137,7 +137,8 @@ async def run_many(model: str, endpoints: list[tuple[str, str]], limit: Optional
 IDENTITY_ITEMS = 24
 
 
-async def check_backend_identity(backend: Any, model: str, items: int = IDENTITY_ITEMS) -> list[str]:
+async def check_backend_identity(backend: Any, model: str, items: int = IDENTITY_ITEMS,
+                                 reference_backend: Any = None) -> list[str]:
     """Smoke test of ONE backend against the published reference decisions: the first ``items`` of them must come back
     within the release's per-item and mean logit-distance lines. Returns the problems (empty = it answered like the
     reference model). This is not a proof of the backend's weights (a sidecar could recognise the public items); the
@@ -154,11 +155,16 @@ async def check_backend_identity(backend: Any, model: str, items: int = IDENTITY
     decisions = [parse_decision({"id": it["id"], "state": it["state"], "questions": {"q": it["question"]}}, model)
                  for it in ref_items]
     answers = await backend.decide_each(decisions, retries=0)
+    # ``reference_backend``: development networks only (multinode e2e with the hash test model) - its answers replace the
+    # published ones.
+    expected = [it["p"] for it in ref_items] if reference_backend is None else [
+        [float(a["probabilities"][k]) for k in d.question.keys]
+        for d, a in zip(decisions, await reference_backend.decide(decisions))]
     distances = []
-    for d, it, a in zip(decisions, ref_items, answers):
+    for d, p_ref, a in zip(decisions, expected, answers):
         if isinstance(a, BaseException):
             return [f"{backend.url}: reference decision failed ({type(a).__name__}: {a})"[:200]]
-        distances.append(logit_distance([float(a["probabilities"][k]) for k in d.question.keys], it["p"],
+        distances.append(logit_distance([float(a["probabilities"][k]) for k in d.question.keys], p_ref,
                                         params.temperature))
     mean = math.fsum(distances) / len(distances)
     if max(distances) > params.tau_item or mean > params.tau_mean:

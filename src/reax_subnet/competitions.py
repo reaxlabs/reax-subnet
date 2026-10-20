@@ -26,7 +26,11 @@ log = logging.getLogger("reax.competitions")
 
 def _copy(r: Any) -> list:
     """A copy that keeps the evaluator's rank order marker (``RankedLeaders``)."""
-    return RankedLeaders(r) if isinstance(r, RankedLeaders) else list(r)
+    if isinstance(r, RankedLeaders):
+        out = RankedLeaders(r)
+        out.crowned = dict(r.crowned)
+        return out
+    return list(r)
 
 SPEC_CYCLE_INTERVAL_S = 1800  # the evaluator rate-limits itself (8 served evaluations per hour); this is only the poll.
 # rc8: 3600 -> 1800, so each track can run two groups (incumbent + challenger) per hour instead of one

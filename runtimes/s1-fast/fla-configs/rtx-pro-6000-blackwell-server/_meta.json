@@ -1,0 +1,42 @@
+{
+  "autotuners": [
+    [
+      "fla.ops.utils.cumsum",
+      "chunk_local_cumsum_scalar_kernel",
+      "cached",
+      1
+    ],
+    [
+      "fla.modules.l2norm",
+      "l2norm_fwd_kernel",
+      "cached",
+      2
+    ],
+    [
+      "fla.ops.common.chunk_delta_h",
+      "chunk_gated_delta_rule_fwd_kernel_h_blockdim64",
+      "cached",
+      1
+    ],
+    [
+      "fla.ops.common.chunk_o",
+      "chunk_fwd_kernel_o",
+      "cached",
+      1
+    ],
+    [
+      "fla.ops.gated_delta_rule.wy_fast",
+      "recompute_w_u_fwd_kernel",
+      "cached",
+      1
+    ],
+    [
+      "fla.ops.gated_delta_rule.chunk_fwd",
+      "chunk_gated_delta_rule_fwd_kkt_solve_kernel",
+      "cached",
+      1
+    ]
+  ],
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "triton_version": "3.7.1"
+}

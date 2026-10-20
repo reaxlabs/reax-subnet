@@ -38,16 +38,15 @@ def runner(tmp_path):
 
 
 # ------------------------------------------------------------------------------------------------ H1
-async def test_h1_missing_nvidia_smi_skips_the_preflight_instead_of_crashing(runner, monkeypatch, caplog):
+async def test_h1_missing_nvidia_smi_voids_the_unidentified_gpu_session(runner, monkeypatch):
     async def no_smi(argv, t):
         if argv[0] == "nvidia-smi":
             raise FileNotFoundError(2, "No such file or directory", "nvidia-smi")
         return 0, "", ""
 
     monkeypatch.setattr(ER, "_run", no_smi)
-    with caplog.at_level(logging.WARNING, logger="reax.engines"):
+    with pytest.raises(ER.ReferenceSelfCheckFailed, match="GPU class unavailable"):
         await runner.preflight()
-    assert "nvidia-smi" in caplog.text
 
 
 async def test_h1_and_m6_missing_nvidia_smi_means_no_gpu_busy_verdict(monkeypatch):
@@ -333,6 +332,7 @@ async def test_m4_only_images_pulled_in_this_session_are_removed(runner, monkeyp
 
 
 async def test_m4_configured_images_are_never_removed(tmp_path, monkeypatch):
+    monkeypatch.setattr(ER, "PUBLISHED_GPU_CLASSES", frozenset(ER.GPU_CONFIG_DIRS))
     r = DockerRunner(str(tmp_path / "w"), str(tmp_path), protected_images=[REF])
     d = FakeDocker(manifest([1]), run_code=125)
     monkeypatch.setattr(ER, "_run", d)
@@ -342,6 +342,7 @@ async def test_m4_configured_images_are_never_removed(tmp_path, monkeypatch):
 
 
 async def test_m4_the_stop_of_an_engine_removes_only_what_the_runner_pulled(runner, monkeypatch):
+    monkeypatch.setattr(ER, "PUBLISHED_GPU_CLASSES", frozenset(ER.GPU_CONFIG_DIRS))
     d = FakeDocker(manifest([1]), present=True)
     monkeypatch.setattr(ER, "_run", d)
     eng = await runner.start(REF, "s1-fast", P)

@@ -27,6 +27,7 @@ PLAYOFF_MAX_ABORTS = 3
 CHAMPION_LIVENESS_S = 72 * 3600
 PUBLISH_DEADLINE_BLOCKS = 7200    # the repo must be public within ~24 h of the commitment (docs/SPECIALIST-TRACKS.md)
 RETRY_UNAVAILABLE_S = 600
+WAIT_REPO_PROBES_PER_CYCLE = 32    # metadata only, per track, in commitment order
 MAX_OPEN_PER_COLDKEY_TRACK = 2
 MAX_NEW_PER_COLDKEY_WEEK = 4
 MIN_FREE_GB = 60                  # free space on the work directory's filesystem before a submission is downloaded
@@ -77,6 +78,10 @@ class SpecConfig:
     x_tier_share: float = sampling.X_TIER_SHARE
     g_med: dict[str, float] = field(default_factory=dict)   # binding mode: frozen median gap per track id (REAX_SPEC_G_MED)
     gap_penalty_cap: float = scoring.GAP_PENALTY_CAP        # binding mode: largest penalty in points (math.inf = no cap)
+    nc_r1: bool = False                # near-copy rule R1: twins / weight parents (incumbent included) must also win on competence
+    nc_r2: bool = False                # R2: temperature-invariant twin test + relative order tie
+    nc_r3: bool = False                # R3: weight check robust to orthogonal noise (alpha) + transitive lineage
+    nc_near_champ: bool = False        # near-champion rule: a challenger close to the incumbent's weights needs more items right + 3 points
     gpu_device: str = "0"
     gpu_total_gb: float = 0.0          # 0 = read the card size from nvidia-smi
     gpu_budget_gb: float = vllm.GPU_BUDGET_GB
@@ -117,6 +122,10 @@ def from_env(env: Mapping[str, str] = os.environ, state_dir: str = "") -> SpecCo
         sample_size=int(env.get("REAX_SPEC_SAMPLE_SIZE", sampling.SAMPLE_SIZE)),
         max_evals_per_hour=int(env.get("REAX_SPEC_MAX_EVALS_PER_HOUR", MAX_EVALS_PER_HOUR)),
         v3_decisions=_flag(env, "REAX_SPEC_V3_DECISIONS", machine.V3_DECISIONS),
+        nc_r1=_flag(env, "REAX_SPEC_NC_R1", False),
+        nc_r2=_flag(env, "REAX_SPEC_NC_R2", False),
+        nc_r3=_flag(env, "REAX_SPEC_NC_R3", False),
+        nc_near_champ=_flag(env, "REAX_SPEC_NC_NEAR_CHAMP", False),
         x_tier_mode=_x_mode(env.get("REAX_SPEC_X_TIER_MODE", sampling.X_TIER_MODE)),
         x_tier_share=float(env.get("REAX_SPEC_X_TIER_SHARE", sampling.X_TIER_SHARE)),
         g_med=_g_med(env.get("REAX_SPEC_G_MED", "")),

@@ -141,11 +141,17 @@ class FakeHub:
         self.repos: dict[str, str] = {}
         self.unavailable: set[str] = set()
         self.fetches: list[str] = []
+        self.probes: list[str] = []
 
     def add(self, repo: str, **kw) -> str:
         path = write_model(os.path.join(self.workdir, "hub", repo.replace("/", "__")), skill_key=repo, **kw)
         self.repos[repo] = path
         return path
+
+    async def probe(self, commitment: SpecCommitment) -> None:
+        self.probes.append(commitment.repo)
+        if commitment.repo in self.unavailable or commitment.repo not in self.repos:
+            raise F.FetchError("unavailable", "not public yet")
 
     async def fetch(self, commitment: SpecCommitment, dest: str, *, category: str, hotkey: str, rules=R.TrackRules()) -> F.Inspected:
         self.fetches.append(commitment.repo)

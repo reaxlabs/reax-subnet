@@ -32,9 +32,36 @@ COMPETITIONS_START_UTC = datetime(2026, 10, 16, 12, 0, tzinfo=timezone.utc)
 SPECIALIST_TRACKS_START_UTC = COMPETITIONS_START_UTC
 # The engine track has its own start. None = HELD: no engine cycle runs, no engine submission is accepted and the engine
 # share goes to the inference part, whatever a state file says. The owner opens it in a later release.
-ENGINE_TRACK_START_UTC: Optional[datetime] = None
+# 1.2.0rc9.post5: opens Tue 20 Oct 2026 18:00 UTC (DECISIONS 19 Oct 11:05Z; gates: runsc GO + calibration, FLA reference
+# 9bd41632, RUNBOOK-P re-review, candidate-box spend card 17879).
+ENGINE_TRACK_START_UTC: Optional[datetime] = datetime(2026, 10, 20, 18, 0, tzinfo=timezone.utc)
 # Stands for "never" where a datetime is needed (a held engine track).
 ENGINE_HELD = datetime.max.replace(tzinfo=timezone.utc)
+# Opening fairness (board #22, miner report 21905). A commitment made at or before ``ENGINE_TRACK_START_BLOCK`` (finney
+# block 9326382, predicted for about 2026-10-20T18:00:00Z from block 9321860 at 02:55:36Z, 12 s per block) counts as made at
+# that block, so committing early (and risking deregistration while waiting) buys no ordering advantage. Entries that share
+# that block are ordered by sha256("reax-eng-tie/1|<start block hash>|<hotkey>|<image digest>"): the block hash does not
+# exist when they commit, so it cannot be ground for. Validators read it from the chain once the block exists
+# (Chain.block_hash, engcomp.set_start_block_hash); until then they are ordered by uid, as before.
+# ENGINE_PRE_OPEN_AS_START False = off; ENGINE_TRACK_START_BLOCK None = inactive.
+ENGINE_PRE_OPEN_AS_START = True
+ENGINE_TRACK_START_BLOCK: Optional[int] = 9326382
+
+# Engine champion fallback (miner report 21901). While the current champion has no owner approval (award pending or
+# rejected), the engine share is paid to the most recently crowned FORMER champion that is approved, still committed and
+# still valid (its decay keeps running from its own crowning). False = the engine share goes to the inference part.
+ENGINE_RESTORE_PREVIOUS = True
+
+# Engine keep-alive (miner report 21903), release constants; also needs REAX_ENGINE_KEEPALIVE=1 (default OFF). An engine
+# entry that waits for its FIRST measurement earns 0 and is pruned. While it is committed, its image was pulled and bound to
+# its hotkey, it has no result yet, and at most ENGINE_KA_MAX_HOURS passed since it was first seen (opening block counts as
+# first seen for pre-opening commitments), it is paid ENGINE_KA_FRACTION x the median positive serving weight; at most one
+# per coldkey, at most ENGINE_KA_MAX_ENTRIES entries, together at most ENGINE_KA_MAX_SHARE x the engine share, taken from
+# the champion's part of it (nothing is taken when there is no champion). Unclaimed: inference.
+ENGINE_KA_FRACTION = 0.5
+ENGINE_KA_MAX_HOURS = 12.0
+ENGINE_KA_MAX_ENTRIES = 4
+ENGINE_KA_MAX_SHARE = 0.05
 ENGINE_DECAY_DAYS = 14  # the champion's share falls linearly from full to ENGINE_DECAY_FLOOR over this time
 ENGINE_DECAY_FLOOR = 0.5
 TRACK_RANK_SPLIT = (0.75, 0.17, 0.08)  # winner-take-most inside a use-case track, ranks 1-3
@@ -154,7 +181,16 @@ KEEPALIVE_LEGACY_FLOOR: dict[str, Optional[float]] = {"demand_forecasting": 60.0
 class RankedLeaders(list):
     """``[(uid, score), ...]`` already in rank order, rank 1 first (docs/SPECIALIST-TRACKS.md, "Ranks"): the specialist
     evaluator's champion, then its former champions, most recently crowned first. ``track_payout`` pays it in this
-    order and never re-sorts it by score; the scores come from different draws and are not comparable."""
+    order and never re-sorts it by score; the scores come from different draws and are not comparable.
+
+    ``crowned``: uid -> when that entry was crowned champion (unix seconds), for the entries that have such a time (the
+    champion; a former champion keeps the time it was crowned). Read only by the keep-share rule (``APPROVAL_GRACE_S``)."""
+
+    crowned: dict[int, float]
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.crowned = {}
 
 
 # Per track: [(uid, score)]. A ``RankedLeaders`` (what the specialist evaluator returns) is paid in its order; any
@@ -208,6 +244,60 @@ def engine_decay_fraction(age_s: float) -> float:
     return 1.0 - (1.0 - ENGINE_DECAY_FLOOR) * frac
 
 
+# Keep-share rule (REAX_SPEC_NC_KEEP_SHARE, off by default; docs/SPECIALIST-TRACKS.md "Owner approval"). While a track's
+# rank 1 was crowned less than ``APPROVAL_GRACE_S`` ago and has no approval yet, its share is paid to the most recently
+# crowned former champion that is approved (the next ranks, in rank order), who then gives up its own rank share (that
+# share goes to the inference part as today). Afterwards, or once rank 1 is approved, the ranks are paid as before.
+APPROVAL_GRACE_S = 48 * 3600.0
+
+
+def keep_share_enabled(env: Mapping[str, str]) -> bool:
+    """REAX_SPEC_NC_KEEP_SHARE: strict on/off switch, unset = off; an unknown value is refused (as the other flags)."""
+    raw = (env.get("REAX_SPEC_NC_KEEP_SHARE") or "").strip().lower()
+    if raw in ("", "0", "false", "no", "off"):
+        return False
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    raise ValueError(f"REAX_SPEC_NC_KEEP_SHARE must be 1/0 (or true/false, yes/no, on/off), got {raw!r}")
+
+
+def engine_keepalive_enabled(env: Mapping[str, str]) -> bool:
+    """REAX_ENGINE_KEEPALIVE: strict on/off switch for the engine keep-alive, unset = off; an unknown value is refused."""
+    raw = (env.get("REAX_ENGINE_KEEPALIVE") or "").strip().lower()
+    if raw in ("", "0", "false", "no", "off"):
+        return False
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    raise ValueError(f"REAX_ENGINE_KEEPALIVE must be 1/0 (or true/false, yes/no, on/off), got {raw!r}")
+
+
+# a crowning time further ahead of the validator clock than this is treated as unknown (no keep-share rule)
+CROWN_FUTURE_SLACK_S = 600.0
+
+
+def keep_share_ranks(ranks: Mapping[int, float], crowned: Optional[Mapping[int, float]], now: float,
+                     approved: Callable[[int], bool]) -> dict[int, float]:
+    """``ranks`` (uid -> share, rank 1 first, from ``track_payout``) with the keep-share rule applied. A pure function of
+    the ranks, the crowning times, ``now`` and the approvals: validators that see the same state compute the same
+    vector. Unchanged unless rank 1 is unapproved, was crowned (known time) less than the grace ago, and a later rank
+    is approved."""
+    items = list(ranks.items())
+    if len(items) < 2 or crowned is None or approved(items[0][0]):
+        return dict(ranks)
+    since = crowned.get(items[0][0])
+    if not isinstance(since, (int, float)) or not math.isfinite(since) or now - since >= APPROVAL_GRACE_S \
+            or since > now + CROWN_FUTURE_SLACK_S:  # a crowning time in the future (clock skew, corrupt state) is unknown
+        return dict(ranks)
+    for i in range(1, len(items)):
+        if approved(items[i][0]):
+            # the approved former champion takes rank 1's share and gives up its own rank share (that stays with the
+            # inference part); the unapproved crown keeps rank 1 (it is not paid anyway: the award gate skips it)
+            out = {uid: share for j, (uid, share) in enumerate(items) if j != i}
+            out[items[i][0]] = items[0][1]
+            return out
+    return dict(ranks)
+
+
 def track_payout(scores: Mapping[int, float] | Sequence[tuple[int, float]],
                  floor: Optional[float] = None) -> dict[int, float]:
     """75/17/8 for ranks 1-3. A ``RankedLeaders`` keeps its order (a uid counts at its first place); anything else is
@@ -249,8 +339,13 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                     award_ok: Optional[Callable[[str, int], bool]] = None,
                     keepalive: Optional[Mapping[str, Sequence[tuple[int, float]]]] = None,
                     keepalive_share: Optional[float] = None,
-                    provisional: Optional[Mapping[str, Sequence[int]]] = None) -> dict[int, float]:
+                    provisional: Optional[Mapping[str, Sequence[int]]] = None,
+                    engine_waiting: Optional[Sequence[int]] = None,
+                    keep_share: bool = False, now: Optional[float] = None) -> dict[int, float]:
     """Mix the competitions into the serving weights.
+
+    ``keep_share`` (with ``now``, unix seconds; needs ``award_ok``): the keep-share rule above (``keep_share_ranks``).
+    False = exactly the weights without it.
 
     ``serving``: the 1.1 weight vector (may contain the owner's burn entry). ``engine_champion``: uid or None;
     ``engine_share_frac``: the champion's part of the engine share (1.0 .. 0.5, see ``engine_decay_fraction``).
@@ -277,6 +372,11 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     share (then split evenly), taken from the track's share before the ranks, in addition to the keep-alive. It does not
     use a keep-alive slot (``KEEPALIVE_MAX_ENTRIES``); the owner UID, the engine champion and a uid that holds a
     keep-alive slot or a rank of any track are left out. Unclaimed: stays with ``serving``.
+
+    ``engine_waiting``: uids of engine entries that wait for their first measurement (``engcomp.waiting_uids``; None or
+    empty = none). Each is paid ``ENGINE_KA_FRACTION`` x the keep-alive median, at most ``ENGINE_KA_MAX_ENTRIES`` entries
+    and ``ENGINE_KA_MAX_SHARE`` x the engine share together, deducted from the engine champion's payment (nothing is
+    deducted without a champion). The owner UID and every uid paid elsewhere are left out.
 
     The competition fractions apply to the miner part (the owner's burn stays as it is, as in 1.1). Everything not
     claimed stays with ``serving``. The result is normalised to sum 1; an empty ``serving`` returns ``{}``.
@@ -325,9 +425,18 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     slots = list(zip(sorted(set(tracks) | set(alive) | set(prov)), prof.tracks))  # (track id, slot share), as paid
     alive = {t: alive[t] for t, _ in slots if t in alive}  # a track without a slot pays nothing
     prov = {t: prov[t] for t, _ in slots if t in prov}
+    ewait: list[int] = []
+    if engine_waiting and ka_cap > 0:
+        taken = {u for ids in alive.values() for u in ids} | {u for ids in prov.values() for u in ids} | set(paid)
+        for track_id in tracks:
+            taken.update(track_payout(tracks[track_id], floors.get(track_id)))
+        for uid in engine_waiting:
+            if uid != owner_uid and uid not in taken and uid not in ewait and len(ewait) < ENGINE_KA_MAX_ENTRIES:
+                ewait.append(uid)
     per_entry = math.inf
-    if alive or prov:
-        competing = {u for ids in alive.values() for u in ids} | {u for ids in prov.values() for u in ids} | set(paid)
+    if alive or prov or ewait:
+        competing = ({u for ids in alive.values() for u in ids} | {u for ids in prov.values() for u in ids}
+                     | set(paid) | set(ewait))
         for track_id, _ in slots:
             competing.update(track_payout(tracks.get(track_id, ()), floors.get(track_id)))
         competing.add(owner_uid)
@@ -336,6 +445,13 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             mid = len(typical) // 2
             median = typical[mid] if len(typical) % 2 else math.fsum((typical[mid - 1], typical[mid])) / 2
             per_entry = median / miner_part
+    if ewait:
+        each_ew = min(ENGINE_KA_FRACTION * per_entry, ENGINE_KA_MAX_SHARE * prof.engine / len(ewait))
+        for uid in ewait:
+            paid[uid] = each_ew
+        if engine_champion in paid:  # taken from the engine share, i.e. from the champion's part of it
+            paid[engine_champion] = max(0.0, paid[engine_champion] - each_ew * len(ewait))
+        log.info("engine keep-alive for uids %s, each %.5f of the miner part", ewait, each_ew)
     for track_id, slot_share in slots:
         rank_share = slot_share
         if track_id in alive:
@@ -351,7 +467,11 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             rank_share -= each_prov * n_prov
             log.info("track %s: provisional keep-alive for uids %s, each %.5f of the miner part",
                      track_id, prov[track_id], each_prov)
-        for uid, share in track_payout(tracks.get(track_id, ()), floors.get(track_id)).items():
+        ranked_pay = track_payout(tracks.get(track_id, ()), floors.get(track_id))
+        if keep_share and award_ok is not None and now is not None:
+            ranked_pay = keep_share_ranks(ranked_pay, getattr(tracks.get(track_id), "crowned", None), now,
+                                          lambda u, t=track_id: award_ok(t, u))
+        for uid, share in ranked_pay.items():
             if award_ok is not None and not award_ok(track_id, uid):
                 continue
             paid[uid] = paid.get(uid, 0.0) + rank_share * share

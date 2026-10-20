@@ -343,6 +343,24 @@ to the inference part.
   yours is *derived* from it, whatever the weights look like (permuted neurons, rescaled layers): it must beat that
   submission by the full margin, so a copy that answers like the champion cannot be crowned. Independent fine-tunes
   of the same base answer differently enough not to be affected.
+* **Close to the champion (operator flag `REAX_SPEC_NC_NEAR_CHAMP`, off by default; announced in #92 at least 24 h before it
+  is switched on).** If your weights are close to the current champion's on the validator's delta sketch (cosine > 0.995,
+  or relative L2 distance < 0.15, or cosine > 0.98 with the champion's change at full length inside yours, i.e. the
+  champion plus added noise; the champion's weight change from its base is the reference), every draw that decides your race
+  against it (first draw, a close-call draw, the confirmation draw) also needs (1) more items right than the champion on that
+  draw, counting an item as right when your most probable answer is the correct one, and (2) a gain of at least max(the
+  draw's margin, 3.0) points. If you declare a different base model than the champion, your weights are compared against
+  the champion's base for this check. Rescaling the champion's answer letters or adding weight noise changes calibration, not
+  answers; a real improvement of the champion's model (also by its own author) still wins. Each check is recorded in your
+  history as `near_champ` (cosine, relative L2, alpha, items right on both sides, gain and the gain needed).
+* **Near-copy hardening (operator flags, all off by default; announced in #92 before they are switched on).**
+  `REAX_SPEC_NC_R1`: a submission that is derived from another one (by weights or by answers, the champion included)
+  must also beat it on *competence* alone by at least 1.0 point and 2 standard errors, so a copy that only recalibrates
+  the same answers cannot be crowned. `REAX_SPEC_NC_R2`: the answers comparison is also made after rescaling the
+  letter logits (a power of the probabilities between 0.40 and 2.50), and probabilities that differ by less than one
+  millionth of their size count as tied for the order. `REAX_SPEC_NC_R3`: the weight comparison also treats a model as
+  derived when its weight change has cosine > 0.98 with the other's and the same length along it (alpha within 5 % of 1),
+  whatever noise orthogonal to it was added; an entry derived from a derived entry must beat the root parents as well.
 * **Pending verification.** If the validator does not have the declared base (an unknown name or revision), or the
   tensors your model shares with the declared base (name and shape) hold less than 90 % of its float parameters, the
   near-duplicate check cannot be made. The submission is then *pending verification*: it is kept and keeps its place in

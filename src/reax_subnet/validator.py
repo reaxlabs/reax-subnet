@@ -112,6 +112,13 @@ class Validator:
             self._snapshot_task.add_done_callback(_consume)
         return await asyncio.wait_for(asyncio.shield(self._snapshot_task), CHAIN_READ_TIMEOUT_S)
 
+    async def sync_engine_start_hash(self, snap: Snapshot) -> None:
+        """Fill the engine opening block's hash (engcomp.set_start_block_hash) once that block exists; until then the
+        tie order falls back to uid. A chain without ``block_hash`` or a failed read leaves it unset."""
+        from .engcomp import sync_start_block_hash
+
+        await sync_start_block_hash(self.chain, snap.block, CHAIN_READ_TIMEOUT_S)
+
     async def read_rate_limit(self, uid: int) -> tuple[int, int]:
         """(blocks since this validator's last weights, weights rate limit) in one chain read with a deadline;
         like ``read_snapshot``, a read that is still running is awaited again rather than started twice."""
@@ -181,6 +188,7 @@ class Validator:
         except Exception as exc:
             log.warning("chain unavailable, skipping round: %s", exc)
             return None
+        await self.sync_engine_start_hash(snap)
         known = self._last_neuron_count
         count = len(snap.neurons)
         if count == 0:

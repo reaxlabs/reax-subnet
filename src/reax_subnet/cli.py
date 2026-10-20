@@ -99,6 +99,54 @@ def _s1_backend(common: CommonConfig, model: str):
                            common.runtime_inflight, endpoints)
 
 
+def _worker_backend(model: str):
+    """Factory: a ``SidecarBackend`` that talks to one worker's reax-runtime-relay over the signed link."""
+    from .multinode import read_key
+    from .s1backends import SidecarBackend
+
+    def make(spec):
+        try:
+            key = read_key(spec.key_file)
+        except OSError as exc:
+            raise ValueError(f"key file not readable ({exc.strerror})") from None
+        return SidecarBackend(model, spec.url, "", max_inflight=spec.max_inflight, link_key=key,
+                              fingerprint=spec.fingerprint, name=spec.name)
+
+    return make
+
+
+async def _multinode_backend(cfg):
+    """REAX_FEATURE_MULTINODE=1: the workers of REAX_WORKERS_FILE behind this hotkey (docs/DESIGN-MULTINODE.md)."""
+    from .multinode import WorkersWatcher
+    from .s1backends import PooledBackend
+    from .selfcheck import check_backend_identity
+
+    model = cfg.common.model
+    make = _worker_backend(model)
+    try:
+        pool = PooledBackend.from_workers(model, cfg.workers, make)
+    except ValueError as exc:
+        sys.exit(f"configuration error: {exc}")
+    reference = None
+    if cfg.common.allow_dev_models and os.environ.get("REAX_DEV_IDENTITY") == "hash":
+        from .s1backends import S1HashBackend
+
+        reference = S1HashBackend(model)  # development networks: workers run the hash test model
+    pool.readmit_check = lambda b: check_backend_identity(b, model, reference_backend=reference)
+    pool.min_healthy = cfg.workers_min_healthy
+    healthy = await pool.startup(cfg.workers_min_healthy)
+    if healthy < cfg.workers_min_healthy:
+        sys.exit(f"refusing to start: {healthy} of {pool.size} workers passed the test decision and identity check, "
+                 f"REAX_WORKERS_MIN_HEALTHY is {cfg.workers_min_healthy} (the log names the failing workers)")
+    await pool.start()
+    watcher = WorkersWatcher(cfg.workers_file, model, pool, make)
+    watcher.start()  # its first pass re-reads the file; unchanged entries are kept as they are
+    pool.watcher = watcher  # keep a reference for the miner's lifetime
+    log.info("multinode: %d of %d workers in rotation behind this hotkey (workers file %s, re-read every %.0f s)",
+             healthy, pool.size, cfg.workers_file, watcher.interval)
+    return pool
+
+
 def miner_main() -> None:
     try:
         cfg = load_miner()
@@ -121,7 +169,9 @@ async def _run_miner(cfg, wallet) -> None:
     from .miner import Miner, S1Miner, refresh_validators_forever
 
     s1 = cfg.common.mechanism == "s1"
-    if s1:
+    if s1 and cfg.multinode:
+        backend = await _multinode_backend(cfg)
+    elif s1:
         try:
             backend = _s1_backend(cfg.common, cfg.common.model)
         except ValueError as exc:

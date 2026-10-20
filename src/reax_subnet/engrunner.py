@@ -18,6 +18,7 @@ Two runners:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -32,6 +33,9 @@ import time
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Optional, Protocol, Sequence
 
+from .engconfigs import (FLA_CONFIG_ROOT, GPU_CONFIG_DIRS, PUBLISHED_GPU_CLASSES, ConfigVerificationError,
+                         host_config_root, verify_published_configs)
+from . import engreview
 from .engcomp import EvalResult, TrackParams, check_correctness, max_distance, median, speed_score
 from .s1backends import SidecarBackend
 from .s1contract import Decision, parse_decision
@@ -50,6 +54,12 @@ def clean(text: str, limit: int = 200) -> str:
     return _CONTROL.sub(" ", text)[-limit:]
 
 
+IDENTITY_JSON_MAX_BYTES = 32 * 2 ** 20  # config/tokenizer/index files whose content is part of the weights identity
+IDENTITY_HEADER_MAX_BYTES = 128 * 2 ** 20
+IDENTITY_SAMPLE_BYTES = 64 * 2 ** 10
+CP_TOO_LARGE = -2  # _run: the watched output path grew past its cap and the process was killed
+
+
 class EngineError(RuntimeError):
     """The engine under test failed (it loses this evaluation)."""
 
@@ -58,12 +68,24 @@ class InfraError(RuntimeError):
     """Pull/start failed for a reason that may be ours (registry rate limit, docker hiccup): inconclusive."""
 
 
+class AwaitingReview(RuntimeError):
+    """Release mode: the digest has no REVIEWED/<digest> marker yet. Not the miner's fault: nothing is recorded or counted."""
+
+
+RELEASE_RUNTIME = "runsc"
+# What the daemon's ``runsc`` entry must carry (daemon.json "runtimes"): the binary is gVisor's runsc, its sandbox has no
+# network stack of its own and it has the NVIDIA proxy for the GPU (a runtime merely *named* runsc proves neither).
+RELEASE_RUNTIME_ARGS = ("--network=none", "--nvproxy=true", "--nvproxy-allowed-driver-capabilities=compute,utility")
 ENGINE_GPU_MIB = 12_500  # one s1-fast engine (Plumb-4B, 12.3 GB measured on the validator card)
 MAX_IMAGE_COMPRESSED_BYTES = 15 * 10 ** 9  # refused before the pull (a decompression bomb is small compressed, but this caps the download)
 
 
 class ReferenceError_(RuntimeError):
     """The reference engine failed before the candidate ran: the evaluation is inconclusive and is not recorded."""
+
+
+class ReferenceSelfCheckFailed(ReferenceError_):
+    """VOID session: reference repeatability failed; never charged to a miner."""
 
 
 class ReferenceFailedWithCandidate(ReferenceError_):
@@ -117,16 +139,75 @@ class Runner(Protocol):
     async def discard(self, ref: str) -> None: ...
 
 
-async def _run(argv: Sequence[str], timeout_s: float) -> tuple[int, str, str]:
-    """A subprocess without blocking the event loop; output capped at 64 KiB per stream."""
+def _tree_bytes(path: str) -> int:
+    """Bytes below ``path`` (a file or a directory; links are not followed). Best effort: 0 when it does not exist yet."""
+    total = 0
+    try:
+        st = os.lstat(path)
+        if not stat.S_ISDIR(st.st_mode):
+            return st.st_size
+        for root, _, files in os.walk(path):
+            for f in files:
+                try:
+                    total += os.lstat(os.path.join(root, f)).st_size
+                except OSError:
+                    pass
+    except OSError:
+        pass
+    return total
+
+
+async def _run(argv: Sequence[str], timeout_s: float, watch: Optional[tuple[str, int]] = None) -> tuple[int, str, str]:
+    """A subprocess without blocking the event loop; output capped at 64 KiB per stream. ``watch=(path, max_bytes)``: the
+    process is killed once ``path`` (what it writes, e.g. a ``docker cp`` destination) grows past ``max_bytes``; the
+    result is then ``(CP_TOO_LARGE, "", ...)``."""
     proc = await asyncio.create_subprocess_exec(*argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    exceeded = False
+
+    async def guard() -> None:
+        nonlocal exceeded
+        while True:
+            await asyncio.sleep(0.1)
+            if _tree_bytes(watch[0]) > watch[1]:
+                exceeded = True
+                proc.kill()
+                return
+
+    watcher = asyncio.ensure_future(guard()) if watch else None
     try:
         out, err = await asyncio.wait_for(proc.communicate(), timeout_s)
     except asyncio.TimeoutError:
         proc.kill()
         await proc.wait()
         return -1, "", f"timeout after {timeout_s:.0f} s"
+    except BaseException:
+        # Cancelled by an outer budget (or interrupted): the child must not outlive the call that started it.
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        try:
+            await asyncio.wait_for(proc.wait(), 10)
+        except (asyncio.CancelledError, asyncio.TimeoutError, Exception):  # noqa: BLE001 - reaping is best effort
+            pass
+        raise
+    finally:
+        if watcher:
+            watcher.cancel()
+    if exceeded:
+        return CP_TOO_LARGE, "", f"output larger than {watch[1]} bytes"
     return proc.returncode or 0, out[-65536:].decode(errors="replace"), err[-65536:].decode(errors="replace")
+
+
+async def _abort_start(name: str, d: str) -> None:
+    """Remove the container of a start that was interrupted and its session directory. The removal is shielded, so a
+    second cancellation cannot abandon it half way; the directory goes in every case."""
+    try:
+        await asyncio.shield(_run(["docker", "rm", "-fv", name], 120))
+    except Exception as exc:  # noqa: BLE001 - best effort; a cancellation still propagates from the caller's raise
+        log.warning("could not remove %s after an interrupted start: %r", name, exc)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def _session_dir(root: str) -> tuple[str, str]:
@@ -214,8 +295,15 @@ class DockerRunner:
                  user: str = "10002:10002", docker_runtime: str = "", pull: bool = True,
                  registries: Sequence[str] = DEFAULT_REGISTRIES, pull_timeout_s: float = 1800.0,
                  nvml_check: bool = False, max_compressed_bytes: int = MAX_IMAGE_COMPRESSED_BYTES,
-                 protected_images: Sequence[str] = ()):
+                 protected_images: Sequence[str] = (), release_mode: bool = False, review_dir: str = "",
+                 reference_ref: str = "", fla_config_root: str = ""):
+        """``release_mode`` (finney): no engine starts unless ``docker_runtime`` is ``runsc`` and ``docker info`` lists it, and
+        a digest only runs once ``<review_dir>/REVIEWED/<digest>`` exists. ``review_dir``: where the pre-run submission
+        check keeps its records (empty = no check). ``reference_ref``: the reference image, the source of the expected
+        tokenizer/config files when the weights directory has none. ``fla_config_root``: host directory with the published
+        FLA configs (default engconfigs.host_config_root()); mounted read-only into every engine."""
         self.workdir = workdir
+        self.fla_config_root = os.path.abspath(fla_config_root or host_config_root())
         self.weights_dir = os.path.abspath(weights_dir)
         self.gpu = gpu
         self.memory = memory
@@ -229,11 +317,76 @@ class DockerRunner:
         self.max_compressed_bytes = max_compressed_bytes
         self.protected_images = frozenset(protected_images)  # the release reference, the vLLM image: never removed
         self._pulled: set[str] = set()  # images THIS runner pulled (only these are ever removed)
+        self.release_mode = release_mode
+        self.review_dir = review_dir
+        self.reference_ref = reference_ref
+        self._reference_files: Optional[dict[str, str]] = None
+        if nvml_check and docker_runtime == RELEASE_RUNTIME:
+            log.warning("REAX_ENGINE_NVML_CHECK is ignored under %s: docker top lists the sandbox's internal PIDs, which "
+                        "never match the host PIDs nvidia-smi reports, so the check would be blind. The reference "
+                        "baseline drift check and the runtime's pause semantics cover this case "
+                        "(docs/ENGINE-COMPETITION.md, security)", RELEASE_RUNTIME)
+
+    async def config_dir(self) -> str:
+        try:
+            code, out, _ = await _run(["nvidia-smi", f"--id={self.gpu}", "--query-gpu=name",
+                                       "--format=csv,noheader"], 30)
+        except OSError:
+            raise ReferenceSelfCheckFailed("GPU class unavailable; no published FLA config") from None
+        gpu_class = out.strip()
+        if code != 0 or gpu_class not in PUBLISHED_GPU_CLASSES or gpu_class not in GPU_CONFIG_DIRS:
+            raise ReferenceSelfCheckFailed(f"no published FLA config for GPU class {clean(gpu_class)!r}")
+        try:  # checked again before every session: an altered or missing config set voids it, never a miner strike
+            verify_published_configs(gpu_class, os.path.join(self.fla_config_root, GPU_CONFIG_DIRS[gpu_class]))
+        except ConfigVerificationError as exc:
+            raise ReferenceSelfCheckFailed(clean(str(exc))) from None
+        return FLA_CONFIG_ROOT + "/" + GPU_CONFIG_DIRS[gpu_class]
+
+    async def require_runtime(self) -> None:
+        """C1: in release mode every engine runs under gVisor. Anything else voids the session (never a miner strike):
+        the runner is configured without it, or the daemon does not list it, or that cannot be read (fail closed)."""
+        if not self.release_mode:
+            return
+        if self.docker_runtime != RELEASE_RUNTIME:
+            raise ReferenceSelfCheckFailed(f"release mode needs REAX_ENGINE_DOCKER_RUNTIME={RELEASE_RUNTIME} "
+                                           f"(configured: {clean(self.docker_runtime) or 'none'})")
+        try:
+            code, out, err = await _run(["docker", "info", "--format", "{{json .Runtimes}}"], 60)
+        except OSError as exc:
+            raise ReferenceSelfCheckFailed(f"docker info cannot be run ({type(exc).__name__}): runtime unverified") from None
+        try:
+            runtimes = json.loads(out) if code == 0 else None
+        except ValueError:
+            runtimes = None
+        if not isinstance(runtimes, dict):
+            raise ReferenceSelfCheckFailed(f"docker info did not list the runtimes ({clean(err) or 'unreadable'}): "
+                                           "runtime unverified")
+        if RELEASE_RUNTIME not in runtimes:
+            raise ReferenceSelfCheckFailed(f"the docker daemon has no {RELEASE_RUNTIME} runtime")
+        entry = runtimes[RELEASE_RUNTIME]
+        path = entry.get("path") if isinstance(entry, dict) else None
+        if not isinstance(path, str) or os.path.basename(path) != RELEASE_RUNTIME:
+            raise ReferenceSelfCheckFailed(f"the docker daemon's {RELEASE_RUNTIME} runtime does not point at a "
+                                           f"{RELEASE_RUNTIME} binary (path {clean(str(path))!r})")
+        args = entry.get("runtimeArgs")
+        # runsc boolean flags may be written "--nvproxy" or "--nvproxy=true" (the runbook's daemon.json uses the bare form)
+        have = {a[:-5] if a.endswith("=true") else a for a in args if isinstance(a, str)} if isinstance(args, list) else set()
+        missing = [a for a in RELEASE_RUNTIME_ARGS if (a[:-5] if a.endswith("=true") else a) not in have]
+        if missing:
+            raise ReferenceSelfCheckFailed(f"the docker daemon's {RELEASE_RUNTIME} runtime lacks the required "
+                                           f"runtimeArgs {' '.join(missing)}")
+        # for runsc the last occurrence of a flag wins: a later --network=host would undo --network=none
+        nets = [a for a in args if isinstance(a, str) and a.startswith("--network=")]
+        if nets and nets[-1] != "--network=none":
+            raise ReferenceSelfCheckFailed(f"the docker daemon's {RELEASE_RUNTIME} runtime ends with {clean(nets[-1])!r}, "
+                                           "not --network=none")
 
     async def preflight(self) -> None:
         """Both engines (reference + candidate) are loaded at once. On a shared 96 GB GPU the serving runtimes stay
         resident, so check the free memory first: too little = inconclusive (cycle skipped), never a failed candidate.
-        If nvidia-smi cannot be read the check is skipped."""
+        If nvidia-smi cannot be read the memory check is skipped (config admission still fails closed)."""
+        await self.require_runtime()
+        await self.config_dir()
         try:
             code, out, _ = await _run(["nvidia-smi", f"--id={self.gpu}", "--query-gpu=memory.free",
                                        "--format=csv,noheader,nounits"], 30)
@@ -288,6 +441,156 @@ class DockerRunner:
             await self.discard(ref)  # a pull that timed out half-way may leave layers behind
             raise InfraError(f"docker pull failed: {clean(err)}")
 
+    async def review(self, ref: str) -> None:
+        """Pre-run submission check (engreview.py): once per digest, before its first run. Raises EngineError with the
+        reason for an obvious violation and AwaitingReview (release mode) until ``REVIEWED/<digest>`` exists. No-op
+        without a review directory."""
+        if not self.review_dir:
+            if self.release_mode:  # the REVIEWED gate must never be skipped on finney
+                raise ReferenceSelfCheckFailed("release mode needs a review directory")
+            return
+        digest = engreview.digest_of(ref)
+        if not digest:
+            raise EngineError("engine images are run by digest only")
+        rec = engreview.load_record(self.review_dir, digest)
+        if rec is None:
+            rec = await self._static_check(ref, digest)
+            engreview.write_record(self.review_dir, digest, rec)
+            log.info("engine submission check %s: %s%s", digest[:12], rec["status"],
+                     (" - " + "; ".join(rec["violations"])) if rec["violations"] else "")
+        if rec.get("violations"):
+            raise EngineError(clean("submission check: " + "; ".join(str(v) for v in rec["violations"]), 400))
+        if self.release_mode and not engreview.is_reviewed(self.review_dir, digest):
+            raise AwaitingReview(f"{digest} has a static check record but no REVIEWED/{digest} marker yet")
+
+    def awaiting_review(self, ref: str) -> bool:
+        """Release mode: the static check of this digest passed (its record exists) and the operator's marker is still
+        missing. The cycle leaves such a digest out, so unreviewed submissions cannot use up the evaluation slots."""
+        digest = engreview.digest_of(ref)
+        if not (self.release_mode and self.review_dir and digest):
+            return False
+        rec = engreview.load_record(self.review_dir, digest)
+        return bool(rec) and not rec.get("violations") and not engreview.is_reviewed(self.review_dir, digest)
+
+    async def _static_check(self, ref: str, digest: str) -> dict[str, Any]:
+        code, out, err = await _run(["docker", "image", "inspect", "--format", "{{json .}}", ref], 60)
+        if code != 0:
+            raise InfraError(f"docker inspect failed: {clean(err)}")
+        try:
+            info = json.loads(out)
+        except ValueError:
+            raise InfraError("unreadable docker inspect output") from None
+        if isinstance(info, list):
+            info = info[0] if info else {}
+        if not isinstance(info, dict):
+            raise InfraError("unreadable docker inspect output")
+        violations, warnings, summary = engreview.check_image_config(info)
+        if violations:  # already rejected: do not copy anything out of an image that cannot run
+            return engreview.new_record(ref, digest, violations, warnings, summary, {})
+        files = await self.image_files(ref, summary.get("workdir", ""))
+        expected = dict(await self._expected_files())
+        v2, w2 = engreview.compare_files(files, expected)
+        return engreview.new_record(ref, digest, violations + v2, warnings + w2, summary, files)
+
+    async def _expected_files(self) -> dict[str, str]:
+        """Tokenizer/config files the candidate must match: the reference image's copy at the same path, else the pinned
+        weights directory's file of the same name."""
+        exp = {}
+        if self._reference_files is None:
+            self._reference_files = ({} if not self.reference_ref
+                                     else await self.image_files(self.reference_ref, ""))
+        weights = engreview.weights_file_hashes(self.weights_dir)
+        ref_files = {k: v for k, v in self._reference_files.items() if not v.startswith("!")}
+        # The reference image and the pinned weights directory describe the same model. If they disagree, this validator
+        # is misconfigured (wrong weights directory for this reference): every candidate would be rejected for a fault
+        # that is not theirs, and the rejection is cached. Void instead.
+        for path, sha in sorted(ref_files.items()):
+            want = weights.get(os.path.basename(path))
+            if want is not None and not want.startswith("!") and engreview.model_like(path) and want != sha:
+                raise ReferenceSelfCheckFailed(
+                    f"the reference image's {path} differs from the weights directory's {os.path.basename(path)}: "
+                    "weights directory and reference image do not belong together")
+        exp.update(weights)  # bare file names
+        exp.update(ref_files)  # full paths, looked up first
+        return exp
+
+    async def image_files(self, ref: str, workdir: str) -> dict[str, str]:
+        """sha256 of every tokenizer/config file found at the checked paths of the image (path -> hash). The image is only
+        created, never started (``docker create``); each file is copied to a private temporary directory."""
+        dirs = list(engreview.CHECKED_DIRS) + ([workdir.rstrip("/")] if workdir.startswith("/") and workdir != "/" else [])
+        name = "reax-chk-" + secrets.token_hex(6)
+        code, _, err = await _run(["docker", "create", "--name", name, "--network", "none", "--entrypoint", "/nonexistent",
+                                   ref], 120)
+        if code != 0:
+            raise InfraError(f"docker create for the submission check failed: {clean(err)}")
+        os.makedirs(self.review_dir, mode=0o700, exist_ok=True)
+        tmp = tempfile.mkdtemp(prefix="chk-", dir=self.review_dir)
+        found: dict[str, str] = {}
+        try:
+            for d in dict.fromkeys(dirs):
+                for fname in engreview.CHECKED_FILE_NAMES:
+                    path = (d.rstrip("/") + "/" + fname)
+                    dest = os.path.join(tmp, "f")
+                    c, _, _ = await _run(["docker", "cp", f"{name}:{path}", dest], 60,
+                                         watch=(dest, engreview.MAX_CHECKED_FILE_BYTES))
+                    if c == CP_TOO_LARGE:
+                        found[path] = "!file larger than the check limit"
+                    elif c == 0:
+                        found[path] = engreview.hash_regular_file(dest)
+                    if os.path.lexists(dest):
+                        if os.path.isdir(dest) and not os.path.islink(dest):
+                            shutil.rmtree(dest, ignore_errors=True)
+                        else:
+                            os.unlink(dest)
+        finally:
+            await _run(["docker", "rm", "-fv", name], 120)
+            shutil.rmtree(tmp, ignore_errors=True)
+        return found
+
+    def weights_identity(self) -> str:
+        """sha256 over the relative path and size of every file under the weights directory, the content of the small
+        JSON files (config, tokenizer, index) and the header bytes of every safetensors file (tensor names, dtypes,
+        shapes, offsets) plus a 64 KiB sample of the tensor data at both ends. Cheap enough to take at every start (a
+        content hash of the weights themselves would not be). ``unreadable:...`` when it cannot be read at all (missing,
+        empty): that is not a change of the weights."""
+        h = hashlib.sha256()
+        n = 0
+
+        def fail(exc: OSError) -> None:
+            raise exc
+
+        def sample(fh, at: int) -> None:
+            fh.seek(at)
+            h.update(hashlib.sha256(fh.read(IDENTITY_SAMPLE_BYTES)).digest())
+
+        try:
+            if not os.path.isdir(self.weights_dir):
+                return "unreadable:missing"
+            for root, dirs, files in os.walk(self.weights_dir, onerror=fail):
+                dirs.sort()
+                for f in sorted(files):
+                    path = os.path.join(root, f)
+                    size = os.path.getsize(path)
+                    h.update(f"{os.path.relpath(path, self.weights_dir)}\0{size}\n".encode())
+                    if f.endswith(".json") and size <= IDENTITY_JSON_MAX_BYTES:
+                        with open(path, "rb") as fh:
+                            h.update(hashlib.sha256(fh.read()).digest())
+                    elif f.endswith(".safetensors"):
+                        with open(path, "rb") as fh:
+                            head = fh.read(8)
+                            h.update(head)
+                            if len(head) == 8:
+                                hlen = min(int.from_bytes(head, "little"), IDENTITY_HEADER_MAX_BYTES)
+                                h.update(hashlib.sha256(fh.read(hlen)).digest())
+                                # two fine-tunes of one architecture share the header: add a sample of the tensor data
+                                sample(fh, 8 + hlen)
+                                if size > 8 + hlen + IDENTITY_SAMPLE_BYTES:
+                                    sample(fh, size - IDENTITY_SAMPLE_BYTES)
+                    n += 1
+        except OSError as exc:
+            return f"unreadable:{type(exc).__name__}"
+        return h.hexdigest() if n else "unreadable:empty"
+
     async def owner_of(self, ref: str) -> Optional[str]:
         """The hotkey the image is bound to (its label), or "" if none. On any failure (also a cancelled pull) the image
         is removed again; the caller discards it when the label names another hotkey."""
@@ -312,28 +615,42 @@ class DockerRunner:
     async def start(self, ref: str, model: str, params: TrackParams, keep_image: bool = False) -> Engine:
         try:
             return await self._start(ref, model, params, keep_image)
+        except AwaitingReview:
+            raise  # the image stays for the operator's review
         except BaseException:
             if not keep_image:  # every failed start (pull, docker run, cancellation) gives the image back
                 await self.discard(ref)
             raise
 
     async def _start(self, ref: str, model: str, params: TrackParams, keep_image: bool) -> Engine:
+        if self.release_mode and self.docker_runtime != RELEASE_RUNTIME:  # also for callers that skip preflight
+            raise ReferenceSelfCheckFailed(f"release mode needs REAX_ENGINE_DOCKER_RUNTIME={RELEASE_RUNTIME}")
+        config_dir = await self.config_dir()
         await self._ensure_image(ref)
+        if ref not in self.protected_images:
+            await self.review(ref)  # the candidate; the release reference and the vLLM image are ours
         d, token = _session_dir(self.workdir)
         name = "reax-eng-" + secrets.token_hex(6)
         cmd = ["docker", "run", "-d", "--name", name, "--network", "none", "--read-only",
-               "--tmpfs", "/tmp:rw,exec,size=16g", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+               "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=16g", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                "--pids-limit", "1024", "--ulimit", "nofile=4096:4096", "--memory", self.memory,
                "--memory-swap", self.memory, "--cpus", self.cpus, "--shm-size", "2g", "--user", self.user,
                "--log-driver", "local", "--log-opt", "max-size=10m", "--log-opt", "max-file=2",
                "--gpus", f"device={self.gpu}",
                "-v", f"{self.weights_dir}:/model:ro", "-v", f"{os.path.join(d, 'io')}:/run/reax",
+               "-v", f"{os.path.join(self.fla_config_root, os.path.basename(config_dir))}:{config_dir}:ro",
                "-e", "RUNTIME_UDS=/run/reax/" + SOCKET_NAME, "-e", "S1M_INTERNAL_TOKEN_FILE=/run/reax/token",
-               "-e", "PLUMB_MODEL_DIR=/model", "-e", "HF_HUB_OFFLINE=1", "-e", "OPENAI_API_KEY="]
+               "-e", "FLA_CACHE_MODE=strict", "-e", f"FLA_CONFIG_DIR={config_dir}",
+               "-e", "PLUMB_MODEL_DIR=/model", "-e", "HF_HUB_OFFLINE=1", "-e", "OPENAI_API_KEY=",
+               "-e", "NVIDIA_DRIVER_CAPABILITIES=compute,utility"]
         if self.docker_runtime:
             cmd += ["--runtime", self.docker_runtime]
         cmd.append(ref)
-        code, _, err = await _run(cmd, 300)
+        try:
+            code, _, err = await _run(cmd, 300)
+        except BaseException:
+            await _abort_start(name, d)  # cancelled before an Engine (and its stop handle) exists
+            raise
         if code != 0:
             await _run(["docker", "rm", "-fv", name], 120)
             shutil.rmtree(d, ignore_errors=True)
@@ -361,7 +678,7 @@ class DockerRunner:
 
         client = UdsSidecarBackend(model, os.path.join(d, "io", SOCKET_NAME), token, params.concurrency,
                                    params.request_timeout_s)
-        return Engine(ref, client, stop, pause, resume, gpu_busy if self.nvml_check else None)
+        return Engine(ref, client, stop, pause, resume, gpu_busy if self.nvml_check and self.docker_runtime != RELEASE_RUNTIME else None)
 
 
 class DevRunner:
@@ -539,14 +856,15 @@ class _Solo:
 
 
 async def evaluate(runner: Runner, reference_ref: str, candidate_ref: str, track: str, params: TrackParams,
-                   block: int = 0, digest: str = "") -> EvalResult:
+                   block: int = 0, digest: str = "", progress: Optional[dict[str, Any]] = None) -> EvalResult:
     """Measure one candidate against the reference in one session (both engines loaded on the same GPU; the idle
     one is paused during every measurement).
 
     Raises ReferenceError_ when the reference engine fails before the candidate starts (inconclusive),
     ReferenceFailedWithCandidate when it fails while the candidate is loaded, and InfraError when the candidate
     image cannot be pulled or started for infrastructure reasons. Wrap it in ``asyncio.wait_for`` with
-    ``params.eval_budget_s``.
+    ``params.eval_budget_s``. ``progress``: set to ``{"measuring": True}`` when the first timed request of the pair
+    measurement starts, so a caller whose budget expires can tell "never got to measure" from "measured too slowly".
     """
     model = params.pool
     res = EvalResult(digest=digest or candidate_ref.rsplit(":", 1)[-1], track=track, ok=False, block=block)
@@ -558,6 +876,7 @@ async def evaluate(runner: Runner, reference_ref: str, candidate_ref: str, track
             raise ReferenceError_(f"reference engine did not start: {exc}") from None
         if not await wait_ready(ref, params.start_timeout_s):
             raise ReferenceError_("reference engine not ready")
+        await reference_self_check(ref, params)
         baseline = await reference_baseline(ref, params)  # the reference ALONE on the GPU, before the candidate exists
         lat_baseline = await reference_latency_baseline(ref, params)
         try:
@@ -569,7 +888,7 @@ async def evaluate(runner: Runner, reference_ref: str, candidate_ref: str, track
             res.reason = "not ready within the start timeout (or failed the authenticated test decision)"
             return res
         try:
-            return await _measure(ref, cand, params, res, baseline, lat_baseline)
+            return await _measure(ref, cand, params, res, baseline, lat_baseline, progress)
         except ReferenceError_ as exc:
             raise ReferenceFailedWithCandidate(str(exc)) from None
         except EngineError as exc:  # replaced socket, GPU use while paused: the candidate cheats or is broken
@@ -588,6 +907,19 @@ async def evaluate(runner: Runner, reference_ref: str, candidate_ref: str, track
                 await eng.stop()
             except Exception as exc:  # noqa: BLE001
                 log.warning("could not stop engine %s: %r", eng.ref[:60], exc)
+
+
+async def reference_self_check(ref: Engine, params: TrackParams) -> None:
+    """Repeat a fixed, public check set before any candidate is loaded (not a scoring set)."""
+    decisions = [parse_decision(it.decision(), params.pool)
+                 for it in generate_s1_items(params.timed_items, seed=0x52454158)]
+    first = await _answers(ref.client, decisions)
+    second = await _answers(ref.client, decisions)
+    if len(first) != len(decisions) or len(second) != len(decisions) or not _complete(first) or not _complete(second):
+        raise ReferenceSelfCheckFailed("reference self-check missing answers")
+    check = check_correctness(second, first, params)
+    if not check.ok:
+        raise ReferenceSelfCheckFailed("reference self-check: " + check.reason)
 
 
 async def reference_baseline(ref: Engine, params: TrackParams) -> float:
@@ -626,7 +958,8 @@ def _check_latency_drift(p50: float, baseline: Optional[float], params: TrackPar
 
 
 async def _measure(ref: Engine, cand: Engine, params: TrackParams, res: EvalResult,
-                   baseline: Optional[float] = None, lat_baseline: Optional[float] = None) -> EvalResult:
+                   baseline: Optional[float] = None, lat_baseline: Optional[float] = None,
+                   progress: Optional[dict[str, Any]] = None) -> EvalResult:
     model = params.pool
     warm = fresh_decisions(min(32, params.timed_items), model)
     async with _Solo(ref, cand, params.pause_idle) as c:
@@ -643,6 +976,8 @@ async def _measure(ref: Engine, cand: Engine, params: TrackParams, res: EvalResu
             order.reverse()  # ABBA: neither engine always runs first
         for eng, other in order:
             async with _Solo(eng, other, params.pause_idle) as c:
+                if progress is not None:
+                    progress["measuring"] = True
                 tp, ans = await timed_run(c, items)
             if eng is ref:
                 if not _complete(ans):

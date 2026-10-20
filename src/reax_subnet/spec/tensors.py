@@ -344,10 +344,15 @@ class DeltaStats:
     compared: int          # tensors compared
     norm_a: float          # ||dA||; 0 means A equals the base
     norm_b: float
+    alpha: float = 0.0     # dot(dA, dB) / ||dA||^2: the component of B's delta along A's (1 = a copy plus orthogonal noise)
 
-    def derived(self, cos_min: float = 0.98, rel_max: float = 0.05) -> bool:
-        """docs/SPECIALIST-TRACKS.md: B is derived from A when cos > 0.98 and the relative L2 distance < 0.05."""
-        return self.compared > 0 and self.norm_a > 0 and self.cosine > cos_min and self.relative_l2 < rel_max
+    def derived(self, cos_min: float = 0.98, rel_max: float = 0.05, alpha_tol: float | None = None) -> bool:
+        """docs/SPECIALIST-TRACKS.md: B is derived from A when cos > 0.98 and the relative L2 distance < 0.05.
+        ``alpha_tol`` (near-copy rule R3, off by default): also derived when cos > 0.98 and |alpha - 1| < alpha_tol, i.e. B is
+        A plus a noise that is (nearly) orthogonal to A, which the relative L2 distance alone does not forgive."""
+        if not (self.compared > 0 and self.norm_a > 0 and self.cosine > cos_min):
+            return False
+        return self.relative_l2 < rel_max or (alpha_tol is not None and abs(self.alpha - 1.0) < alpha_tol)
 
 
 def compare_sketches(a: dict[str, np.ndarray], b: dict[str, np.ndarray]) -> DeltaStats:
@@ -366,7 +371,8 @@ def compare_sketches(a: dict[str, np.ndarray], b: dict[str, np.ndarray]) -> Delt
     norm_a, norm_b = math.sqrt(na), math.sqrt(nb)
     cos = dot / (norm_a * norm_b) if norm_a > 0 and norm_b > 0 else 0.0
     rel = math.sqrt(nd) / norm_a if norm_a > 0 else float("inf")
-    return DeltaStats(cosine=cos, relative_l2=rel, compared=compared, norm_a=norm_a, norm_b=norm_b)
+    alpha = dot / na if na > 0 else 0.0
+    return DeltaStats(cosine=cos, relative_l2=rel, compared=compared, norm_a=norm_a, norm_b=norm_b, alpha=alpha)
 
 
 SEED_KEY = "__seed_id__"

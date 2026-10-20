@@ -147,7 +147,10 @@ class Miner:
         pool = self.backend
         size = getattr(pool, "size", 1)
         healthy = getattr(pool, "healthy_count", size)
-        return max(healthy, 1) / max(size, 1)
+        # Multinode: limits were configured for the workers at start; a worker that is joining during a swap does
+        # not shrink them, and more workers than at start never raise them above the configured values.
+        nominal = getattr(pool, "nominal_size", size)
+        return min(1.0, max(healthy, 1) / max(nominal, 1))
 
     def _caller_limits(self) -> tuple[int, int]:
         scale = self._capacity_scale()

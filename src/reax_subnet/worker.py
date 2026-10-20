@@ -29,8 +29,8 @@ from typing import Any, Mapping, Optional
 from .competition_split import COMPETITIONS_START_UTC, ENGINE_HELD, SPLIT_PROFILE, release_engine_start
 from .competitions import CompetitionDriver, SpecialistAdapter
 from .config import (ENGINE_STATE_FILE, LOCAL_NETWORK_NAMES, MAINNET_NAMES, SPEC_STATE_FILE, CommonConfig, ConfigError,
-                     EngineConfig, _bool, _engine, _int, load_common)
-from .engcomp import RewardParams
+                     EngineConfig, _bool, _engine, _int, _is_mainnet, load_common)
+from .engcomp import RewardParams, sync_start_block_hash
 from .engvalidator import TRACKS, EngineCompetition
 
 log = logging.getLogger("reax.worker")
@@ -65,6 +65,20 @@ def build_specialist(sealed_dir: str, e: EngineConfig, env: Mapping[str, str], *
     return SpecialistAdapter(SpecEvaluator(spec_cfg), gpu=spec_cfg.gpu_device, need_mib=int(spec_cfg.gpu_budget_gb * 1024))
 
 
+def _chain_id(env: Mapping[str, str]) -> str:
+    """``network:netuid`` as config.load_* parses them: whitespace stripped, every mainnet spelling is ``finney``
+    (finney defaults to netuid 92), the netuid an integer."""
+    network = (env.get("REAX_NETWORK") or "").strip() or "finney"
+    if _is_mainnet(network):
+        network = "finney"
+    netuid = (env.get("REAX_NETUID") or "").strip()
+    if netuid.isdigit():
+        netuid = str(int(netuid))
+    elif not netuid and network == "finney":
+        netuid = "92"
+    return f"{network}:{netuid}"
+
+
 def build_local_stack(e: EngineConfig, sealed_dir: str, env: Mapping[str, str], *, run_engine: bool = True,
                       state_dir: str = "", award_gate: Any = None):
     """``(engine, adapter, spec_evaluator)`` for a process that runs the cycles itself (a validator in local mode, or the
@@ -85,14 +99,17 @@ def build_local_stack(e: EngineConfig, sealed_dir: str, env: Mapping[str, str], 
     else:
         runner = DockerRunner(e.workdir, e.weights_dir, gpu=e.gpu, docker_runtime=e.docker_runtime,
                               registries=e.registries, memory=e.memory, cpus=e.cpus, nvml_check=e.nvml_check,
-                              protected_images=(e.reference, env.get("REAX_SPEC_VLLM_IMAGE", VLLM_IMAGE)))
+                              protected_images=(e.reference, env.get("REAX_SPEC_VLLM_IMAGE", VLLM_IMAGE)),
+                              release_mode=e.release_mode, review_dir=e.review_dir, reference_ref=e.reference)
     tracks, reward = engine_params(e)
     log.info("engine competition: %s runner, reference %s, split profile %s, starts %s", e.runner, e.reference,
              SPLIT_PROFILE, "NEVER: the engine track is HELD (no engine cycle runs)" if engine_start == ENGINE_HELD
              else (engine_start or start).isoformat() if (engine_start or start) else "immediately (development network)")
     engine = EngineCompetition(runner, {"s1-fast": e.reference}, e.state_path, tracks=tracks, reward=reward,
                                interval_s=e.interval_s, max_evals=e.max_evals, start_utc=start, specialist=adapter,
-                               engine_start_utc=engine_start, award_gate=award_gate)
+                               engine_start_utc=engine_start, award_gate=award_gate,
+                               chain_id=_chain_id(env), cycle_gate_file=e.cycle_gate_file,
+                               cycle_gate_max_age_s=float(e.cycle_gate_max_age_s))
     return engine, adapter, adapter.evaluator if adapter else None
 
 
@@ -223,6 +240,7 @@ async def run_worker(wc: WorkerConfig, chain: Any, env: Mapping[str, str] = os.e
             if driver.due():
                 try:
                     snap = await asyncio.to_thread(chain.snapshot)
+                    await sync_start_block_hash(chain, snap.block, 180.0)  # same tie order as the validators
                     exclude = {snap.owner_uid} if snap.owner_uid is not None else set()
                     await driver.run(snap, exclude, between=after_step)
                 except asyncio.CancelledError:

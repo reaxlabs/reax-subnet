@@ -227,7 +227,7 @@ def test_before_the_start_instant_the_weights_are_the_serving_weights(tmp_path):
 
 
 # ------------------------------------------------------------------------------------------------ specialists, remote
-def spec_state(path, *, saved=True, score=(30.0, 25.0, 20.0)):
+def spec_state(path, *, saved=True, score=(30.0, 25.0, 20.0), crowned_at=None):
     st = ST.SpecState()
     ts = st.track(T_SPEC)
     for i, (repo, sc) in enumerate(zip(("a/m1", "a/m2", "a/m3"), score)):
@@ -235,7 +235,7 @@ def spec_state(path, *, saved=True, score=(30.0, 25.0, 20.0)):
         key = f"hk-spec{20 + i}|{c}"
         sub = ST.Submission(key=key, uid=20 + i, hotkey=f"hk-spec{20 + i}", coldkey="c", track_id=T_SPEC, repo=repo, revision=REV,
                             first_seen_block=1, first_seen_ts=1.0, status=ST.CHAMPION if i == 0 else ST.FORMER, score=sc,
-                            champion_since_ts=100.0 - i, delta_checked=True)   # crowned since rc5: copy-checked
+                            champion_since_ts=crowned_at if (i == 0 and crowned_at is not None) else 100.0 - i, delta_checked=True)   # crowned since rc5: copy-checked
         ts.submissions[key] = sub
         if i == 0:
             ts.champion = key
@@ -630,3 +630,49 @@ def test_dockerfile_has_the_worker_target_and_the_validator_target_has_no_docker
     assert "docker:27-cli" not in "\n".join(stages["validator"])
     pyproject = open(os.path.join(root, "pyproject.toml")).read()
     assert 'reax-competition-worker = "reax_subnet.worker:main"' in pyproject
+
+
+class _Approved:
+    """Stands in for the signed-approvals gate: only the listed hotkeys are approved."""
+
+    def __init__(self, *hotkeys):
+        self.hotkeys = set(hotkeys)
+
+    def approved(self, track_id, hotkey, submission_id):
+        return hotkey in self.hotkeys
+
+
+def _keep_share_weights(tmp_path, monkeypatch, *, flag, crowned_ago_h):
+    """EngineCompetition.weights <- RemoteSpecAdapter <- spec-state.json: uid 20 is the newest, unapproved champion,
+    uid 21 the approved former champion, uid 22 the approved rank 3."""
+    if flag is None:
+        monkeypatch.delenv("REAX_SPEC_NC_KEEP_SHARE", raising=False)
+    else:
+        monkeypatch.setenv("REAX_SPEC_NC_KEEP_SHARE", flag)
+    sp, ep = tmp_path / SPEC_STATE_FILE, tmp_path / ENGINE_STATE_FILE
+    spec_state(sp, crowned_at=NOW0.timestamp() - crowned_ago_h * HOUR)
+    write_engine_state(ep, champion=False)
+    stamp(sp, NOW0.timestamp())
+    stamp(ep, NOW0.timestamp())
+    adapter = RM.RemoteSpecAdapter(RM.RemoteSpecEvaluator(str(sp), clock=lambda: NOW0.timestamp()), free_mib=None)
+    comp = RM.RemoteEngineCompetition(str(ep), specialist=adapter, utcnow=lambda: NOW0, wall=lambda: NOW0.timestamp(),
+                                      award_gate=_Approved("hk-spec21", "hk-spec22"))
+    s = snap(specs=SPECS)
+    adapter.refresh(s)
+    return comp.weights(SERVING, s, {0})
+
+
+def test_keep_share_end_to_end_through_the_remote_adapter(tmp_path, monkeypatch):
+    normal = _keep_share_weights(tmp_path, monkeypatch, flag=None, crowned_ago_h=1)
+    assert 20 not in normal                                                   # unapproved crown: not paid
+    assert normal[21] == pytest.approx(0.15 * 0.17) and normal[22] == pytest.approx(0.15 * 0.08)
+    off = _keep_share_weights(tmp_path, monkeypatch, flag="0", crowned_ago_h=1)
+    assert off == normal                                                      # flag off: unchanged
+    on = _keep_share_weights(tmp_path, monkeypatch, flag="1", crowned_ago_h=1)
+    assert 20 not in on and on[21] == pytest.approx(0.15 * 0.75) and on[22] == pytest.approx(0.15 * 0.08)
+    assert sum(on.values()) == pytest.approx(1.0)
+    late = _keep_share_weights(tmp_path, monkeypatch, flag="1", crowned_ago_h=49)
+    assert late == _keep_share_weights(tmp_path, monkeypatch, flag=None, crowned_ago_h=49)   # past 48 h: back to normal
+    assert late[21] == pytest.approx(0.15 * 0.17)
+    future = _keep_share_weights(tmp_path, monkeypatch, flag="1", crowned_ago_h=-5 * 24)      # crowned 5 days "ahead": unknown
+    assert future[21] == pytest.approx(0.15 * 0.17)

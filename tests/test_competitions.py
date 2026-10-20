@@ -341,7 +341,7 @@ def test_each_missing_piece_alone_keeps_a_finney_validator_serving_only(monkeypa
 def test_the_reference_engine_is_a_release_constant_with_an_env_override_on_dev_networks_only(monkeypatch, tmp_path):
     from reax_subnet import config
 
-    assert config.ENGINE_REFERENCE_IMAGE.startswith("ghcr.io/reaxlabs/reax-s1-fast-runtime@sha256:")
+    assert config.ENGINE_REFERENCE_IMAGE.startswith("ghcr.io/reaxlabs/") and "@sha256:" in config.ENGINE_REFERENCE_IMAGE
     published = f"ghcr.io/reaxlabs/reax-s1-fast-runtime@sha256:{D}"
     monkeypatch.setattr(config, "ENGINE_REFERENCE_IMAGE", published)
     host = {"REAX_ENGINE_WEIGHTS_DIR": str(tmp_path), "REAX_SPEC_SEALED_DIR": str(tmp_path), "REAX_COMPETITIONS_MODE": "local"}

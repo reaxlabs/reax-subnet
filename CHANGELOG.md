@@ -1,5 +1,95 @@
 # Changelog
 
+## Unreleased
+
+### Several machines behind one inference hotkey (miner-only, `REAX_FEATURE_MULTINODE`, default off)
+
+Validators, scoring, weights and `WEIGHTS_VERSION_KEY` are unchanged; with the flag unset the miner behaves as in
+1.2.0rc9.post5 (one fix below applies to `REAX_<MODEL>_RUNTIME_URLS` lists too). Design: docs/DESIGN-MULTINODE.md.
+
+* New `reax-runtime-relay` for worker machines: forwards the gateway's signed requests to the loopback sidecar.
+  Per-request HMAC-SHA256 with a per-worker link key (10 s freshness, replay cache), every answer signed and bound
+  to its request, TLS with a self-signed certificate pinned by fingerprint on the gateway, or plain http only on
+  private/VPN addresses (10/8, 172.16/12, 192.168/16, 100.64/10, fc00::/7). Workers never see the hotkey.
+* Gateway (`reax-miner`, `REAX_FEATURE_MULTINODE=1`, s1-fast and s1-pro only): workers from `REAX_WORKERS_FILE`,
+  re-read every 10 s. New workers take validator traffic only after two good health checks and the identity check;
+  removed or edited workers are retired make-before-break (an edited entry serves until its replacement is in
+  rotation; a removed one while fewer than `REAX_WORKERS_MIN_HEALTHY` others serve) and drained. Key files
+  rewritten in place are noticed. `{"name": ..., "evict": true}` takes a worker out at once. The miner starts when
+  `REAX_WORKERS_MIN_HEALTHY` (default 1) workers pass.
+* Link 401/403, unsigned or changed answers count as worker faults and fail over to another worker.
+* Fix (also for `REAX_<MODEL>_RUNTIME_URLS`): a backend taken out of rotation while one of its requests was in flight
+  is no longer re-admitted by that request's late success; it returns only through the health and identity checks.
+* Docs: MINER.md "Several machines in different places behind one hotkey", CONFIG.md, FEATURE-FLAGS.md,
+  THREAT-MODEL.md S15. Tests: `tests/test_multinode.py`; localnet `scripts/localnet/e2e_multinode.py`.
+
+### Specialist queue
+
+* Specialist queue: check waiting repositories with metadata-only probes each cycle (up to 32 per track, oldest
+  commitment first). Public revisions return to their original queue priority; unavailable repos stay skipped without
+  spending the preparation skip allowance. State format, evaluation budgets and scoring rules are unchanged.
+
+## 1.2.0rc9.post4 — engine track hardening (engine stays HELD), near-champion rule and keep-share (flags off)
+
+`WEIGHTS_VERSION_KEY` is unchanged (1240). On finney the engine track stays held in code, the specialist path is unchanged, and
+with the new flags unset the decisions and weights are those of 1.2.0rc9.post3.
+
+### Engine track (held; no effect on weights while it is held)
+* Engine runner hardening. Release mode (finney) refuses to start any engine unless `REAX_ENGINE_DOCKER_RUNTIME=runsc` and
+  `docker info` lists the runtime (void session, never a miner strike). Engine containers get `/tmp` with `nosuid,nodev`
+  (exec kept) and `NVIDIA_DRIVER_CAPABILITIES=compute,utility`. `REAX_ENGINE_NVML_CHECK` is ignored under runsc (it cannot
+  match the sandbox's PIDs). Optional `REAX_ENGINE_CYCLE_GATE_FILE` / `REAX_ENGINE_CYCLE_GATE_MAX_AGE_MIN` bracket cycles
+  and a cycle writes a `cycle_end` event. New pre-run submission check (`engreview.py`): image config and tokenizer/config
+  files are screened once per digest and recorded in `<review dir>/reviews/<digest>.json`; in release mode a digest runs
+  only after the operator created `<review dir>/REVIEWED/<digest>`.
+* Engine containers receive `FLA_CACHE_MODE=strict` and a fixed per-GPU-class `FLA_CONFIG_DIR`. The measured configs of the
+  RTX PRO 6000 Blackwell Server Edition are published (`runtimes/s1-fast/fla-configs/`, pinned by SHA256SUMS hash) and
+  bind-mounted read-only into every engine (reference image 9bd41632 ships none); checksum mismatch or any other GPU
+  class makes the session VOID. `PINNED_REFERENCE_NOISE_STD` = 0.00167 (new frozen rules hash). The Workstation Edition
+  stays unpublished.
+* Strict-mode reference startup/request paths reject missing FLA config keys instead of falling back to autotuning.
+* Before a candidate starts, the reference answers a fixed check set twice. Failed self-checks produce a persisted
+  `session_void` event and no miner score, strike or infrastructure-attempt increment.
+* One invalid champion measurement triggers a fresh-session re-check; only two consecutive invalid sessions
+  vacate the title. A valid session resets the streak; a duplicate session does not increment it.
+* Minimum gain and champion/challenger displacement margin are at least `max(0.03, 3 * reference_noise_std)`.
+  Noise is the measured relative standard deviation of fresh-process pinned-reference throughput. It is included
+  in the frozen rules hash; now measured (0.00167) and published. Fresh-session confirmation stays.
+* Engine track code gates: a digest's image owner is recorded when it is first verified and a second hotkey committing a cached
+  digest is excluded (the champion is matched by digest and hotkey); an owner-lookup timeout is inconclusive, not a failed
+  session. Saved results and champions carry a measurement context (reference image, weights file manifest, frozen track
+  parameters, chain/netuid); a changed or missing context drops them so they are re-measured and re-confirmed before they pay.
+  Cancelling an evaluation reaps the subprocess and removes a half-started container and its session directory. Track
+  parameter overrides reject zero counts, non-positive and non-finite timeouts. The engine track stays HELD.
+* Critic fixes. An image that waits for its `REVIEWED/<digest>` marker is removed again (the record keeps the verdict; it is
+  pulled again once the marker exists); an `OSError` of the submission check (review directory, disk) is a host fault and counts
+  nothing against the miner; release mode without a review directory voids instead of skipping the gate. A missing, empty or
+  unreadable weights directory no longer looks like a context change: the saved state is kept, no cycle runs and no engine
+  share is paid until it is readable. The weights identity also covers the content of the small JSON files and the safetensors
+  headers plus a 64 KiB sample of the tensor data at both ends. The chain id is normalised like the config (every mainnet
+  spelling is `finney`, whitespace stripped). `runsc` is accepted only when the daemon's runtime path is a `runsc` binary with
+  `--network=none` and `--nvproxy=true` in its `runtimeArgs`. In the static check a bare file name is compared only in model
+  directories (`/model`, `/models`, `/opt/model`), a reference image that disagrees with the weights directory voids the
+  session, no files are extracted from an image whose configuration is already rejected, and a copied file is cut off at the
+  size cap. A rejected record can be cleared by deleting `<review dir>/reviews/<digest>.json`. `cycle_end` and `session_void`
+  events live in their own capped list (`cycle_events`), so they cannot push `crowned`/`vacated` out of the history. A
+  whole-budget timeout before the first timed request is an inconclusive attempt (bounded by `max_infra_attempts`), not a
+  failed measurement; after measurement began it still fails as before.
+
+### Near-champion rule and keep-share (`REAX_SPEC_NC_NEAR_CHAMP`, `REAX_SPEC_NC_KEEP_SHARE`; default off)
+- New `REAX_SPEC_NC_NEAR_CHAMP` (competition worker, default off): a challenger whose weights are close to the incumbent's
+  (delta sketch cos > 0.995, or relative L2 < 0.15, or cos > 0.98 with alpha within 0.05 of 1) must, on every deciding draw
+  against it, have more items whose most probable label is the gold one (`ItemScore.top_hit`, rescaling-proof) than the
+  incumbent and gain at least max(margin, 3.0) points (`NEAR_CHAMP_*`). History rows `kind: near_champ`. A challenger on
+  another declared base is sketched again from its served weights against the champion's base (critic-nc F1). If no
+  comparison can be made (champion sketch or weights missing) the draw is recorded `comparable: false` and the old rules
+  decide it. Vacant-track playoffs are unaffected.
+- New `REAX_SPEC_NC_KEEP_SHARE` (validator, default off; consensus-relevant, same value on every validator): while a track's
+  new champion has no owner approval and was crowned less than 48 h ago, its rank-1 share goes to the most recently crowned
+  approved former champion, who gives up its own rank share. `RankedLeaders.crowned` carries the crowning times.
+- Near-copy rules R1/R2/R3 (`REAX_SPEC_NC_R1/R2/R3`, default off) are in the code for later use; not part of the 19 Oct decision.
+- All flags off: decisions and weights are bit for bit those of 1.2.0rc9.post3.
+
 ## 1.2.0rc9.post3 — X tier binding mode and capped generalisation penalty (competition worker only; unreleased)
 
 - New `REAX_SPEC_X_TIER_MODE=binding` (default stays `off`): 20 % of each 300-item draw (including playoff draws) comes from

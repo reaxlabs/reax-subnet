@@ -31,7 +31,7 @@ class FakeDocker:
         self.calls, self.manifest_doc, self.present, self.pull_code, self.run_code = [], manifest_doc, present, pull_code, run_code
         self.free_mib = free_mib
 
-    async def __call__(self, argv, timeout_s):
+    async def __call__(self, argv, timeout_s, **kw):
         self.calls.append(list(argv))
         a = list(argv)
         if a[:3] == ["docker", "image", "inspect"]:
@@ -44,12 +44,19 @@ class FakeDocker:
             return self.pull_code, "", "pull boom" if self.pull_code else ""
         if a[:2] == ["docker", "run"]:
             return self.run_code, "", "run boom" if self.run_code else ""
+        if a[0] == "nvidia-smi" and "--query-gpu=name" in a:
+            return 0, "NVIDIA RTX PRO 6000 Blackwell Workstation Edition", ""
         if a[0] == "nvidia-smi" and "--query-gpu=memory.free" in a:
             return (0, f"{self.free_mib}\n", "") if self.free_mib is not None else (1, "", "no smi")
         return 0, "", ""
 
     def cmds(self, *prefix):
         return [c for c in self.calls if c[:len(prefix)] == list(prefix)]
+
+
+@pytest.fixture(autouse=True)
+def published_test_config(monkeypatch):
+    monkeypatch.setattr(ER, "PUBLISHED_GPU_CLASSES", frozenset(ER.GPU_CONFIG_DIRS))
 
 
 @pytest.fixture

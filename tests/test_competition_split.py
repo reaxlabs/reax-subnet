@@ -263,3 +263,96 @@ async def test_cycle_is_skipped_when_the_shared_gpu_is_too_full(tmp_path):
     comp = EngineCompetition(runner, {"s1-fast": "ghcr.io/r/ref@sha256:" + D}, str(tmp_path / "s.json"), start_utc=None)
     assert await comp.run_cycle(_snap(), {0}) == {}  # nothing measured, nothing recorded, no failed candidate
     assert runner.calls == 1 and comp.states["s1-fast"].results == {}
+
+
+# ------------------------------------------------------------------------------------------------ keep-share rule (c)
+from reax_subnet import competition_split as CS  # noqa: E402
+
+TRACK_ID = "demand_forecasting"
+T_NOW = 1_800_000_000.0
+
+
+def _gate(approved):
+    return lambda track, uid: uid in approved
+
+
+def _leaders(order, crowned):
+    r = RankedLeaders([(u, 50.0 - i) for i, u in enumerate(order)])
+    r.crowned = dict(crowned)
+    return r
+
+
+def _pay(order, crowned, approved, *, keep=True, now=T_NOW, with_ts=True):
+    leaders = _leaders(order, crowned) if with_ts else [(u, 50.0 - i) for i, u in enumerate(order)]
+    return combine_weights(SERVING, None, 0.0, {TRACK_ID: leaders}, "50/50", owner_uid=0, award_ok=_gate(approved),
+                           keep_share=keep, now=now)
+
+
+def test_keep_share_flag_parsing():
+    assert CS.keep_share_enabled({}) is False and CS.keep_share_enabled({"REAX_SPEC_NC_KEEP_SHARE": ""}) is False
+    assert CS.keep_share_enabled({"REAX_SPEC_NC_KEEP_SHARE": "0"}) is False
+    assert CS.keep_share_enabled({"REAX_SPEC_NC_KEEP_SHARE": " On "}) is True and CS.keep_share_enabled({"REAX_SPEC_NC_KEEP_SHARE": "1"}) is True
+    with pytest.raises(ValueError):
+        CS.keep_share_enabled({"REAX_SPEC_NC_KEEP_SHARE": "maybe"})
+    assert CS.APPROVAL_GRACE_S == 48 * 3600
+
+
+def test_keep_share_ranks_pure_cases():
+    ranks = {20: 0.75, 21: 0.17, 22: 0.08}
+    ok = lambda s: (lambda u: u in s)  # noqa: E731
+    fresh = {20: T_NOW - 3600}
+    assert CS.keep_share_ranks(ranks, fresh, T_NOW, ok({21})) == {20: 0.75, 22: 0.08, 21: 0.75}   # 21 takes rank 1's share, not its own
+    assert CS.keep_share_ranks(ranks, fresh, T_NOW, ok({22})) == {20: 0.75, 21: 0.17, 22: 0.75}   # first approved one in rank order
+    assert CS.keep_share_ranks(ranks, fresh, T_NOW, ok({21, 22}))[21] == 0.75 and 22 in CS.keep_share_ranks(ranks, fresh, T_NOW, ok({21, 22}))
+    assert CS.keep_share_ranks(ranks, fresh, T_NOW, ok({20, 21})) == ranks                          # rank 1 approved: unchanged
+    assert CS.keep_share_ranks(ranks, fresh, T_NOW, ok(set())) == ranks                             # nobody approved: unchanged
+    assert CS.keep_share_ranks(ranks, {20: T_NOW - 48 * 3600}, T_NOW, ok({21})) == ranks            # grace over (exactly 48 h)
+    assert CS.keep_share_ranks(ranks, {20: T_NOW - 48 * 3600 + 1}, T_NOW, ok({21}))[21] == 0.75     # one second before
+    assert CS.keep_share_ranks(ranks, {}, T_NOW, ok({21})) == ranks and CS.keep_share_ranks(ranks, None, T_NOW, ok({21})) == ranks
+    assert CS.keep_share_ranks(ranks, {20: float("nan")}, T_NOW, ok({21})) == ranks
+    assert CS.keep_share_ranks(ranks, {20: T_NOW + 601}, T_NOW, ok({21})) == ranks                   # crowned in the future: unknown
+    assert CS.keep_share_ranks(ranks, {20: T_NOW + 600}, T_NOW, ok({21}))[21] == 0.75               # within the clock slack
+    assert CS.keep_share_ranks({20: 0.75}, fresh, T_NOW, ok(set())) == {20: 0.75}                    # a single rank: nothing to do
+
+
+def test_keep_share_off_is_bit_identical():
+    order, crowned = [10, 11, 12], {10: T_NOW - 3600}
+    plain = combine_weights(SERVING, None, 0.0, {TRACK_ID: _leaders(order, crowned)}, "50/50", owner_uid=0, award_ok=_gate({11}))
+    assert _pay(order, crowned, {11}, keep=False) == plain
+    assert combine_weights(SERVING, None, 0.0, {TRACK_ID: _leaders(order, crowned)}, "50/50", owner_uid=0, award_ok=_gate({11}),
+                           keep_share=True, now=None) == plain                                   # no clock: no rule
+    assert combine_weights(SERVING, None, 0.0, {TRACK_ID: _leaders(order, crowned)}, "50/50", owner_uid=0, keep_share=True, now=T_NOW) \
+        == combine_weights(SERVING, None, 0.0, {TRACK_ID: _leaders(order, crowned)}, "50/50", owner_uid=0)   # no gate: nothing pending
+    assert _pay(order, crowned, {11}, with_ts=False) == _pay(order, crowned, {11}, keep=False, with_ts=False)   # no crowning times: off
+
+
+def test_keep_share_pays_the_approved_former_champion_the_rank_1_share_for_48_hours():
+    order, crowned = [20, 21, 22], {20: T_NOW - 3600}        # uids outside SERVING: their weight is the competition payout only
+    off = _pay(order, crowned, {21, 22}, keep=False)
+    on = _pay(order, crowned, {21, 22})
+    assert 20 not in off and 20 not in on                                     # the unapproved crown is not paid either way
+    assert off[21] / off[22] == pytest.approx(0.17 / 0.08) and on[21] / on[22] == pytest.approx(0.75 / 0.08)
+    assert math.isclose(total(on), 1.0)
+    assert off[21] > off[22] and on[21] > off[21]                             # rank 2's own 17 % is not paid on top of the 75 %
+    after = _pay(order, crowned, {21, 22}, now=T_NOW + 48 * 3600)             # grace over: today's behaviour
+    assert after == _pay(order, crowned, {21, 22}, keep=False, now=T_NOW + 48 * 3600) == off
+    assert _pay(order, crowned, {20, 21, 22}) == _pay(order, crowned, {20, 21, 22}, keep=False)   # approval ends it at once
+    assert _pay(order, crowned, {21, 22}) == on                               # deterministic
+
+
+def test_keep_share_leaves_the_other_track_alone():
+    r = {TRACK_ID: _leaders([20, 21], {20: T_NOW - 60}), "risk_assessment": _leaders([22, 23], {22: T_NOW - 10 * DAY})}
+    gate = _gate({21, 23})
+    base = combine_weights(SERVING, None, 0.0, r, "50/50", owner_uid=0, award_ok=gate)
+    on = combine_weights(SERVING, None, 0.0, r, "50/50", owner_uid=0, award_ok=gate, keep_share=True, now=T_NOW)
+    assert base[21] / base[23] == pytest.approx(1.0)                          # both pay rank 2 (17 %) of an equal track slot
+    assert on[21] / on[23] == pytest.approx(0.75 / 0.17)                      # df: 21 takes the fresh crown's 75 %; risk: unchanged
+    assert 20 not in on and 22 not in on
+
+
+def test_ranked_leaders_crowning_times_survive_the_copy_and_come_from_the_state():
+    from reax_subnet.competitions import _copy
+    r = _leaders([1, 2], {1: 5.0})
+    c = _copy(r)
+    assert isinstance(c, RankedLeaders) and c.crowned == {1: 5.0} and c.crowned is not r.crowned
+    assert _copy([(1, 2.0)]) == [(1, 2.0)]

@@ -171,6 +171,8 @@ class RepoListing:
 
 
 class Fetcher(Protocol):
+    async def probe(self, commitment: SpecCommitment) -> None: ...
+
     async def fetch(self, commitment: SpecCommitment, dest: str, *, category: str, hotkey: str,
                     rules: R.TrackRules) -> Inspected: ...
 
@@ -255,14 +257,23 @@ class HfFetcher:
         sanitize_dir(dest)
         make_readable(dest)
 
-    async def fetch(self, commitment: SpecCommitment, dest: str, *, category: str, hotkey: str,
-                    rules: R.TrackRules = R.TrackRules()) -> Inspected:
+    async def probe(self, commitment: SpecCommitment) -> None:
+        """Check public revision metadata only; no directory creation or model download."""
+        await self._listing(commitment)
+
+    async def _listing(self, commitment: SpecCommitment) -> RepoListing:
         loop = asyncio.get_running_loop()
         listing = await loop.run_in_executor(None, self.hub.listing, commitment.repo, commitment.revision)
         if listing.sha != commitment.revision:
             raise FetchError("rejected", "hub revision does not match the committed revision")
         if listing.gated or listing.private:
             raise FetchError("unavailable", "repo is gated or private")
+        return listing
+
+    async def fetch(self, commitment: SpecCommitment, dest: str, *, category: str, hotkey: str,
+                    rules: R.TrackRules = R.TrackRules()) -> Inspected:
+        loop = asyncio.get_running_loop()
+        listing = await self._listing(commitment)
         bad = R.check_listing(listing.files, rules)
         if bad:
             raise FetchError("rejected", "; ".join(bad))

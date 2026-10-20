@@ -358,8 +358,9 @@ def test_playoff_twin_must_beat_its_original_by_the_full_margin_and_ties_go_to_t
 
 async def test_an_unfetchable_entry_at_the_head_takes_no_slot(tmp_path):
     """1.2.0rc8.post1 (#20923): queued entries whose repo cannot be fetched (401/404) are skipped in the group; the entry
-    behind them is evaluated in the same cycle, and the unfetchable ones are fetched again on the next cycle. Before, every
-    candidate took a slot: two unfetchable entries at the head of a two-slot cycle evaluated nobody."""
+    behind them is evaluated in the same cycle. Before, every candidate took a slot: two unfetchable entries at the head of
+    a two-slot cycle evaluated nobody. Queue-retry rule (19 Oct 2026): from the next cycle on they are only probed (metadata,
+    no download) every cycle, so they still take no slot and cause no download attempts."""
     env = Env(tmp_path, {}, max_evals=2)
     env.add(1, "a/champ", 0.80)
     await env.cycle({1: "a/champ"}, block=1000)
@@ -378,9 +379,13 @@ async def test_an_unfetchable_entry_at_the_head_takes_no_slot(tmp_path):
     assert env.sub(2).status == env.sub(4).status == ST.QUEUED and env.sub(2).reason.startswith("waiting for the repo")
     assert env.sub(3).status == ST.PENDING_CONFIRM and "a/next" in env.server.served
     env.hub.fetches.clear()
+    env.hub.probes.clear()
     env.clock.advance(2 * H)
     await env.cycle(commits, block=1300)
-    assert "a/private" in env.hub.fetches and "a/gone" in env.hub.fetches    # re-checked on the next cycle
+    assert "a/private" in env.hub.probes    # the waiting entry is re-checked on the next cycle, metadata only
+    assert "a/private" not in env.hub.fetches    # still private: nothing downloaded
+    assert "a/gone" in env.hub.probes + env.hub.fetches    # never tried before (no slot left in cycle 1): tried now
+    assert env.sub(2).status == env.sub(4).status == ST.QUEUED
 
 
 async def test_two_tracks_share_the_cycle_budget(tmp_path):
@@ -531,11 +536,13 @@ async def test_fair_share_eventually_serves_challenger_with_distinct_parent(tmp_
 
 
 @pytest.mark.parametrize("known_registration", [False, True], ids=["unknown-registration", "known-registration"])
-async def test_recovered_repo_gets_bounded_retry_under_fresh_arrivals(tmp_path, known_registration):
+async def test_recovered_repo_is_drawn_in_commitment_order_before_fresh_arrivals(tmp_path, known_registration):
+    """Queue-retry rule (19 Oct 2026, replaces the 600 s "bounded retry"): the moment the repo is public (probed every
+    cycle, no 600 s delay) the entry is back at its commitment position and is drawn before later commitments. The old
+    protections stay: a still-private repo is never downloaded (no fetch storm) and fresh arrivals are not starved."""
     import dataclasses
     from spec_helpers import commit, neuron, snapshot
     from test_spec_evaluator import crown
-    from reax_subnet.spec import config as C
 
     env = Env(tmp_path, {}, max_evals=2)
     await crown(env, 1, "a/champ", 0.80)
@@ -544,29 +551,30 @@ async def test_recovered_repo_gets_bounded_retry_under_fresh_arrivals(tmp_path, 
     env.hub.unavailable.add("a/recovered")
     commits = {1: "a/champ", 2: "a/recovered"}
 
-    async def cycle():
+    async def cycle(block):
         nodes = [dataclasses.replace(neuron(u, commit(TRACK, r)),
                                      registered_block=(100 + u if known_registration else 0))
                  for u, r in commits.items()]
-        return await env.ev.evaluate_cycle(snapshot(1200, nodes))
+        return await env.ev.evaluate_cycle(snapshot(block, nodes))
 
-    await cycle()
+    await cycle(1200)
     assert env.sub(2).reason.startswith(E.WAITING_FOR_REPO)
+    env.add(3, "new/3", 0.1)        # a later commitment arrives while uid 2 is still private
+    commits[3] = "new/3"
+    env.clock.advance(60)
+    env.hub.fetches.clear()
+    await cycle(1250)
+    assert "a/recovered" not in env.hub.fetches    # still private: probed, never downloaded
+    assert env.sub(3).status == ST.NOT_BETTER or env.sub(3).status == ST.PENDING_CONFIRM    # not blocked by the private entry
+    env.add(4, "new/4", 0.1)
+    commits[4] = "new/4"
     env.hub.unavailable.clear()
     env.hub.fetches.clear()
-    env.clock.advance(C.RETRY_UNAVAILABLE_S - 1)
-    await cycle()
-    assert "a/recovered" not in env.hub.fetches  # recovery does not bypass the retry delay
-    fetched = []
-    for uid in range(3, 7):
-        env.add(uid, f"new/{uid}", 0.1)  # weak arrivals finish immediately, without a confirmation backlog
-        commits[uid] = f"new/{uid}"
-        env.clock.advance(H)
-        env.hub.fetches.clear()
-        await cycle()
-        fetched.extend(env.hub.fetches)
-    # Aging must eventually override waiting-last partitioning, even with unknown registration blocks.
-    assert "a/recovered" in fetched, fetched
+    env.server.served.clear()
+    env.ev.state.eval_times.clear()
+    env.clock.advance(60)    # well inside the old 600 s delay
+    await cycle(1300)
+    assert env.hub.fetches[0] == "a/recovered", env.hub.fetches    # first in commitment order, before uid 4
     assert env.sub(2).status == ST.PENDING_CONFIRM and env.sub(2).reason == ""
     assert env.sub(2).draw1 and "a/recovered" in env.server.served
 
@@ -627,7 +635,7 @@ async def test_small_global_budget_with_multiple_champions_never_overspends(tmp_
 
 
 @pytest.mark.parametrize("reverse_commitments", [False, True], ids=["forward-commitments", "reverse-commitments"])
-async def test_waiting_partition_preserves_relative_immunity_order(tmp_path, reverse_commitments):
+async def test_recovered_entries_keep_the_normal_immunity_and_commitment_order(tmp_path, reverse_commitments):
     import dataclasses
     from spec_helpers import commit, neuron, snapshot
     from reax_subnet.spec import config as C
@@ -648,14 +656,15 @@ async def test_waiting_partition_preserves_relative_immunity_order(tmp_path, rev
         if u > 5:
             sub.reason = E.WAITING_FOR_REPO + ": temporary hub failure"
             sub.last_eval_ts = env.clock.t - C.RETRY_UNAVAILABLE_S
-    env.cfg.max_evals_per_hour = 12  # enough room for both entire partitions after the reserved retry
+    env.cfg.max_evals_per_hour = 12  # enough room for all ten entries
     await env.ev.evaluate_cycle(snap)
-    order = [2, 5, 4, 3, 1] if reverse_commitments else [2, 4, 5, 3, 1]
-    retry = 10 if reverse_commitments else 6
-    expected = [retry] + order + [u + 5 for u in order if u + 5 != retry]
-    assert env.hub.fetches == [f"q/{u}" for u in expected]
+    # Queue-retry rule (19 Oct 2026): the hub has the repos, so the probes return every waiting entry to the normal queue.
+    # One order for all ten: past immunity, then the soonest immunity end, then unknown registration; commitment order
+    # inside each group. Waiting entries are no longer drawn first (reserved retry) or last (waiting-last partition).
+    order = [7, 2, 10, 9, 5, 4, 8, 3, 6, 1] if reverse_commitments else [2, 7, 4, 5, 9, 10, 3, 8, 1, 6]
+    assert env.hub.fetches == [f"q/{u}" for u in order]
     assert all(env.sub(u).status == ST.NOT_BETTER for u in commits)
-    # Cross-partition aging when capacity is scarce is covered by the recovered-repo regression above.
+    assert not any(env.sub(u).reason.startswith(E.WAITING_FOR_REPO) for u in commits)
 
 
 async def test_unused_share_gets_second_pass_without_extra_skips(tmp_path):
@@ -701,8 +710,10 @@ async def test_prepared_distinct_parent_does_not_change_last_served(tmp_path):
     assert env.sub(3).derived_from == env.sub(2).key
 
 
-async def test_oldest_waiting_retry_rotates_despite_fresh_arrivals_and_restart(tmp_path):
-    from reax_subnet.spec import config as C
+async def test_every_waiting_repo_is_probed_each_cycle_and_after_restart(tmp_path):
+    """Queue-retry rule (19 Oct 2026, replaces the one-full-retry-per-cycle rotation): all waiting entries are probed
+    every cycle (also right after a restart, nothing in memory), none of them is downloaded while private, fresh
+    arrivals are evaluated every cycle, and the entry whose repo turns public is fetched on the very next cycle."""
     from test_spec_evaluator import crown
 
     env = Env(tmp_path, {}, max_evals=2)
@@ -714,22 +725,29 @@ async def test_oldest_waiting_retry_rotates_despite_fresh_arrivals_and_restart(t
         commits[uid] = f"waiting/{uid}"
     env.clock.advance(H)
     await env.cycle(commits, block=1200)
-    first_attempt = env.clock.t
     assert all(env.sub(u).last_eval_ts is None for u in range(2, 5))
     for uid in range(2, 5):
         env.add(10 + uid, f"fresh/{uid}", 0.1)
         commits[10 + uid] = f"fresh/{uid}"
         env.clock.advance(H)
         env.hub.fetches.clear()
-        env.ev = env.make()  # retry rotation must survive loading persisted state
+        env.hub.probes.clear()
+        env.ev = env.make()  # probing must survive loading persisted state
         await env.cycle(commits, block=1200)
-        assert env.hub.fetches[0] == f"waiting/{uid}"
-        assert all(env.hub.fetches.count(f"waiting/{u}") == (1 if u == uid else 0) for u in range(2, 5))
+        assert env.hub.probes == ["waiting/2", "waiting/3", "waiting/4"]
+        assert not any(f.startswith("waiting/") for f in env.hub.fetches)
         assert f"fresh/{uid}" in env.server.served
-        assert env.sub(uid).last_fetch_ts >= first_attempt + C.RETRY_UNAVAILABLE_S
+    env.hub.unavailable.discard("waiting/3")
+    env.clock.advance(H)
+    env.hub.fetches.clear()
+    env.ev = env.make()
+    await env.cycle(commits, block=1200)
+    assert "waiting/3" in env.hub.fetches and "waiting/2" not in env.hub.fetches
 
 
-async def test_waiting_repo_retry_needs_no_inference_slot(tmp_path):
+async def test_waiting_repo_probe_needs_no_inference_slot(tmp_path):
+    """Queue-retry rule (19 Oct 2026): with no inference slot left the recovered entry is only probed (metadata, no
+    download, no slot spent) and goes back to the normal queue; it is fetched and drawn when budget returns."""
     from reax_subnet.spec import config as C
     from test_spec_evaluator import crown
 
@@ -743,12 +761,13 @@ async def test_waiting_repo_retry_needs_no_inference_slot(tmp_path):
     env.clock.advance(C.RETRY_UNAVAILABLE_S)
     env.hub.unavailable.clear()
     env.hub.fetches.clear()
+    env.hub.probes.clear()
     env.server.served.clear()
     env.ev.state.eval_times = [env.clock.t] * 2
     env.add(3, "a/fresh", 0.1)
     commits[3] = "a/fresh"
     await env.cycle(commits, block=1200)
-    assert env.hub.fetches == ["a/recovered"]
+    assert env.hub.probes == ["a/recovered"] and env.hub.fetches == []
     assert not env.server.served and len(env.ev.state.eval_times) == 2
     assert env.sub(2).reason == "" and env.sub(2).last_eval_ts is None
     env.clock.advance(H)

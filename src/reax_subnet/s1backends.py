@@ -75,34 +75,102 @@ async def _read_capped(stream: Any, limit: int) -> bytes:
 
 
 class SidecarBackend:
-    """Client for a runtime sidecar on loopback."""
+    """Client for a runtime sidecar on loopback, or (``link_key`` set) for a worker's ``reax-runtime-relay``
+    (multinode.py): then every request is HMAC-signed with the worker's link key instead of carrying the sidecar
+    token, and an https URL is accepted only with the relay certificate's pinned SHA-256 ``fingerprint``."""
 
-    def __init__(self, model: str, url: str, token: str, max_inflight: int = 16, timeout_s: float = 60.0):
+    def __init__(self, model: str, url: str, token: str, max_inflight: int = 16, timeout_s: float = 60.0, *,
+                 link_key: Optional[bytes] = None, fingerprint: str = "", name: str = ""):
         self.model = model
         self.manifest = load_manifest(model)
         self.url = url.rstrip("/")
-        self._headers = {"X-S1M-Internal-Token": token, "Content-Type": "application/json"}
+        self.name = name or self.url
+        self._link_key = link_key
+        if link_key is None:
+            self._headers = {"X-S1M-Internal-Token": token, "Content-Type": "application/json"}
+        else:
+            self._headers = {"Content-Type": "application/json"}
+        if self.url.startswith("https://") and link_key is not None and not fingerprint:
+            raise ValueError(f"worker {self.name}: https needs the relay certificate fingerprint")
+        self._fingerprint = fingerprint
         self._sem = asyncio.Semaphore(max_inflight)
         self.max_inflight = max_inflight
         self.inflight = 0  # requests of this process on this backend, running or waiting for a slot
         self._timeout = timeout_s
         self._session = None
+        self._health_session = None
 
     async def _client(self):
         import aiohttp
 
         if self._session is None or self._session.closed:
+            if self._link_key is None:  # flag off: unchanged
+                connector = aiohttp.TCPConnector(limit=64)
+            else:
+                # Enough connections for every slot, so no signed request waits for a connection and goes stale;
+                # https only with the pinned self-signed relay certificate.
+                connector = aiohttp.TCPConnector(limit=max(64, self.max_inflight), ssl=self._ssl_arg())
             self._session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=self._timeout), trust_env=False,
-                connector=aiohttp.TCPConnector(limit=64),
+                timeout=aiohttp.ClientTimeout(total=self._timeout), trust_env=False, connector=connector,
             )
         return self._session
 
+    def _ssl_arg(self) -> Any:
+        import aiohttp
+
+        return aiohttp.Fingerprint(bytes.fromhex(self._fingerprint)) if self._fingerprint else None
+
+    async def _health_client(self):
+        """Link mode: health checks get their own connection, so a worker saturated by validator traffic (exactly
+        during a capacity probe) is not removed because its health check waited for a pooled connection."""
+        import aiohttp
+
+        if self._health_session is None or self._health_session.closed:
+            self._health_session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=5.0), trust_env=False,
+                connector=aiohttp.TCPConnector(limit=2, ssl=self._ssl_arg()))
+        return self._health_session
+
+    def _signed(self, method: str, path: str, body: bytes = b"") -> dict[str, str]:
+        if self._link_key is None:
+            return self._headers
+        from .multinode import LINK_HEADER, sign_link
+
+        return {**self._headers, LINK_HEADER: sign_link(self._link_key, method, path, body)}
+
+    def _check_reply(self, request_headers: dict[str, str], response: Any, body: bytes) -> None:
+        """Link mode: the relay signs status and body bound to our request signature, so an answer changed on the way
+        (e.g. on an unencrypted provider LAN) is refused before the hotkey signs it."""
+        from .multinode import LINK_HEADER, REPLY_HEADER, LinkError, verify_reply
+
+        try:
+            verify_reply(self._link_key, request_headers[LINK_HEADER], response.status, body,
+                         response.headers.get(REPLY_HEADER))
+        except LinkError as exc:
+            raise SidecarError(f"worker {self.name}: {exc}", answer_started=False, backend_fault=True) from None
+
     async def ready(self) -> bool:
+        if self._link_key is not None:
+            return await self._link_ready()
         try:
             s = await self._client()
             async with s.get(self.url + "/health") as r:
                 return r.status == 200
+        except Exception:
+            return False
+
+    async def _link_ready(self) -> bool:
+        try:
+            s = await self._health_client()
+            headers = self._signed("GET", "/health")
+            async with s.get(self.url + "/health", headers=headers, allow_redirects=False) as r:
+                raw = await _read_capped(r.content, 64 * 1024)
+                self._check_reply(headers, r, raw)
+                if r.status != 200:
+                    return False
+                info = json.loads(raw)
+            # A relay in front of another model or release must never take this hotkey's traffic.
+            return info.get("model") == self.model and info.get("manifest_id") == self.manifest.manifest_id
         except Exception:
             return False
 
@@ -131,18 +199,29 @@ class SidecarBackend:
             import aiohttp
 
             s = await self._client()
-            data = json.dumps(body, ensure_ascii=False)
+            data = json.dumps(body, ensure_ascii=False).encode()
+            link = self._link_key is not None
+            kw = {"allow_redirects": False} if link else {}
             # A pooled keep-alive connection can be closed by the runtime between requests; the first
             # write then fails with ServerDisconnectedError (seen in the 10 Oct GPU rehearsal: 2 of 5
             # sparse requests). Decisions are pure, so one retry on a fresh connection is safe.
             for attempt in (0, 1):
                 try:
-                    async with s.post(self.url + "/internal/v1/decide", data=data, headers=self._headers) as r:
+                    headers = self._signed("POST", "/internal/v1/decide", data)  # fresh nonce per attempt
+                    async with s.post(self.url + "/internal/v1/decide", data=data, headers=headers, **kw) as r:
                         if r.status != 200:
+                            # Link mode: 401 means the link (key, clock) or the sidecar token behind the relay is
+                            # wrong for this worker, not that the request was bad: fail over and count it.
+                            fault = r.status >= 500 or r.status in (408, 429) or (link and r.status in (401, 403))
                             raise SidecarError(f"runtime returned HTTP {r.status}", answer_started=False,
-                                               backend_fault=r.status >= 500 or r.status in (408, 429))
-                        started[0] = True
-                        raw = await _read_capped(r.content, MAX_RUNTIME_RESPONSE_BYTES)
+                                               backend_fault=fault)
+                        if link:
+                            raw = await _read_capped(r.content, MAX_RUNTIME_RESPONSE_BYTES)
+                            self._check_reply(headers, r, raw)
+                            started[0] = True
+                        else:
+                            started[0] = True
+                            raw = await _read_capped(r.content, MAX_RUNTIME_RESPONSE_BYTES)
                     break
                 except (aiohttp.ServerDisconnectedError, aiohttp.ClientOSError):
                     if attempt or started[0]:
@@ -177,6 +256,14 @@ class SidecarBackend:
     async def close(self) -> None:
         if self._session is not None:
             await self._session.close()
+        if self._health_session is not None:
+            await self._health_session.close()
+
+
+def aiohttp_timeout(total: float):
+    import aiohttp
+
+    return aiohttp.ClientTimeout(total=total)
 
 
 FAILURES_TO_REMOVE = 2  # consecutive backend faults (connection, timeout, HTTP 5xx) before a backend is taken out
@@ -188,9 +275,12 @@ log = logging.getLogger("reax.s1backends")
 
 
 class _Member:
-    def __init__(self, backend: SidecarBackend):
+    def __init__(self, backend: SidecarBackend, healthy: bool = True, spec_id: Optional[tuple] = None):
         self.backend = backend
-        self.healthy = True
+        self.healthy = healthy
+        self.spec_id = spec_id  # multinode: the worker-file entry this member was built from
+        self.leaving = False  # multinode: no longer in the file; keeps serving until it can be retired safely
+        self.kept_logged = False
         self.failures = 0
         self.good_checks = 0
         self.retry_at = 0.0
@@ -218,6 +308,13 @@ class PooledBackend:
         self.model = backends[0].model
         self.manifest = backends[0].manifest
         self._members = [_Member(b) for b in backends]
+        # The number of backends the miner's per-validator limits were configured for (multinode: workers at start).
+        self.nominal_size = len(self._members)
+        self.min_healthy = 1  # multinode: REAX_WORKERS_MIN_HEALTHY, kept in rotation while workers are swapped
+        self._draining: set[asyncio.Task] = set()
+        self._drained: list[SidecarBackend] = []
+        self._evict: set[str] = set()  # names the workers file evicts at once
+        self.refused_specs = 0  # entries of the last applied workers file that could not be built
         self._health_interval = health_interval_s
         self._retry_after = retry_after_s
         self._turn = 0
@@ -304,7 +401,10 @@ class PooledBackend:
                 continue
             if trial:
                 m.trial = False
-            self._mark_good(m)
+            if m.healthy or trial or self.readmit_check is None:
+                # A backend taken out while this request was in flight comes back only through the health loop
+                # (two good checks and the identity check), never through a late success.
+                self._mark_good(m)
             return answer
         raise AssertionError("unreachable")  # pragma: no cover
 
@@ -326,8 +426,11 @@ class PooledBackend:
     # --- health ----------------------------------------------------------------------------------------------
     async def check_health_once(self) -> None:
         """One round of ``GET /health`` on every backend: removes failing ones, re-admits recovered ones."""
-        results = await asyncio.gather(*(m.backend.ready() for m in self._members))
-        for m, ok in zip(self._members, results):
+        members = list(self._members)  # the worker file may change the list while this round awaits
+        results = await asyncio.gather(*(m.backend.ready() for m in members))
+        for m, ok in zip(members, results):
+            if m not in self._members:
+                continue
             if ok:
                 if m.healthy:
                     m.failures = 0
@@ -339,6 +442,7 @@ class PooledBackend:
                             self._mark_good(m)
             else:
                 self._mark_bad(m)
+        self._retire_leaving()
 
     async def _passes_identity(self, m: _Member) -> bool:
         if self.readmit_check is None:
@@ -376,7 +480,133 @@ class PooledBackend:
         if self._monitor is not None:
             self._monitor.cancel()
             self._monitor = None
-        await asyncio.gather(*(m.backend.close() for m in self._members))
+        for t in list(self._draining):
+            t.cancel()
+        await asyncio.gather(*(m.backend.close() for m in self._members), *(b.close() for b in self._drained))
+
+    # --- multinode: workers from a file, changed while running ----------------------------------------------------
+    @classmethod
+    def from_workers(cls, model: str, specs: Sequence[Any], make_backend: Callable[[Any], SidecarBackend],
+                     **kw: Any) -> "PooledBackend":
+        specs = [sp for sp in specs if not getattr(sp, "evict", False)]
+        pool = cls([make_backend(sp) for sp in specs], **kw)
+        for m, sp in zip(pool._members, specs):
+            m.spec_id = sp.identity()
+        if pool.model != model:
+            raise ValueError(f"workers serve {pool.model}, the miner serves {model}")
+        return pool
+
+    async def startup(self, min_healthy: int) -> int:
+        """Multinode start: every worker gets the authenticated test decision and the identity check; the ones that
+        fail stay out of rotation (the health loop admits them once they pass) instead of stopping the miner.
+        Returns the number of workers in rotation; the caller refuses to start below ``min_healthy``."""
+        async def check(m: _Member) -> list[str]:
+            if not await m.backend.probe():
+                return [f"{m.backend.name}: no answer to an authenticated test decision"]
+            if self.readmit_check is None:
+                return []
+            try:
+                return await self.readmit_check(m.backend)
+            except Exception as exc:  # noqa: BLE001 - fail closed
+                return [f"{m.backend.name}: identity check failed ({type(exc).__name__})"]
+
+        results = await asyncio.gather(*(check(m) for m in self._members))
+        for m, problems in zip(self._members, results):
+            if problems:
+                m.healthy = False
+                m.retry_at = time.monotonic() + self._retry_after
+                log.warning("worker %s is not in rotation yet: %s", m.backend.name, "; ".join(problems))
+            else:
+                m.healthy = True
+                log.info("worker %s in rotation (%s)", m.backend.name, m.backend.url)
+        return self.healthy_count
+
+    async def apply(self, specs: Sequence[Any], make_backend: Callable[[Any], SidecarBackend]) -> bool:
+        """Bring the pool in line with the worker file, make before break:
+
+        * new entries join OUT of rotation and get validator traffic only after the health loop saw them healthy
+          twice and they passed the identity check;
+        * entries that are gone (or whose URL, key, fingerprint or limit changed: remove + add) are marked leaving.
+          A leaving worker keeps serving while its same-name replacement is not yet in rotation, or while fewer than
+          ``min_healthy`` of the remaining entries are; then it leaves the rotation and is drained. A dead leaving
+          worker goes at once unless its same-name replacement is still pending. So a valid but wrong edit (a typo in
+          a URL) cannot take the hotkey offline.
+
+        Returns True if anything changed."""
+        evict = {sp.name for sp in specs if getattr(sp, "evict", False)}
+        wanted = {sp.identity(): sp for sp in specs if not getattr(sp, "evict", False)}
+        changed = evict != self._evict
+        self._evict = evict
+        for m in self._members:
+            if m.spec_id in wanted and m.leaving:  # back in the file before it was retired
+                m.leaving, m.kept_logged, changed = False, False, True
+                log.info("worker %s is in the workers file again", m.backend.name)
+            elif m.spec_id not in wanted and not m.leaving:
+                m.leaving, changed = True, True
+                log.info("worker %s is no longer in the workers file; it leaves once that is safe", m.backend.name)
+        known = {m.spec_id for m in self._members}
+        self.refused_specs = 0
+        for sid, sp in wanted.items():
+            if sid in known:
+                continue
+            try:
+                b = make_backend(sp)
+            except ValueError as exc:
+                self.refused_specs += 1
+                log.error("worker %s not added: %s", getattr(sp, "name", "?"), exc)
+                continue
+            if b.model != self.model or b.manifest.manifest_id != self.manifest.manifest_id:
+                self.refused_specs += 1
+                log.error("worker %s not added: it is not a %s backend", b.name, self.model)
+                continue
+            self._members.append(_Member(b, healthy=False, spec_id=sid))
+            changed = True
+            log.info("worker %s added by the workers file; it takes traffic after the health and identity checks",
+                     b.name)
+        if changed:
+            self._retire_leaving()
+            log.info("workers: %d configured, %d in rotation", self.size, self.healthy_count)
+        return changed
+
+    def _retire_leaving(self) -> None:
+        """Retire leaving members once that is safe. Kept: a member whose same-name replacement is not in rotation yet
+        (even while it is itself out after a transient fault: it is still health-checked and may come back), and a
+        healthy member while fewer than ``min_healthy`` of the entries still in the file are in rotation (never more
+        than there are such entries). Evicted names (``"evict": true``) go at once."""
+        staying = [m for m in self._members if not m.leaving]
+        staying_healthy = sum(1 for m in staying if m.healthy)
+        need = min(self.min_healthy, len(staying))
+        for m in [m for m in self._members if m.leaving]:
+            replacement_pending = any(not o.healthy and o.backend.name == m.backend.name for o in staying)
+            if m.backend.name in self._evict:
+                keep = False
+            elif replacement_pending:
+                keep = True
+            else:
+                keep = m.healthy and staying_healthy < need
+            if keep:
+                if not m.kept_logged:
+                    m.kept_logged = True
+                    log.warning("worker %s stays in rotation although it left the workers file: %s", m.backend.name,
+                                "its replacement is not in rotation yet" if replacement_pending else
+                                f"only {staying_healthy} other workers are in rotation (REAX_WORKERS_MIN_HEALTHY "
+                                f"{self.min_healthy})")
+                continue
+            self._members.remove(m)
+            t = asyncio.ensure_future(self._drain(m))
+            self._draining.add(t)
+            t.add_done_callback(self._draining.discard)
+            log.info("worker %s left the rotation; draining %d requests in flight", m.backend.name, m.backend.inflight)
+
+    async def _drain(self, m: _Member) -> None:
+        from .multinode import DRAIN_TIMEOUT_S
+
+        self._drained.append(m.backend)
+        deadline = time.monotonic() + DRAIN_TIMEOUT_S
+        while m.backend.inflight > 0 and time.monotonic() < deadline:
+            await asyncio.sleep(0.2)
+        await m.backend.close()
+        self._drained.remove(m.backend)
 
 
 class S1HashBackend:

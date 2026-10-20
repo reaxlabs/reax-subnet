@@ -62,10 +62,12 @@ def spec_adapter():
 
 
 # ------------------------------------------------------------------------------------------------ release constants
-def test_engine_track_is_held_and_the_specialists_keep_their_start():
-    assert CS.ENGINE_TRACK_START_UTC is None
-    assert CS.release_engine_start() == ENGINE_HELD
-    assert not CS.engine_track_open(datetime(2100, 1, 1, tzinfo=timezone.utc))
+def test_engine_track_opens_at_the_release_date_and_the_specialists_keep_their_start():
+    start = datetime(2026, 10, 20, 18, 0, tzinfo=timezone.utc)
+    assert CS.ENGINE_TRACK_START_UTC == start
+    assert CS.release_engine_start() == start
+    assert not CS.engine_track_open(start - timedelta(seconds=1))
+    assert CS.engine_track_open(start)
     assert CS.SPECIALIST_TRACKS_START_UTC == datetime(2026, 10, 16, 12, 0, tzinfo=timezone.utc)
     assert [s.start for s in CS.TRACK_SCHEDULE] == [CS.SPECIALIST_TRACKS_START_UTC] * 2
     assert A.AWARD_APPROVAL_PUBKEY is None or len(A.AWARD_APPROVAL_PUBKEY) == 64
@@ -110,7 +112,7 @@ def test_held_worker_runs_no_engine_cycle(tmp_path):
            "REAX_ENGINE_WEIGHTS_DIR": str(tmp_path / "w"), "REAX_ENGINE_WORKDIR": str(tmp_path / "e")}
     wc = W.load_worker(env, spec=False)
     engine, adapter, _ = W.build_local_stack(wc.engine, "", env)
-    assert engine.engine_start_utc == ENGINE_HELD and engine.award_gate is None
+    assert engine.engine_start_utc == CS.release_engine_start() and engine.award_gate is None
     engine._utcnow = lambda: NOW0
     assert engine.active() and not engine.due()
     chain = FakeChain(snap())
@@ -275,7 +277,7 @@ def test_finney_validator_is_always_gated_and_held(tmp_path, monkeypatch):
     cfg = SimpleNamespace(competitions_state_dir=str(tmp_path))
     e = SimpleNamespace(release_mode=True, dev_params="", state_path=str(tmp_path / ENGINE_STATE_FILE))
     engine, _ = cli._remote_competition(cfg, e)
-    assert engine.engine_start_utc == ENGINE_HELD and isinstance(engine.award_gate, A.AwardGate)
+    assert engine.engine_start_utc == CS.release_engine_start() and isinstance(engine.award_gate, A.AwardGate)
     assert engine.start_utc == COMPETITIONS_START_UTC
 
 

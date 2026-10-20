@@ -18,7 +18,9 @@ RUN python -m pip install -q --target /tmp/pip26 "pip==26.2.1" \
       "fastapi==0.115.14" "uvicorn==0.29.0" \
  && rm -rf /tmp/pip26
 RUN mkdir -p /opt/reax
+COPY runtimes/s1-fast/fla-configs /opt/reax/fla-configs
 COPY src/reax_subnet/manifests/s1-fast-v1.json /opt/reax/s1-fast-v1.json
+COPY src/reax_subnet/engfla.py /opt/reax/engfla.py
 COPY runtimes/s1-fast/plumb_server.py /opt/reax/plumb_server.py
 COPY LICENSE THIRD_PARTY_NOTICES.md /licenses/
 COPY LICENSES /licenses/LICENSES/

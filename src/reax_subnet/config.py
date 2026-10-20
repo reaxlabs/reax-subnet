@@ -31,11 +31,12 @@ DISABLED_FEATURES: dict[str, str] = {
 
 log = logging.getLogger("reax.config")
 
-# Release constant: the reference engine of the engine competition (the s1-fast runtime image, pinned by digest): the
-# published 1.2.0rc1 s1-fast runtime (commit 020429e). On finney it is not configurable; development networks may
+# Release constant: the reference engine of the engine competition (pinned by digest). 1.2.0rc9.post5: the
+# FLA-config-pinned reax-engine s1-fast reference (#21532; before: the published 1.2.0rc1 s1-fast runtime, commit
+# 020429e). On finney it is not configurable; development networks may
 # override it with REAX_ENGINE_REFERENCE. Only the competition worker (or a validator in REAX_COMPETITIONS_MODE=local)
 # pulls it; a validator in remote mode never does.
-ENGINE_REFERENCE_IMAGE = "ghcr.io/reaxlabs/reax-s1-fast-runtime@sha256:d857a90eaf168d1db3ca982c5111b10fb61a65cc5f7113ea9e391fe6fca17b71"
+ENGINE_REFERENCE_IMAGE = "ghcr.io/reaxlabs/reax-engine-s1-fast@sha256:9bd41632e33bd90377f7e29bdb9410b18cfe1fb557200160b9ebe9222abcecea"
 
 # Where the competitions (engine competition, specialist tracks) run: "local" = inside the validator process (needs the
 # docker socket and the sealed data on the validator host), "remote" = in a separate `reax-competition-worker`; the
@@ -192,6 +193,12 @@ class MinerConfig:
     max_pending_per_ip: int
     max_pending_total: int
     publish_commitment: bool = True
+    # REAX_FEATURE_MULTINODE=1 (default off; docs/DESIGN-MULTINODE.md): worker machines from REAX_WORKERS_FILE, each
+    # behind a reax-runtime-relay; the file is re-read while running.
+    multinode: bool = False
+    workers_file: str = ""
+    workers: tuple = ()
+    workers_min_healthy: int = 1
 
 
 @dataclass(frozen=True)
@@ -238,6 +245,9 @@ class EngineConfig:
     dev_params: str = ""  # JSON overrides of the track and reward parameters (development networks only)
     release_mode: bool = False  # finney: start time and split profile are the release constants
     nvml_check: bool = False  # REAX_ENGINE_NVML_CHECK=1: per-PID GPU activity check of the paused candidate (F5)
+    review_dir: str = ""  # REAX_ENGINE_REVIEW_DIR (default <workdir>/review): submission-check records and REVIEWED/<digest>
+    cycle_gate_file: str = ""  # REAX_ENGINE_CYCLE_GATE_FILE: cycle only while this file exists and is fresh ("" = no gate)
+    cycle_gate_max_age_s: int = 3600  # REAX_ENGINE_CYCLE_GATE_MAX_AGE_MIN, in seconds
 
 
 def _is_loopback_url(url: str) -> bool:
@@ -420,9 +430,39 @@ def default_max_pending_per_ip(per_caller_concurrency: int) -> int:
     return max(32, 2 * per_caller_concurrency)
 
 
+MULTINODE_MODELS = ("s1-fast", "s1-pro")  # s1-lite / s1-cpu keep one machine per hotkey (their caps stay low)
+
+
+def _multinode(env: Mapping[str, str], common: CommonConfig) -> tuple[str, tuple, int]:
+    """REAX_FEATURE_MULTINODE=1: the workers file, its parsed workers and REAX_WORKERS_MIN_HEALTHY."""
+    from .multinode import load_workers_file
+
+    if common.mechanism != "s1" or common.model not in MULTINODE_MODELS:
+        raise ConfigError("REAX_FEATURE_MULTINODE=1 needs REAX_MECHANISM=s1 and REAX_MODEL s1-fast or s1-pro "
+                          "(s1-lite and s1-cpu keep one machine per hotkey)")
+    var = f"REAX_{common.model.upper().replace('-', '_')}_RUNTIME_URL"
+    if _env(env, var, "") or _env(env, var + "S", ""):
+        raise ConfigError(f"REAX_FEATURE_MULTINODE=1 takes its workers from REAX_WORKERS_FILE; unset {var} / {var}S")
+    path = os.path.expanduser(_env(env, "REAX_WORKERS_FILE", "") or "")
+    if not path:
+        raise ConfigError("REAX_FEATURE_MULTINODE=1 needs REAX_WORKERS_FILE (the JSON list of worker machines)")
+    try:
+        workers = tuple(load_workers_file(path, common.model))
+    except ValueError as exc:
+        raise ConfigError(str(exc)) from None
+    live = sum(1 for w in workers if not w.evict)
+    min_healthy = _int(env, "REAX_WORKERS_MIN_HEALTHY", 1, 1, live)
+    return os.path.abspath(path), workers, min_healthy
+
+
 def load_miner(env: Mapping[str, str] = os.environ) -> MinerConfig:
     common = load_common(env)
     n_backends = max(1, len(common.endpoints(common.model))) if common.mechanism == "s1" else 1
+    multinode = _bool(env, "REAX_FEATURE_MULTINODE", False)
+    workers_file, workers, min_healthy = "", (), 1
+    if multinode:
+        workers_file, workers, min_healthy = _multinode(env, common)
+        n_backends = sum(1 for w in workers if not w.evict)
     port = _int(env, "REAX_MINER_PORT", 8091, 1, 65535)
     # Integration of the two v2 changes: each default is the larger of what one probe at the pool cap needs (capx4) and
     # the old per-backend default times the number of runtime backends (minerfanout); x1 with one backend = 8 / 16 / 240.
@@ -449,6 +489,10 @@ def load_miner(env: Mapping[str, str] = os.environ) -> MinerConfig:
         max_pending_per_ip=_int(env, "REAX_MAX_PENDING_PER_IP", default_max_pending_per_ip(per_caller_concurrency), 1, 1024),
         max_pending_total=_int(env, "REAX_MAX_PENDING_TOTAL", 4096, 16, 100_000),
         publish_commitment=_bool(env, "REAX_PUBLISH_COMMITMENT", True),
+        multinode=multinode,
+        workers_file=workers_file,
+        workers=workers,
+        workers_min_healthy=min_healthy,
     )
 
 
@@ -654,6 +698,10 @@ def _engine(env: Mapping[str, str], common: CommonConfig, *, want_engine: bool =
         dev_params=dev_params,
         release_mode=release,
         nvml_check=_bool(env, "REAX_ENGINE_NVML_CHECK", False),
+        review_dir=os.path.expanduser(_env(env, "REAX_ENGINE_REVIEW_DIR", "") or "")
+        or os.path.join(os.path.expanduser(_env(env, "REAX_ENGINE_WORKDIR", "~/.reax/engines") or ""), "review"),
+        cycle_gate_file=os.path.expanduser(_env(env, "REAX_ENGINE_CYCLE_GATE_FILE", "") or ""),
+        cycle_gate_max_age_s=60 * _int(env, "REAX_ENGINE_CYCLE_GATE_MAX_AGE_MIN", 60, 1, 7 * 24 * 60),
     )
     return cfg, sealed
 

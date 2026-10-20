@@ -44,6 +44,12 @@ A winning entry is paid only after the subnet owner has checked and approved it.
 for every paid rank of a use-case track (ranks 1, 2 and 3). Until the approval exists, that entry's share goes to
 inference (it is not burned, and the next rank does **not** move up), and the validator logs `awaiting owner approval`.
 
+Keep-share rule (operator flag `REAX_SPEC_NC_KEEP_SHARE`, off by default, same release and value on every validator): while a
+use-case track's new champion has no approval and was crowned less than 48 hours ago, its rank-1 share is paid to the most
+recently crowned former champion of that track that has its own approval and is still committed. That former champion then
+does not also take its rank-2 share (it goes to inference as above). After 48 hours without approval, or once the champion is
+approved, the ranks are paid as described here. The crowning time comes from the evaluator state (`champion_since_ts`).
+
 An approval covers exactly one entry: the track, the hotkey and the submission (the image digest `sha256:<64 hex>` for
 the engine, `<hf repo>@<40 hex revision>` for a use-case track). A new image, a new model revision or another hotkey
 needs a new approval. An approval may carry an expiry date.

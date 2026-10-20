@@ -18,6 +18,19 @@ class DevWallet:
         self.coldkeypub = self.coldkey
 
 
+@pytest.fixture(autouse=True)
+def _engine_opening_off(request, monkeypatch):
+    """The release sets an engine opening block (competition_split.ENGINE_TRACK_START_BLOCK); tests use small block
+    numbers, so the rule is off unless a test enables it (tests/test_engfair.py)."""
+    from reax_subnet import competition_split as cs
+
+    if request.node.get_closest_marker("real_opening") is None:
+        monkeypatch.setattr(cs, "ENGINE_TRACK_START_BLOCK", None)
+    from reax_subnet import engcomp
+
+    engcomp.set_start_block_hash(None)  # module-global state must not leak between tests
+
+
 @pytest.fixture
 def make_wallet():
     return DevWallet
@@ -71,3 +84,14 @@ def rc5_entry_floors(monkeypatch):
     from reax_subnet import competition_split as cs
     for k, v in RC5_ENTRY_FLOOR.items():
         monkeypatch.setitem(cs.TRACK_ENTRY_FLOOR, k, v)
+
+
+@pytest.fixture(autouse=True)
+def _no_fla_checksum_on_fake_docker(request, monkeypatch):
+    """Runner tests drive fake docker/nvidia-smi without the published config files on disk; tests marked
+    ``fla_checksum`` (tests/test_engfla_publish.py) run the real engconfigs.verify_published_configs."""
+    if request.node.get_closest_marker("fla_checksum"):
+        return
+    from reax_subnet import engrunner
+
+    monkeypatch.setattr(engrunner, "verify_published_configs", lambda gpu_class, host_dir: None)

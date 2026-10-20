@@ -62,6 +62,9 @@ verify()
 TOKEN = _token()
 # CUDA graph capture must happen on the startup thread (measured: capturing in a worker
 # changed long-prompt probabilities).
+from engfla import require_fla_configs
+
+require_fla_configs()
 MODEL = JevK5(MODEL_DIR, graphs=True)
 if not 2.06 < MODEL.temperature < 2.08:
     sys.exit("Plumb calibration temperature does not match the pinned release")

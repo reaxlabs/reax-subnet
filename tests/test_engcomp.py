@@ -130,14 +130,16 @@ def test_champion_needs_min_gain_and_margin():
     st.results[D2] = _ok(D2, 1.56)  # +4 %
     ch = update_champion(st, subs, P1, block=50)
     assert (ch.digest, ch.crowned_block) == (D2, 50)
-    # a rejected re-measurement vacates the title; the next best valid submission takes it
-    st.results[D2] = EvalResult(digest=D2, track="s1-fast", ok=False, reason="determinism")
+    # A first invalid session triggers a fresh re-check; only the second vacates.
+    st.results[D2] = EvalResult(digest=D2, track="s1-fast", ok=False, reason="determinism", session="bad1")
+    assert update_champion(st, subs, P1, block=59).digest == D2
+    st.results[D2] = EvalResult(digest=D2, track="s1-fast", ok=False, reason="determinism", session="bad2")
     ch = update_champion(st, subs, P1, block=60)
     assert ch.digest == D1
     # the champion withdraws its commitment
     ch = update_champion(st, [b, c], P1, block=70)
     assert ch is None
-    assert [h["event"] for h in st.history] == ["crowned", "crowned", "vacated", "crowned", "vacated"]
+    assert [h["event"] for h in st.history] == ["crowned", "crowned", "champion_recheck", "vacated", "crowned", "vacated"]
 
 
 def test_tie_goes_to_the_earlier_commitment():
@@ -288,9 +290,10 @@ def test_submit_tool_needs_the_flag_off_mainnet(monkeypatch, capsys):
     assert capsys.readouterr().out.strip() == f"reax-eng/1:s1-fast:ghcr.io/a/e@sha256:{D1}"
     monkeypatch.delenv("REAX_FEATURE_ENGINE_COMPETITION")
     monkeypatch.setenv("REAX_NETWORK", "finney")
-    with pytest.raises(SystemExit, match="engine track is not open"):  # held on mainnet (ENGINE_TRACK_START_UTC None)
-        submit_main([f"ghcr.io/a/e@sha256:{D1}", "--dry-run"])
     from reax_subnet import competition_split as CS
+    monkeypatch.setattr(CS, "ENGINE_TRACK_START_UTC", CS.datetime.now(CS.timezone.utc) + CS.timedelta(days=1))  # not open yet
+    with pytest.raises(SystemExit, match="engine track is not open"):
+        submit_main([f"ghcr.io/a/e@sha256:{D1}", "--dry-run"])
     monkeypatch.setattr(CS, "ENGINE_TRACK_START_UTC", CS.COMPETITIONS_START_UTC - CS.timedelta(days=3650))  # opened
     submit_main([f"ghcr.io/a/e@sha256:{D1}", "--dry-run"])
     assert capsys.readouterr().out.strip() == f"reax-eng/1:s1-fast:ghcr.io/a/e@sha256:{D1}"
@@ -480,9 +483,14 @@ async def test_evaluation_budget_fails_a_hanging_engine(dev_runner, tmp_path):
     comp = EngineCompetition(dev_runner, {"s1-fast": ref_of("reference")}, str(tmp_path / "s.json"),
                              tracks={"s1-fast": tight}, interval_s=0)
     digest = ref_of("hang").rsplit(":", 1)[1]
-    await comp.run_cycle(_snap_with("reax-eng/1:s1-fast:" + ref_of("hang")), {1})
+    snap = _snap_with("reax-eng/1:s1-fast:" + ref_of("hang"))
+    # an engine that never gets to the first timed request is an infrastructure attempt, final after max_infra_attempts
+    for n in range(1, tight.max_infra_attempts):
+        await comp.run_cycle(snap, {1})
+        assert digest not in comp.states["s1-fast"].results and comp.states["s1-fast"].attempts[digest] == n
+    await comp.run_cycle(snap, {1})
     res = comp.states["s1-fast"].results[digest]
-    assert not res.ok and "budget" in res.reason
+    assert not res.ok and "budget" in res.reason and "inconclusive" in res.reason
     import glob as _g
 
     assert not _g.glob(str(tmp_path / "eng" / "eng-*")), "session directories are removed after each engine"
@@ -572,7 +580,7 @@ class _Noise:
 
         self.truth, self.sigma, self.rng, self.calls = truth, sigma, random.Random(seed), []
 
-    async def __call__(self, runner, reference, ref, track, params, block=0, digest=""):
+    async def __call__(self, runner, reference, ref, track, params, block=0, digest="", progress=None):
         self.calls.append(digest)
         score = self.truth[digest] * math.exp(self.rng.gauss(0.0, self.sigma))
         return EvalResult(digest=digest, track=track, ok=True, score=score, block=block)

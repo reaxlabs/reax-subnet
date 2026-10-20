@@ -53,6 +53,8 @@ class ItemScore:
     err: float          # score only: normalised abs error of the expected level
     brier: float
     brier_uniform: float
+    top_hit: bool = False   # the most probable label (exact ties: the lexicographically first) is the gold one; a temperature
+                            # (one scale for all letters) never changes it (near-champion rule "items right", evaluator.NEAR_CHAMP_*)
 
 
 def score_item(row: Mapping[str, Any], probs: Any) -> ItemScore:
@@ -67,15 +69,15 @@ def score_item(row: Mapping[str, Any], probs: Any) -> ItemScore:
     brier_u = sum((uniform[lab] - (1.0 if lab == gold else 0.0)) ** 2 for lab in labels)
     tier = str(row.get("tier", ""))
     iid = str(row.get("id", ""))
+    top = bool(p) and sorted(p, key=lambda lab: (-p[lab], lab))[0] == gold
     if kind == "choice":
-        correct = bool(p) and sorted(p, key=lambda lab: (-p[lab], lab))[0] == gold
-        return ItemScore(iid, kind, tier, p is not None, correct, 1 / k, 0.0, brier, brier_u)
+        return ItemScore(iid, kind, tier, p is not None, top, 1 / k, 0.0, brier, brier_u, top)
     if kind == "noul":
         dec = None
         if p:
             py = p["yes"]
             dec = "no" if py <= NOUL_NO else "yes" if py >= NOUL_YES else None
-        return ItemScore(iid, kind, tier, p is not None, dec == gold, 0.5, 0.0, brier, brier_u)
+        return ItemScore(iid, kind, tier, p is not None, dec == gold, 0.5, 0.0, brier, brier_u, top)
     gi = int(gold)
     chance = sum(abs(lv - gi) for lv in range(k)) / k / (k - 1)
     if p:
@@ -85,7 +87,7 @@ def score_item(row: Mapping[str, Any], probs: Any) -> ItemScore:
     else:
         err = max(abs(lv - gi) for lv in range(k)) / (k - 1)
         correct = False
-    return ItemScore(iid, kind, tier, p is not None, correct, chance, err, brier, brier_u)
+    return ItemScore(iid, kind, tier, p is not None, correct, chance, err, brier, brier_u, top)
 
 
 @dataclass
@@ -180,6 +182,27 @@ def paired_se(a: Sequence[ItemScore], b: Sequence[ItemScore], seed: int, resampl
         cb, lb, _ = _score_weighted(bb, w)
         diffs[r] = combine(ca, la) - combine(cb, lb)
     return float(diffs.std(ddof=1))
+
+
+def paired_se_parts(a: Sequence[ItemScore], b: Sequence[ItemScore], seed: int,
+                    resamples: int = BOOTSTRAP_RESAMPLES) -> tuple[float, float]:
+    """Bootstrap standard errors of ``S(a) - S(b)`` and of ``competence(a) - competence(b)`` from the same resamples
+    (near-copy rule R1). The first value equals ``paired_se`` for the same arguments."""
+    if len(a) != len(b) or any(x.item_id != y.item_id for x, y in zip(a, b)):
+        raise ValueError("paired scores need the same items in the same order")
+    n = len(a)
+    if n < 2:
+        return float("inf"), float("inf")
+    aa, bb = _arrays(a), _arrays(b)
+    rng = np.random.RandomState(seed % (2 ** 32))
+    diffs, cdiffs = np.empty(resamples), np.empty(resamples)
+    for r in range(resamples):
+        w = np.bincount(rng.randint(0, n, size=n), minlength=n).astype(float)
+        ca, la, _ = _score_weighted(aa, w)
+        cb, lb, _ = _score_weighted(bb, w)
+        diffs[r] = combine(ca, la) - combine(cb, lb)
+        cdiffs[r] = ca - cb
+    return float(diffs.std(ddof=1)), float(cdiffs.std(ddof=1))
 
 
 def by_tier(items: Sequence[ItemScore]) -> dict[str, Score]:

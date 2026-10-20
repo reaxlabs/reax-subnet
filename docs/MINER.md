@@ -259,6 +259,80 @@ REAX_S1_FAST_RUNTIME_URLS=http://127.0.0.1:8101,http://127.0.0.1:8111,http://127
 Adding backends raises throughput and capacity only up to the capacity cap (docs/DESIGN-POOLS.md section 4.1); every
 backend must reproduce the reference answers exactly like a single one, so use the same image and weights everywhere.
 
+## Several machines in different places behind one hotkey (multinode, opt-in)
+
+`REAX_FEATURE_MULTINODE=1` (default off; s1-fast and s1-pro only) is for workers that are **not** in one private
+network with the miner, and for swapping machines without restarting it. Design and threat analysis:
+[DESIGN-MULTINODE.md](DESIGN-MULTINODE.md).
+
+* The **gateway** is `reax-miner` with the hotkey. It needs no GPU: a small, stable server close to the workers
+  (within about 20-30 ms; DESIGN-MULTINODE.md section 6) is ideal. It is the only machine that holds the hotkey.
+* Every **worker** runs the pinned sidecar exactly as a single-machine miner does (loopback only, never published)
+  plus `reax-runtime-relay`, which forwards signed requests from the gateway to the sidecar. Workers never see the
+  hotkey. Run `reax-selfcheck` on every worker machine before you add it.
+
+**1. On each worker** (sidecar already running on `127.0.0.1:8101` or `:8102`, token in `/srv/reax/token`):
+
+```bash
+openssl rand -hex 32 > /srv/reax/link.key && chmod 0600 /srv/reax/link.key   # one key per worker; copy it to the gateway
+# Across the internet: a self-signed certificate (the gateway pins its fingerprint; no CA needed)
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 3650 -subj /CN=reax-relay \
+  -keyout /srv/reax/relay.key -out /srv/reax/relay.crt
+docker run -d --name reax-relay --restart unless-stopped --network host --user "$(id -u):$(id -g)" \
+  --no-healthcheck -v /srv/reax:/srv/reax:ro --entrypoint reax-runtime-relay \
+  -e REAX_MODEL=s1-pro -e REAX_S1_PRO_RUNTIME_URL=http://127.0.0.1:8102 \
+  -e REAX_RUNTIME_TOKEN_FILE=/srv/reax/token -e REAX_RELAY_KEY_FILE=/srv/reax/link.key \
+  -e REAX_RELAY_HOST=0.0.0.0 -e REAX_RELAY_PORT=8190 \
+  -e REAX_RELAY_TLS_CERT=/srv/reax/relay.crt -e REAX_RELAY_TLS_KEY=/srv/reax/relay.key \
+  reax:<release>
+docker logs reax-relay | grep fingerprint     # put this value into the gateway's workers file
+```
+
+Firewall the relay port so that only the gateway's IP reaches it. In a WireGuard (or other VPN) network you can
+leave out TLS: set `REAX_RELAY_HOST` to the worker's VPN address (e.g. `10.8.0.2`) and drop the two TLS variables;
+without TLS the relay refuses to listen on a public or wildcard address.
+
+**2. On the gateway**, one entry per worker in a workers file (key files mode 0600, relative paths are relative to
+the file):
+
+```json
+{"model": "s1-pro",
+ "workers": [
+  {"name": "fra-1", "url": "https://203.0.113.5:8190", "fingerprint": "<64 hex digits>", "key_file": "keys/fra-1.key"},
+  {"name": "fra-2", "url": "http://10.8.0.3:8190", "key_file": "keys/fra-2.key", "max_inflight": 32}]}
+```
+
+```bash
+REAX_FEATURE_MULTINODE=1 REAX_MODEL=s1-pro REAX_WORKERS_FILE=/srv/reax/workers.json reax-miner   # plus the usual wallet/axon variables
+```
+
+Do not set `REAX_<MODEL>_RUNTIME_URL(S)` on the gateway in this mode (refused); `REAX_RUNTIME_TOKEN_FILE` is not used. It starts when
+`REAX_WORKERS_MIN_HEALTHY` (default 1) workers pass the authenticated test decision and the identity check; the
+others join when they pass. `max_inflight` (default 16) is that worker's `REAX_RUNTIME_INFLIGHT`.
+
+**3. Swapping a machine without losing the UID.** The gateway re-reads the workers file every 10 s (write it
+atomically: write a new file, then `mv` it over the old one).
+
+1. Start the new worker (sidecar, `reax-selfcheck`, relay) and add its entry to the file.
+2. Wait for `runtime backend <url> is back in rotation` in the gateway log (about 15 s).
+3. Remove the old entry, then switch the old machine off once the log says it left the rotation.
+
+The gateway keeps a removed worker serving while fewer than `REAX_WORKERS_MIN_HEALTHY` of the remaining entries are in
+rotation (never more than remain, so scaling down always works), and
+an edited entry (new URL, key or limit) keeps serving until its replacement is in rotation, so a typo cannot take
+the hotkey offline. To take a machine out at once (compromised, misbehaving), replace its entry with
+`{"name": "<worker>", "evict": true}`. To rotate a key, write the new key on the worker, restart its relay and write
+the same key into the gateway's key file; the gateway notices the change itself. If a replacement entry never comes
+up (a typo), the old entry stays listed and health-checked until you fix or evict the entry. The old key stops working when the
+relay restarts and the new entry needs 10-15 s to be admitted, so rotate one worker at a time.
+
+**Moving the gateway** changes the axon IP: start the new gateway (it publishes the new IP), stop the old one when
+validators query the new address. Expect a few lost rounds, so keep the gateway on a server that does not move.
+
+The limits (`REAX_MAX_CONCURRENT`, `REAX_PER_CALLER_*`) default to those of the number of workers in the file at
+start; restart the gateway or set them after growing the fleet. Capacity caps are the same as for any hotkey
+(docs/DESIGN-POOLS.md); multinode does not change what a hotkey can earn, only how many UIDs you need.
+
 ## Network protection
 
 The miner endpoint (default port 8091) is public. Application limits (5 s body deadline, 8 unfinished requests

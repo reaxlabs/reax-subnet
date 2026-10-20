@@ -65,6 +65,9 @@ class Chain(Protocol):
 
     def set_commitment(self, text: str) -> None: ...
 
+    # Optional (callers use getattr): ``def block_hash(self, block: int) -> Optional[str]`` - the hash of a block,
+    # None when it does not exist yet or cannot be read.
+
 
 def parse_axon(axon: Any) -> tuple[Optional[str], Optional[int]]:
     """Parse the SDK's ``"ip:port"`` axon string. Returns (None, None) when unset or invalid."""
@@ -100,6 +103,7 @@ class SdkChain:
         self.wallet = wallet
         self.subtensor = bt.Subtensor(network=network)
         self.read_commitments = commitments
+        self._block_hashes: dict[int, str] = {}
 
     def snapshot(self) -> Snapshot:
         mg = self.subtensor.subnets.metagraph(self.netuid, commitments=self.read_commitments)
@@ -165,6 +169,22 @@ class SdkChain:
             value = self.subtensor.block_info(0).hash
         if not isinstance(value, str) or not value.startswith("0x"):
             raise RuntimeError("could not read the genesis hash")
+        return value
+
+    def block_hash(self, block: int) -> Optional[str]:
+        """Hash of ``block`` (0x...), cached once known. None when the block does not exist yet or the read fails."""
+        cached = self._block_hashes.get(block)
+        if cached is not None:
+            return cached
+        try:
+            info = self.subtensor.block_info(int(block))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("block hash of %s not readable: %r", block, exc)
+            return None
+        value = getattr(info, "hash", None) if info is not None else None
+        if not isinstance(value, str) or not value.startswith("0x"):
+            return None
+        self._block_hashes[block] = value
         return value
 
     def serve_axon(self, ip: str, port: int) -> None:
