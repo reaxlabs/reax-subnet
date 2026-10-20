@@ -33,6 +33,9 @@ from .validator import _read_limited, ip_allowed
 
 log = logging.getLogger("reax.router")
 MAX_SNAPSHOT_AGE = 3600
+# Scoring slots of the 1.2.0rc10 validator (p2p-wip elements.py: MODEL_ORDER / SLOT_STRIDE); keep in sync.
+MODEL_INDEX = {"s1-fast": 0, "s1-pro": 1, "s1-lite": 2, "s1-cpu": 3}
+SLOT_STRIDE = 1 << 16
 STATUS_WINDOW_SECONDS = 86400
 STATUS_WINDOW_MINUTES = STATUS_WINDOW_SECONDS // 60
 CREDIT_WINDOW_MINUTES = 60  # window of the verified/served ratio
@@ -377,11 +380,16 @@ class Router:
                         or not ip_allowed(n.ip, self.validator_cfg.allow_private_ips)):
                     continue
                 excluded[role[0]]["seen"] += 1
-                reason = self.exclusion(scores.get(str(n.uid), {}), n.hotkey, role, time.time())
+                # 1.2.0rc10 validators key the score of a non-s1-fast model at uid + 65536 x model index (the s1-fast slot
+                # and older state files keep the plain uid); the role check inside exclusion() keeps the models apart.
+                score = scores.get(str(n.uid + SLOT_STRIDE * MODEL_INDEX.get(role[0], 0)))
+                if score is None or score.get("role") != f"{role[0]}:{role[1]}":
+                    score = scores.get(str(n.uid), {})
+                reason = self.exclusion(score, n.hotkey, role, time.time())
                 if reason:
                     excluded[role[0]][reason] += 1
                     continue
-                selected[role[0]].append((n, float(scores[str(n.uid)]["ema"])))
+                selected[role[0]].append((n, float(score["ema"])))
                 self.health.setdefault(n.hotkey, MinerHealth())
             self.miners, self.fresh_at, self.excluded = selected, fresh, excluded
         except Exception:

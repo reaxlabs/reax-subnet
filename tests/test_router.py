@@ -2036,3 +2036,29 @@ async def test_status_exposes_alert_counts_per_model(arena):
     await asyncio.gather(*arena.router.tasks)  # one slot only: the shadow may not take the last one
     alerts = (await read_status(arena))["models"]["s1-fast"]["alerts"]
     assert alerts == {"verify_reference_unavailable": 1, "shadow_skipped_no_slot": 1, "shadow_reference_unavailable": 0}
+
+
+# ---- 1.2.0rc10 validator state: non-s1-fast scores sit at uid + 65536 x model index ----
+
+async def test_slot_keyed_score_is_read_and_plain_uid_key_still_works(arena, monkeypatch):
+    from reax_subnet import router as router_mod
+    n = await arena.add()
+    assert eligible_uids(arena) == [n.uid]  # old state: plain uid key
+    state_path = Path(arena.vcfg.state_path)
+    raw = json.loads(state_path.read_text())
+    # pretend the model's slot index is 1 (what s1-pro has): the router must find the entry under the slot key
+    monkeypatch.setattr(router_mod, "MODEL_INDEX", {"s1-fast": 1})
+    raw["miners"][str(n.uid + router_mod.SLOT_STRIDE)] = raw["miners"].pop(str(n.uid))
+    state_path.write_text(json.dumps(raw))
+    await arena.router.refresh()
+    assert eligible_uids(arena) == [n.uid]
+    # a slot entry of another role must not mask a valid plain entry, and an unscored slot falls back to the role check
+    raw["miners"][str(n.uid)] = dict(raw["miners"][str(n.uid + router_mod.SLOT_STRIDE)])
+    raw["miners"][str(n.uid + router_mod.SLOT_STRIDE)]["role"] = "s1-pro:0123456789abcdef"
+    state_path.write_text(json.dumps(raw))
+    await arena.router.refresh()
+    assert eligible_uids(arena) == [n.uid]
+    raw["miners"][str(n.uid)]["role"] = "s1-pro:0123456789abcdef"
+    state_path.write_text(json.dumps(raw))
+    await arena.router.refresh()
+    assert eligible_uids(arena) == []
