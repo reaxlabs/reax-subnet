@@ -28,6 +28,10 @@ class Neuron:
     # Plaintext on-chain commitment (Commitments pallet), "" if none. reax-s1 miners publish
     # "reax-s1/1:<model>:<manifest_id>" here.
     commitment: str = ""
+    # The commitment's Raw fields, one element each (1.2.0rc10 multirole); () = not read separately (then ``commitment``
+    # is the only field). The SDK's ``.value`` joins the Raw fields WITHOUT a separator, so several fields are only
+    # readable from here. A field that is not plain UTF-8 Raw data reads as INVALID_FIELD.
+    commitment_fields: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -109,6 +113,7 @@ class SdkChain:
                     ip=ip,
                     port=port,
                     commitment=_commitment_text(getattr(n, "commitment", None)),
+                    commitment_fields=_commitment_fields(getattr(n, "commitment", None)),
                 )
             )
         return Snapshot(block=int(mg.block), neurons=tuple(neurons), owner_hotkey=mg.owner_hotkey)
@@ -159,3 +164,29 @@ def _commitment_text(c: Any) -> str:
     if value is None:
         value = getattr(c, "data", "")
     return value[:256] if isinstance(value, str) else ""
+
+
+# Stands for a field that is not plain UTF-8 Raw data (a hash or timelock variant, bad UTF-8): no element parses it, so it
+# voids a commitment that contains it.
+INVALID_FIELD = "\x00"
+
+
+def _commitment_fields(c: Any) -> tuple[str, ...]:
+    """The commitment's fields as text, one per field (SDK ``NeuronCommitment.fields``: [{variant: 0x-hex}, ...])."""
+    fields = getattr(c, "fields", None) if c is not None else None
+    if not isinstance(fields, (list, tuple)):
+        return ()
+    out = []
+    for entry in fields[:8]:
+        if not isinstance(entry, dict) or len(entry) != 1:
+            out.append(INVALID_FIELD)
+            continue
+        (variant, value), = entry.items()
+        if not (isinstance(variant, str) and variant.startswith("Raw") and isinstance(value, str)):
+            out.append(INVALID_FIELD)
+            continue
+        try:
+            out.append(bytes.fromhex(value.removeprefix("0x")).decode("utf-8"))
+        except ValueError:
+            out.append(INVALID_FIELD)
+    return tuple(out)

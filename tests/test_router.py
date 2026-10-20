@@ -2062,3 +2062,172 @@ async def test_slot_keyed_score_is_read_and_plain_uid_key_still_works(arena, mon
     state_path.write_text(json.dumps(raw))
     await arena.router.refresh()
     assert eligible_uids(arena) == []
+
+
+# ---- 1.2.0rc10 commitments: multi-model (reax-s1m/1) and dual-role (inference + competition field) ----
+
+from reax_subnet.chain import _commitment_fields  # noqa: E402
+from reax_subnet.router_commit import inference_models, slot_key  # noqa: E402
+
+_MID_A, _MID_B = "0123456789abcdef", "fedcba9876543210"
+_SPEC = "reax-spec/1:demand_forecasting:alice/df-model@" + "a" * 40
+_MULTI = f"reax-s1m/1:s1-fast:{_MID_A},s1-pro:{_MID_B}"
+
+
+def test_inference_models_one_field_is_todays_format_and_ignores_start_blocks():
+    one = f"reax-s1/1:s1-fast:{_MID_A}"
+    for block in (0, 10**9):
+        assert inference_models([one], block) == {"s1-fast": _MID_A}
+        assert inference_models([f" {one} "], block, 5, 5) == {"s1-fast": _MID_A}
+    for bad in ("", "reax-s1/1:s1-fast", f"reax-s1/1:s1-xl:{_MID_A}", "reax-s1/1:s1-fast:0123",
+                f"reax-s1/1:s1-fast:{_MID_A.upper()}", f"reax-s1/1:s1-fast:{_MID_A}:x", "hello"):
+        assert inference_models([bad], 10**9, 1, 1) == {}
+    assert inference_models([_SPEC], 10**9, 1, 1) == {}
+
+
+def test_inference_models_multimodel_waits_for_its_start_block():
+    assert inference_models([_MULTI], 100) == {}  # held (None)
+    assert inference_models([_MULTI], 100, multimodel_start=101) == {}
+    assert inference_models([_MULTI], 101, multimodel_start=101) == {"s1-fast": _MID_A, "s1-pro": _MID_B}
+    # one-model reax-s1m, duplicate, unknown model or bad id are invalid
+    for bad in (f"reax-s1m/1:s1-fast:{_MID_A}", f"reax-s1m/1:s1-fast:{_MID_A},s1-fast:{_MID_B}",
+                f"reax-s1m/1:s1-fast:{_MID_A},s1-xl:{_MID_B}", f"reax-s1m/1:s1-fast:{_MID_A},s1-pro:12"):
+        assert inference_models([bad], 10**9, 1, 1) == {}
+
+
+def test_inference_models_dualrole_reads_the_inference_element_only():
+    one = f"reax-s1/1:s1-fast:{_MID_A}"
+    assert inference_models([one, _SPEC], 10**9, 1, None) == {}  # dual role held
+    assert inference_models([one, _SPEC], 99, 1, 100) == {}
+    assert inference_models([one, _SPEC], 100, None, 100) == {"s1-fast": _MID_A}
+    assert inference_models([_SPEC, one], 100, None, 100) == {"s1-fast": _MID_A}  # field order does not matter
+    assert inference_models([_MULTI, _SPEC], 100, None, 100) == {}  # multi-model still held
+    assert inference_models([_MULTI, _SPEC], 100, 100, 100) == {"s1-fast": _MID_A, "s1-pro": _MID_B}
+    eng = "reax-eng/1:anything"
+    assert inference_models([one, eng], 100, None, 100) == {"s1-fast": _MID_A}
+    # invalid shapes: two inference, two competition, unknown field, three fields, empty
+    assert inference_models([one, one], 100, 100, 100) == {}
+    assert inference_models([_SPEC, eng], 100, 100, 100) == {}
+    assert inference_models([one, "third-field"], 100, 100, 100) == {}
+    assert inference_models([one, _SPEC, "third-field"], 100, 100, 100) == {}
+    assert inference_models([], 100, 100, 100) == {}
+    assert inference_models([one, "\x00"], 100, 100, 100) == {}  # a non-Raw field voids the commitment
+
+
+def test_commitment_fields_are_decoded_and_value_concatenation_is_unusable():
+    one = f"reax-s1/1:s1-fast:{_MID_A}"
+    fields = [{"Raw%d" % len(t): "0x" + t.encode().hex()} for t in (one, _SPEC)]
+    assert _commitment_fields(SimpleNamespace(fields=fields)) == (one, _SPEC)
+    assert _commitment_fields(None) == () and _commitment_fields(SimpleNamespace(fields=None)) == ()
+    assert _commitment_fields(SimpleNamespace(fields=[{"Sha256": "0x00"}, {"Raw1": "0xff"}, {"Raw1": "zz"}])) == ("\x00",) * 3
+    # the SDK's `.value` (metagraph._decode_fields) joins Raw fields with no separator: it is not a parseable element
+    from bittensor.metagraph import _decode_fields
+    joined = _decode_fields(fields)
+    assert joined == one + _SPEC
+    assert inference_models([joined], 10**9, 1, 1) == {}
+
+
+def test_router_config_start_blocks(monkeypatch, tmp_path):
+    token = tmp_path / "t"
+    token.write_text("x" * 40)
+    token.chmod(0o600)
+    env = {"REAX_ROUTER_TOKEN_FILE": str(token), "REAX_ROUTER_MODEL_REVISION": "r", "REAX_ROUTER_TOKENIZER_VERSION": "t"}
+    cfg = RouterConfig.from_env(env)
+    assert cfg.multimodel_start_block is None and cfg.dualrole_start_block is None
+    cfg = RouterConfig.from_env({**env, "REAX_ROUTER_MULTIMODEL_START_BLOCK": "9400000",
+                                 "REAX_ROUTER_DUALROLE_START_BLOCK": "none"})
+    assert cfg.multimodel_start_block == 9400000 and cfg.dualrole_start_block is None
+    with pytest.raises(ConfigError):
+        RouterConfig.from_env({**env, "REAX_ROUTER_DUALROLE_START_BLOCK": "abc"})
+
+
+@pytest.fixture
+def multirole(arena, make_wallet):
+    """A two-model router (s1-fast + s1-pro) on the arena's chain/state, with miners given by commitment fields."""
+    router = Router(replace(arena.router.cfg, models=("s1-fast", "s1-pro")), arena.vcfg, arena.router.wallet,
+                    arena.chain, lambda model, decisions: 1)
+    mid = {m: load_manifest(m).manifest_id for m in ("s1-fast", "s1-pro")}
+    state = ValidatorState(9, arena.router.hotkey)
+    ns = SimpleNamespace(router=router, mid=mid, state=state, neurons=[], block=1000, arena=arena)
+
+    def add(fields, scored=(), slot=True):
+        """scored: models the validator holds a good score for; slot=False writes the pre-rc10 plain-uid layout."""
+        uid = len(arena.chain.neurons) + len(ns.neurons) + 1
+        hk = make_wallet(f"//MultiRole/{uid}").hotkey.ss58_address
+        for model in scored:
+            key = slot_key(uid, model) if slot else uid
+            state.miners[key] = MinerState(hk, ema=0.95, last_score=1.0, rounds=1000, strikes=0, role=f"{model}:{mid[model]}")
+        n = Neuron(uid, hk, "cold", False, 0, "127.0.0.1", 9000 + uid, fields[0] if len(fields) == 1 else "garbage",
+                   commitment_fields=tuple(fields))
+        ns.neurons.append(n)
+        return n
+
+    async def refresh(block=None):
+        save(state, arena.vcfg.state_path)
+        arena.chain.neurons = list(ns.neurons)
+        arena.chain.block = (ns.block if block is None else block) - 10  # FakeChain.snapshot adds 10
+        await router.refresh()
+        return {m: sorted(n.uid for n, _ in router.candidates(m)) for m in ("s1-fast", "s1-pro")}
+
+    ns.add, ns.refresh = add, refresh
+    return ns
+
+
+async def test_multimodel_hotkey_is_routed_for_each_model_with_its_own_score(multirole):
+    mid = multirole.mid
+    multi = f"reax-s1m/1:s1-fast:{mid['s1-fast']},s1-pro:{mid['s1-pro']}"
+    both = multirole.add([multi], scored=("s1-fast", "s1-pro"))
+    only_fast = multirole.add([multi], scored=("s1-fast",))  # no pro score yet: excluded for pro only
+    assert multirole.router.cfg.multimodel_start_block is None
+    assert await multirole.refresh() == {"s1-fast": [], "s1-pro": []}  # held: a multi-model element has no role
+    multirole.router.cfg = replace(multirole.router.cfg, multimodel_start_block=1000)
+    assert await multirole.refresh(block=999) == {"s1-fast": [], "s1-pro": []}
+    assert await multirole.refresh(block=1000) == {"s1-fast": sorted([both.uid, only_fast.uid]), "s1-pro": [both.uid]}
+    assert multirole.router.excluded["s1-pro"]["no_score"] == 1
+
+
+async def test_one_stale_manifest_drops_only_that_model(multirole):
+    mid = multirole.mid
+    multirole.router.cfg = replace(multirole.router.cfg, multimodel_start_block=0)
+    n = multirole.add([f"reax-s1m/1:s1-fast:{mid['s1-fast']},s1-pro:{_MID_A}"], scored=("s1-fast",))
+    assert await multirole.refresh() == {"s1-fast": [n.uid], "s1-pro": []}
+
+
+async def test_dualrole_hotkey_is_routed_for_its_inference_element_only(multirole):
+    mid = multirole.mid
+    one = f"reax-s1/1:s1-pro:{mid['s1-pro']}"
+    n = multirole.add([one, _SPEC], scored=("s1-pro",))
+    comp_only = multirole.add([_SPEC], scored=("s1-pro", "s1-fast"))
+    assert comp_only.uid != n.uid
+    assert await multirole.refresh() == {"s1-fast": [], "s1-pro": []}  # held until DUALROLE_START_BLOCK
+    multirole.router.cfg = replace(multirole.router.cfg, dualrole_start_block=1000)
+    assert await multirole.refresh(block=999) == {"s1-fast": [], "s1-pro": []}
+    assert await multirole.refresh(block=1000) == {"s1-fast": [], "s1-pro": [n.uid]}  # competition-only is never routed
+
+
+async def test_one_field_commitments_are_unchanged_before_and_after_the_start_blocks(multirole):
+    mid = multirole.mid
+    fast = multirole.add([f"reax-s1/1:s1-fast:{mid['s1-fast']}"], scored=("s1-fast",))
+    pro = multirole.add([f"reax-s1/1:s1-pro:{mid['s1-pro']}"], scored=("s1-pro",))
+    want = {"s1-fast": [fast.uid], "s1-pro": [pro.uid]}
+    assert await multirole.refresh() == want
+    multirole.router.cfg = replace(multirole.router.cfg, multimodel_start_block=1, dualrole_start_block=1)
+    assert await multirole.refresh() == want
+
+
+async def test_multimodel_with_pre_rc10_plain_uid_state_falls_back_per_role(multirole):
+    mid = multirole.mid
+    multirole.router.cfg = replace(multirole.router.cfg, multimodel_start_block=0)
+    # an old uid-keyed state holds one role per uid: the matching model routes, the other one has no score
+    n = multirole.add([f"reax-s1m/1:s1-fast:{mid['s1-fast']},s1-pro:{mid['s1-pro']}"], scored=("s1-pro",), slot=False)
+    assert await multirole.refresh() == {"s1-fast": [], "s1-pro": [n.uid]}
+
+
+async def test_a_strike_on_one_model_pauses_the_hotkey_for_all_its_models(multirole):
+    """Documented residual risk: the strike ledger and the breaker are per hotkey."""
+    mid = multirole.mid
+    multirole.router.cfg = replace(multirole.router.cfg, multimodel_start_block=0)
+    n = multirole.add([f"reax-s1m/1:s1-fast:{mid['s1-fast']},s1-pro:{mid['s1-pro']}"], scored=("s1-fast", "s1-pro"))
+    assert await multirole.refresh() == {"s1-fast": [n.uid], "s1-pro": [n.uid]}
+    multirole.router.health[n.hotkey].open_until = time.time() + 3600
+    assert await multirole.refresh() == {"s1-fast": [], "s1-pro": []}

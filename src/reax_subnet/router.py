@@ -20,7 +20,7 @@ from aiohttp import web
 
 from . import auth
 from .config import ConfigError, _bool, _float, _int, load_validator
-from .manifest import load_manifest, parse_commitment
+from .manifest import load_manifest
 from .protocol import ProtocolError, _loads
 from .s1contract import ContractError, parse_decision
 from .s1protocol import (MAX_DECISIONS, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES, S1_DECIDE_PATH, S1Request,
@@ -28,14 +28,13 @@ from .s1protocol import (MAX_DECISIONS, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES, S
 from .s1scoring import score_round
 from .s1validator import POOL_PARAMS, s1_endpoint_url
 from .state import STATE_VERSION
+from .router_commit import MODEL_INDEX, SLOT_STRIDE, inference_models
 from .router_tokens import InputTokenLimitError
 from .validator import _read_limited, ip_allowed
 
 log = logging.getLogger("reax.router")
 MAX_SNAPSHOT_AGE = 3600
-# Scoring slots of the 1.2.0rc10 validator (p2p-wip elements.py: MODEL_ORDER / SLOT_STRIDE); keep in sync.
-MODEL_INDEX = {"s1-fast": 0, "s1-pro": 1, "s1-lite": 2, "s1-cpu": 3}
-SLOT_STRIDE = 1 << 16
+# Scoring slots of the 1.2.0rc10 validator (MODEL_INDEX / SLOT_STRIDE) and its commitment parser live in router_commit.
 STATUS_WINDOW_SECONDS = 86400
 STATUS_WINDOW_MINUTES = STATUS_WINDOW_SECONDS // 60
 CREDIT_WINDOW_MINUTES = 60  # window of the verified/served ratio
@@ -72,6 +71,12 @@ def wilson_lower(bad, total, z=GREY_WILSON_Z):
     return max(0.0, (centre - spread) / (1 + z * z / total))
 STATUS_COUNTERS = ("miner", "reference", "none", "verify_match", "verify_mismatch",
                    "verified", "sampled", "skipped", "skipped_reference_busy", "probation")
+
+
+def _block_or_none(env, name):
+    """A start block from the environment; unset, empty or "none" = held (None)."""
+    raw = (env.get(name) or "").strip()
+    return None if raw.lower() in ("", "none") else _int(env, name, 0, 0, 1 << 40)
 
 
 def read_token(path):
@@ -123,6 +128,10 @@ class RouterConfig:
     reference_concurrency_models: dict = field(default_factory=dict)  # per model; a model not listed uses the global value
     model_revisions: dict = field(default_factory=dict)  # per model; a model not listed uses `revision`
     tokenizer_versions: dict = field(default_factory=dict)
+    # Release constants of the validator (elements.MULTIMODEL_START_BLOCK / DUALROLE_START_BLOCK), None = held: before them
+    # a multi-model element / a second (competition) field reads as no role, exactly like the validator.
+    multimodel_start_block: int | None = None
+    dualrole_start_block: int | None = None
 
     @property
     def floor(self):
@@ -205,7 +214,9 @@ class RouterConfig:
                    reference_concurrency_models={
                        m: _int(env, f"REAX_ROUTER_REFERENCE_CONCURRENCY_{m.upper().replace('-', '_')}",
                                reference_concurrency, 1, 16) for m in models},
-                   model_revisions=revisions, tokenizer_versions=tokenizers)
+                   model_revisions=revisions, tokenizer_versions=tokenizers,
+                   multimodel_start_block=_block_or_none(env, "REAX_ROUTER_MULTIMODEL_START_BLOCK"),
+                   dualrole_start_block=_block_or_none(env, "REAX_ROUTER_DUALROLE_START_BLOCK"))
 
 
 @dataclass
@@ -373,24 +384,31 @@ class Router:
             selected = {m: [] for m in self.cfg.models}
             excluded = {m: collections.Counter() for m in self.cfg.models}
             for n in snap.neurons:
-                role = parse_commitment(n.commitment)
-                if not role or role[0] not in self.manifests or role[1] != self.manifests[role[0]].manifest_id:
-                    continue
                 if (n.uid == snap.owner_uid or n.hotkey == self.hotkey or not n.ip or not n.port
                         or not ip_allowed(n.ip, self.validator_cfg.allow_private_ips)):
                     continue
-                excluded[role[0]]["seen"] += 1
-                # 1.2.0rc10 validators key the score of a non-s1-fast model at uid + 65536 x model index (the s1-fast slot
-                # and older state files keep the plain uid); the role check inside exclusion() keeps the models apart.
-                score = scores.get(str(n.uid + SLOT_STRIDE * MODEL_INDEX.get(role[0], 0)))
-                if score is None or score.get("role") != f"{role[0]}:{role[1]}":
-                    score = scores.get(str(n.uid), {})
-                reason = self.exclusion(score, n.hotkey, role, time.time())
-                if reason:
-                    excluded[role[0]][reason] += 1
-                    continue
-                selected[role[0]].append((n, float(score["ema"])))
-                self.health.setdefault(n.hotkey, MinerHealth())
+                fields = n.commitment_fields or ((n.commitment,) if n.commitment else ())
+                served = inference_models(fields, snap.block, self.cfg.multimodel_start_block,
+                                          self.cfg.dualrole_start_block)
+                # One entry per served model, each with its own score; a stale manifest id only drops that model. A
+                # dual-role commitment is routed for its inference element only.
+                for model, manifest_id in served.items():
+                    if model not in self.manifests or manifest_id != self.manifests[model].manifest_id:
+                        continue
+                    role = (model, manifest_id)
+                    excluded[model]["seen"] += 1
+                    # 1.2.0rc10 validators key the score of a non-s1-fast model at uid + 65536 x model index (the s1-fast
+                    # slot and older state files keep the plain uid); the role check inside exclusion() keeps the models
+                    # apart.
+                    score = scores.get(str(n.uid + SLOT_STRIDE * MODEL_INDEX.get(model, 0)))
+                    if score is None or score.get("role") != f"{model}:{manifest_id}":
+                        score = scores.get(str(n.uid), {})
+                    reason = self.exclusion(score, n.hotkey, role, time.time())
+                    if reason:
+                        excluded[model][reason] += 1
+                        continue
+                    selected[model].append((n, float(score["ema"])))
+                    self.health.setdefault(n.hotkey, MinerHealth())
             self.miners, self.fresh_at, self.excluded = selected, fresh, excluded
         except Exception:
             log.warning("snapshot refresh outcome=unavailable")

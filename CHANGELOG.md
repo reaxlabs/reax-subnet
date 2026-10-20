@@ -2,6 +2,7 @@
 
 ## 1.2.0-dev — unreleased
 
+* Router: reads 1.2.0rc10 commitments like the validator (multi-model `reax-s1m/1`, dual-role inference + competition field, start blocks via `REAX_ROUTER_*_START_BLOCK`) and finds non-s1-fast scores under their slot key; `Neuron.commitment_fields` carries the Raw fields (the SDK's `.value` joins them without a separator).
 * Optional `reax-router` service: a client-facing router that forwards signed requests to miners (read-only
   validator score selection, sequential failover, circuit breakers, bounded shadow verification with a separate
   strike ledger). Disabled until an operator configures and enables it; see docs/ROUTER.md.
