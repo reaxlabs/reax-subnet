@@ -473,6 +473,17 @@ def _new_measurement(c: Mapping[str, Any], r: EvalResult, params: TrackParams) -
     return last is None or r.block - last >= params.confirm_gap_blocks
 
 
+def co_champion_set(ch: Optional["Champion"]) -> Optional[tuple[str, tuple[tuple[str, str], ...]]]:
+    """(track, listed (digest, hotkey) pairs) when ``ch`` is one of the ``competition_split.ENGINE_CO_CHAMPIONS``;
+    None otherwise (also with ``ch`` None)."""
+    if ch is None:
+        return None
+    for track, pairs in _cs.ENGINE_CO_CHAMPIONS.items():
+        if (ch.digest, ch.hotkey) in pairs:
+            return track, pairs
+    return None
+
+
 def update_champion(state: TrackState, eligible: Sequence[Submission], params: TrackParams, block: int) -> Optional[Champion]:
     """Apply the champion rule over the currently committed, eligible submissions.
 
@@ -504,7 +515,11 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
         elif _valid(r, params):
             ch.score = min(ch.score, r.score)
             ch.uid = sub.uid
-    bar = ch.score * (1.0 + max(params.margin, required_engine_margin(params.reference_noise_std))) if ch is not None else 0.0
+    held = ch.score if ch is not None else 0.0
+    co = co_champion_set(ch)
+    if co is not None:  # opening co-champions: the bar is the higher co-champion score (ENGINE_CO_CHAMPION_BAR)
+        held = max(held, _cs.ENGINE_CO_CHAMPION_BAR.get(co[0], 0.0))
+    bar = held * (1.0 + max(params.margin, required_engine_margin(params.reference_noise_std))) if ch is not None else 0.0
     contenders = sorted(
         (s for s in eligible if _valid(state.results.get(s.digest), params)),
         key=lambda s: (-state.results[s.digest].score, effective_block(state.first_seen[s.digest][0]),

@@ -23,13 +23,14 @@ from typing import Any, Awaitable, Callable, Mapping, Optional
 
 from .award import engine_submission_id, spec_submission_id
 from .chain import Snapshot
+from . import competition_split as _csplit
 from .competition_split import (
     COMPETITIONS_START_UTC, SPLIT_PROFILE, NoSpecialistEvaluator, SpecialistEvaluator, active_tracks, combine_weights,
     ENGINE_RESTORE_PREVIOUS, engine_keepalive_enabled, keep_share_enabled,
 )
 from .engcomp import (
-    EvalResult, RewardParams, Submission, TrackParams, TrackState, _valid, champion_fraction, competition_weights,
-    confirmation_due, former_champions, needs_remeasurement, observe, parse_engine_commitment, pending, track_thresholds,
+    Champion, EvalResult, RewardParams, Submission, TrackParams, TrackState, _valid, champion_fraction, competition_weights,
+    co_champion_set, confirmation_due, former_champions, needs_remeasurement, observe, parse_engine_commitment, pending, track_thresholds,
     update_champion, waiting_uids,
 )
 from .spec.commitment import parse_commitment as parse_spec_commitment
@@ -447,6 +448,7 @@ class EngineCompetition:
             return dict(base)
         champion: Optional[int] = None
         frac = 0.0
+        cochamps: dict[int, float] = {}
         waiting: list[int] = []
         if not self.engine_active() or not self.context_ok:
             if not self._held_logged:
@@ -474,6 +476,21 @@ class EngineCompetition:
             ch.uid = live.uid  # UIDs can be renumbered; the title belongs to the hotkey
             comp = competition_weights(st, eligible, self.tracks[track], self.reward, snap.block)
             if track == "s1-fast" and ch.uid in comp:
+                co = co_champion_set(ch)
+                if co is not None and co[0] == track:
+                    # opening co-champions (ENGINE_CO_CHAMPIONS): each listed entry gets 1/n of the champion's part,
+                    # only with its own approval; an unpaid part goes to the inference part (no former-champion fallback)
+                    since = min(ch.crowned_block, _csplit.ENGINE_CO_CHAMPION_CROWNED.get(track, ch.crowned_block))
+                    part = champion_fraction(self.reward, snap.block - since) / len(co[1])
+                    for digest, hotkey in co[1]:
+                        sub = next((s for s in eligible if s.digest == digest and s.hotkey == hotkey), None)
+                        if sub is None or (digest != ch.digest and not _valid(st.results.get(digest), self.tracks[track])):
+                            continue
+                        if self.award_gate is not None and not self.award_gate.approved(track, hotkey,
+                                                                                        engine_submission_id(digest)):
+                            continue
+                        cochamps[sub.uid] = cochamps.get(sub.uid, 0.0) + part
+                    continue
                 if self.award_gate is not None and not self.award_gate.approved(track, ch.hotkey,
                                                                                 engine_submission_id(ch.digest)):
                     # awaiting owner approval or rejected: the previous approved champion keeps the champion share
@@ -493,11 +510,12 @@ class EngineCompetition:
         pv = getattr(self.specialist, "provisional", None)
         prov = pv(ids, self._utcnow()) if pv is not None and ids else {}
         prov = {t: prov[t] for t in ids if prov.get(t)}
-        if champion is None and not scores and not alive and not prov and not waiting:
+        if champion is None and not cochamps and not scores and not alive and not prov and not waiting:
             return dict(base)  # nothing to pay: exactly the 1.1 weights
         return combine_weights(base, champion, frac, scores, self.profile, owner_uid=snap.owner_uid,
                                burn_fraction=burn_fraction, award_ok=self._spec_award_ok(snap), keepalive=alive,
-                               provisional=prov, engine_waiting=waiting, keep_share=self.keep_share, now=self._utcnow().timestamp())
+                               provisional=prov, engine_waiting=waiting, keep_share=self.keep_share, now=self._utcnow().timestamp(),
+                               engine_cochampions=cochamps or None)
 
     def _previous_approved(self, track: str, st: TrackState, eligible: list[Submission],
                            block: int) -> Optional[tuple[int, float]]:
@@ -511,6 +529,8 @@ class EngineCompetition:
             r = st.results.get(f["digest"])
             if sub is None or not _valid(r, self.tracks[track]) or not isinstance(f["block"], int):
                 continue
+            if co_champion_set(Champion(f["digest"], f["hotkey"], sub.uid, 0.0, f["block"])) is not None:
+                continue  # opening co-champions are never paid as a former champion (their share goes to inference)
             if self.award_gate.approved(track, sub.hotkey, engine_submission_id(sub.digest)):
                 return sub.uid, champion_fraction(self.reward, block - f["block"])
         return None

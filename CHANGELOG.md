@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0rc9.post7 — engine opening co-champions (validator)
+
+`WEIGHTS_VERSION_KEY` is unchanged (1240). One-time exception for the engine opening round (owner decision 20 Oct 2026):
+uid 4 and uid 198 measured within the margin of each other and share the s1-fast title. While one of them holds the
+title, the champion's part of the engine share (decaying from the crowning) is split 50/50; each half is paid only to an
+entry that is still committed by its hotkey, has a valid result and its own owner approval. An unpaid half goes to the
+inference part. A challenger must beat 2.8233 (uid 4's opening score) by the margin. Once a challenger takes the title
+the normal rule applies again. Miners need no update.
+
 ## 1.2.0rc9.post6 — s1-lite brake: tier-order cap order_ratio 1.0 -> 0.5 (validator)
 
 `WEIGHTS_VERSION_KEY` is unchanged (1240). The average weight per miner in a tier may again be at most half of the average

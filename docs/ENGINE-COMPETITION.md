@@ -127,6 +127,12 @@ The split between serving and the competitions is defined once in [COMPETITIONS.
   with confirmation and similarity checks for runner-ups.
 - **No champion, a struck or withdrawn champion, the decayed part = back to serving.** Never burned, never to the owner
   UID. Before the start time the weights are byte-for-byte the 1.1 weights (tested).
+- **Opening co-champions (1.2.0rc9.post7, one-time exception).** In the opening round uid 4 (2.823) and uid 198 (2.814)
+  measured within the margin of each other, so they share the title. While one of them holds it, the champion's part
+  (decaying from the opening crowning, block 9,326,968) is split 50/50. Each half is paid only after that entry's own
+  award review, and only while it stays committed by the same hotkey with a valid result. An unpaid half goes back to
+  serving, never to the other co-champion. A challenger must beat 2.823 by the margin (2.908). Once a challenger takes the
+  title, the normal rule applies again and the co-champions are not paid as former champions.
 - The share is taken from the miner part only; the owner's burn fraction is unchanged. If a validator sets nothing (full
   burn without an owner UID), it still sets nothing.
 

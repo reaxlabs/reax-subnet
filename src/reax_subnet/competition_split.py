@@ -52,6 +52,26 @@ ENGINE_TRACK_START_BLOCK: Optional[int] = 9326382
 # still valid (its decay keeps running from its own crowning). False = the engine share goes to the inference part.
 ENGINE_RESTORE_PREVIOUS = True
 
+# Engine co-champions (1.2.0rc9.post7; Florian 20 Oct 2026 21:33Z, board #22468): one-time exception for the opening
+# round, whose two best entries measured within the margin of each other. While the current champion of a track is one
+# of the listed (digest, hotkey) pairs, the champion's part of the engine share (decaying from the champion's crowning
+# block) is split evenly over the listed pairs. Each half is paid only to an entry that is still committed by that hotkey,
+# holds a valid result and has its OWN owner approval; an unpaid half goes to the inference part (never to the other
+# co-champion, never to a former champion). The challenger bar is max(champion score, ENGINE_CO_CHAMPION_BAR) x
+# (1 + margin) while they hold the title (engcomp.update_champion). The decay runs from ENGINE_CO_CHAMPION_CROWNED (also
+# when a co-champion is crowned again later, e.g. after the other withdrew). Once a challenger takes the title, the normal
+# rule applies again, and a co-champion is never paid as a former champion. Empty = off.
+ENGINE_CO_CHAMPIONS: dict[str, tuple[tuple[str, str], ...]] = {
+    "s1-fast": (
+        ("576fea84b347fc85160f788d737db616be4b5ca4cde19268e0ce1d1f5cdfe12f",  # uid 198
+         "5FLhkmTrKBUCJWnmCEY7xzcuVe6Mpk7FUgLdwfj7SbH33wo2"),
+        ("ec2ee6ed3df69903bf9df5420cde8f869280647ce7d23a3837a2397b2ce34272",  # uid 4
+         "5H6iSGe3t74QSUq2RgKtA4sET9EauSYsNBkEjGynW4jJ9htc"),
+    ),
+}
+ENGINE_CO_CHAMPION_BAR: dict[str, float] = {"s1-fast": 2.82332066708034}  # uid 4's opening score
+ENGINE_CO_CHAMPION_CROWNED: dict[str, int] = {"s1-fast": 9326968}  # the decay runs from the opening crowning block
+
 # Engine keep-alive (miner report 21903), release constants; also needs REAX_ENGINE_KEEPALIVE=1 (default OFF). An engine
 # entry that waits for its FIRST measurement earns 0 and is pruned. While it is committed, its image was pulled and bound to
 # its hotkey, it has no result yet, and at most ENGINE_KA_MAX_HOURS passed since it was first seen (opening block counts as
@@ -341,7 +361,8 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                     keepalive_share: Optional[float] = None,
                     provisional: Optional[Mapping[str, Sequence[int]]] = None,
                     engine_waiting: Optional[Sequence[int]] = None,
-                    keep_share: bool = False, now: Optional[float] = None) -> dict[int, float]:
+                    keep_share: bool = False, now: Optional[float] = None,
+                    engine_cochampions: Optional[Mapping[int, float]] = None) -> dict[int, float]:
     """Mix the competitions into the serving weights.
 
     ``keep_share`` (with ``now``, unix seconds; needs ``award_ok``): the keep-share rule above (``keep_share_ranks``).
@@ -378,6 +399,10 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     and ``ENGINE_KA_MAX_SHARE`` x the engine share together, deducted from the engine champion's payment (nothing is
     deducted without a champion). The owner UID and every uid paid elsewhere are left out.
 
+    ``engine_cochampions``: ``{uid: part}`` of the engine share for approved co-champions (``ENGINE_CO_CHAMPIONS``), paid
+    like ``engine_champion`` (usually with ``engine_champion`` None); the engine keep-alive is deducted from all engine
+    payees in proportion to their payment. None or empty = exactly the weights without it.
+
     The competition fractions apply to the miner part (the owner's burn stays as it is, as in 1.1). Everything not
     claimed stays with ``serving``. The result is normalised to sum 1; an empty ``serving`` returns ``{}``.
     """
@@ -392,6 +417,10 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     paid: dict[int, float] = {}  # fractions of the miner part
     if engine_champion is not None and engine_share_frac > 0:
         paid[engine_champion] = prof.engine * min(1.0, engine_share_frac)
+    for uid, part in sorted((engine_cochampions or {}).items()):
+        if part > 0 and uid != owner_uid:
+            paid[uid] = paid.get(uid, 0.0) + prof.engine * min(1.0, part)
+    engine_payees = [u for u in sorted(paid)]  # the champion and/or the co-champions
     ka_cap = KEEPALIVE_MAX_SHARE if keepalive_share is None else keepalive_share
     alive: dict[str, list[int]] = {}
     if ka_cap > 0:
@@ -449,8 +478,16 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
         each_ew = min(ENGINE_KA_FRACTION * per_entry, ENGINE_KA_MAX_SHARE * prof.engine / len(ewait))
         for uid in ewait:
             paid[uid] = each_ew
-        if engine_champion in paid:  # taken from the engine share, i.e. from the champion's part of it
-            paid[engine_champion] = max(0.0, paid[engine_champion] - each_ew * len(ewait))
+        # taken from the engine share, i.e. from the champion's part of it (split by payment over co-champions)
+        if not engine_cochampions:
+            if engine_champion in paid:  # exactly the rule before the co-champions
+                paid[engine_champion] = max(0.0, paid[engine_champion] - each_ew * len(ewait))
+        else:
+            held = math.fsum(paid[u] for u in engine_payees)
+            if held > 0:
+                take = each_ew * len(ewait)
+                for u in engine_payees:
+                    paid[u] = max(0.0, paid[u] - take * paid[u] / held)
         log.info("engine keep-alive for uids %s, each %.5f of the miner part", ewait, each_ew)
     for track_id, slot_share in slots:
         rank_share = slot_share
