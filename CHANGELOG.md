@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0rc10.post2 — capacity probe: no false 'stale' answers with many scoring slots (validator)
+
+`WEIGHTS_VERSION_KEY` is unchanged (1250). The validator checks the miners' signed probe answers after the probe window, one
+scoring slot after the other, and accepted an answer only while it was younger than its nonce store's retention
+(request timeout + 60 s). With ~310 slots (multi-model hotkeys) the check took longer than that, so the slots checked
+last were rejected as stale and their capacity probe counted 0. The nonce store now keeps nonces for at least 600 s.
+Miners need no update.
+
 ## 1.2.0rc10.post1 — engine former champions: 75/17/8 with 7-day slots, co-champions as one former champion (validator)
 
 `WEIGHTS_VERSION_KEY` is unchanged (1250). Owner decisions 21 Oct 2026. Of the engine champion's part (after the decay),

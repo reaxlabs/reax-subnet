@@ -66,6 +66,14 @@ def endpoint_url(ip: str, port: int) -> str:
     return f"http://{host}:{port}{auth.DECIDE_PATH}"
 
 
+# Minimum replay-protection window of the validator's nonce store (rc10.post2, 21 Oct 2026). The capacity probe checks the
+# miners' response signatures after the slowest pool's window, one slot after the other, and caps their accepted age at
+# this retention (s1validator.check: max_age <= retention - allowed skew). With ~310 scoring slots (multi-model) the check
+# took longer than request_timeout_s + 60 s, so every slot checked late failed with "auth: StaleRequest" and its probe
+# counted 0 (uids >= ~200, from 15:34Z on). A longer retention only keeps nonces longer; replays stay rejected.
+NONCE_RETENTION_MIN_S = 600.0
+
+
 @dataclass
 class QueryResult:
     uid: int
@@ -96,7 +104,7 @@ class Validator:
         self.backend = backend
         self.params = cfg.scoring
         self.state: ValidatorState = load(cfg.state_path, cfg.common.netuid, self.hotkey)
-        self.nonce_store = auth.NonceStore(retention=cfg.request_timeout_s + 60.0)
+        self.nonce_store = auth.NonceStore(retention=max(cfg.request_timeout_s + 60.0, NONCE_RETENTION_MIN_S))
         self.last_weights: dict[int, float] = {}
         self._last_neuron_count = 0
         self._shrunk_count: Optional[int] = None
