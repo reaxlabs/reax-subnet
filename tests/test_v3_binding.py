@@ -39,7 +39,8 @@ def test_x_mode_parsing(tmp_path, value, expect):
     assert "binding" in S.X_TIER_MODES and C.from_env({"REAX_SPEC_SEALED_DIR": str(tmp_path)}).x_tier_mode == "off"
 
 
-def test_g_med_json_parsing(tmp_path, caplog):
+def test_g_med_json_parsing(tmp_path, caplog, monkeypatch):
+    monkeypatch.setattr(C.split, "GENERALIST_G_MED", None)  # uncalibrated default: only REAX_SPEC_G_MED fills g_med
     env = lambda v: C.from_env({"REAX_SPEC_SEALED_DIR": str(tmp_path), "REAX_SPEC_G_MED": v}).g_med   # noqa: E731
     assert env('{"demand_forecasting": 12.3, "risk_assessment": 9}') == {"demand_forecasting": 12.3, "risk_assessment": 9.0}
     assert env("") == {} and env("  ") == {}
@@ -56,7 +57,8 @@ def test_penalty_cap_parsing(tmp_path, value, expect):
     assert C.from_env({"REAX_SPEC_SEALED_DIR": str(tmp_path), "REAX_SPEC_GAP_PENALTY_CAP": value}).gap_penalty_cap == expect
 
 
-def test_defaults_are_off_and_constants():
+def test_defaults_are_off_and_constants(monkeypatch):
+    monkeypatch.setattr(C.split, "GENERALIST_G_MED", None)  # uncalibrated default; the release value is pinned in test_rc10_release_pins
     cfg = C.SpecConfig("s", "w", "p")
     assert cfg.x_tier_mode == "off" and cfg.g_med == {} and cfg.gap_penalty_cap == 10.0
     assert SC.GAP_WEIGHT == 0.5 and SC.GAP_ALLOWANCE_FLOOR == 8.0 and SC.GAP_PENALTY_CAP == 10.0

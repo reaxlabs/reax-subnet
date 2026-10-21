@@ -23,14 +23,14 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 from .chain import Snapshot
-from .competition_split import SPLIT_PROFILE, COMPETITIONS_START_UTC, SpecialistEvaluator
+from .competition_split import LEGACY_KA_TRACKS, SPLIT_PROFILE, COMPETITIONS_START_UTC, SpecialistEvaluator
 from .competitions import SpecialistAdapter
 from .config import ENGINE_STATE_FILE, REMOTE_MAX_AGE_S, SPEC_STATE_FILE
 from .engcomp import RewardParams, TrackParams, TrackState
 from .engvalidator import STATE_VERSION, TRACKS, EngineCompetition
 from .spec import config as spec_config
 from .spec import state as spec_state
-from .spec.evaluator import compute_keepalive, compute_leaders, compute_provisional
+from .spec.evaluator import compute_keepalive, compute_leaders, compute_provisional, legacy_leaders
 
 log = logging.getLogger("reax.remote")
 
@@ -162,9 +162,10 @@ class RemoteSpecEvaluator:
     """The part of ``SpecEvaluator`` the share layer needs (``cfg.active_tracks``, ``clock``, ``leaders``), over the
     worker's ``spec-state.json``. It cannot evaluate anything."""
 
-    def __init__(self, state_path: str, tracks: Sequence[spec_config.TrackDef] = spec_config.DEFAULT_TRACKS, *,
+    def __init__(self, state_path: str, tracks: Optional[Sequence[spec_config.TrackDef]] = None, *,
                  max_age_s: float = REMOTE_MAX_AGE_S, clock: Callable[[], float] = time.time):
-        self.cfg = spec_config.SpecConfig(sealed_dir="", work_dir="", state_path=state_path, tracks=tuple(tracks))
+        self.cfg = spec_config.SpecConfig(sealed_dir="", work_dir="", state_path=state_path,
+                                          tracks=spec_config._from_schedule() if tracks is None else tuple(tracks))
         self.max_age_s, self.clock = max_age_s, clock
         self._outage = _Outage("specialist tracks", state_path)
         self._state: Optional[spec_state.SpecState] = None   # parsed by the last leaders() call; None = unusable
@@ -212,6 +213,16 @@ class RemoteSpecEvaluator:
             return compute_provisional(self._state, ids, snapshot, now=self.clock())
         except Exception:  # noqa: BLE001 - a corrupt file pays nothing
             return {t: [] for t in ids}
+
+    def legacy(self, snapshot: Snapshot) -> dict[str, list[tuple[int, bool]]]:
+        """Leaders of the ended DF/RA tracks (the relay keeps their frozen part in the same file) from the state the last
+        ``leaders`` call read. A missing, stale or invalid file, or any error: no entries."""
+        if self._state is None:
+            return {}
+        try:
+            return legacy_leaders(self._state, LEGACY_KA_TRACKS, snapshot)
+        except Exception:  # noqa: BLE001 - a corrupt file pays nothing
+            return {}
 
     async def evaluate_cycle(self, snapshot: Snapshot) -> dict[str, list[tuple[int, float]]]:  # pragma: no cover
         raise RuntimeError("the validator runs no specialist cycles in remote mode")

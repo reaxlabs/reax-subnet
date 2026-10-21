@@ -69,6 +69,7 @@ class SpecialistAdapter:
         self._results: TrackResults = {}
         self._keepalive: TrackResults = {}
         self._provisional: dict[str, list[int]] = {}
+        self._legacy: dict[str, list[tuple[int, bool]]] = {}
 
     # --- SpecialistEvaluator protocol (synchronous, cheap)
     def track_results(self, track_ids: Sequence[str], now: datetime) -> TrackResults:
@@ -81,6 +82,10 @@ class SpecialistAdapter:
     def provisional(self, track_ids: Sequence[str], now: datetime) -> dict[str, list[int]]:
         """Uids with a provisional keep-alive slot (entries waiting for their first evaluation)."""
         return {t: list(self._provisional[t]) for t in track_ids if self._provisional.get(t)}
+
+    def legacy(self, track_ids: Sequence[str], now: datetime) -> dict[str, list[tuple[int, bool]]]:
+        """Leaders ``[(uid, is_champion)]`` of the ended tracks (competition_split.LEGACY_KA_*) from the last refresh."""
+        return {t: list(self._legacy[t]) for t in track_ids if self._legacy.get(t)}
 
     def _refresh_keepalive(self, active: Sequence[Any], snap: Snapshot) -> None:
         """Re-read the keep-alive entries; on any problem there are none (fail closed: the share stays with the ranks)."""
@@ -96,6 +101,12 @@ class SpecialistAdapter:
         except Exception as exc:  # noqa: BLE001
             self._provisional = {}
             log.warning("specialist tracks: could not read the provisional keep-alive entries: %r", exc)
+        lg = getattr(self.evaluator, "legacy", None)
+        try:
+            self._legacy = {t: [(int(u), c is True) for u, c in r] for t, r in lg(snap).items()} if lg is not None else {}
+        except Exception as exc:  # noqa: BLE001
+            self._legacy = {}
+            log.warning("specialist tracks: could not read the legacy keep-alive entries: %r", exc)
 
     # --- cycle
     def due(self) -> bool:
@@ -115,6 +126,7 @@ class SpecialistAdapter:
             log.warning("specialist tracks: could not read the leaders: %r", exc)
             self._keepalive = {}
             self._provisional = {}
+            self._legacy = {}
             return
         self._refresh_keepalive(active, snap)
 

@@ -273,7 +273,10 @@ async def test_near_copies_cannot_get_the_pruned_original_or_its_recommit_reject
     await env.ev.evaluate_cycle(snapshot(400, neurons + [a_n]))
     a = env.sub(2)
     assert a.carried_from == old.key and a.score == score0
-    assert all(env.sub(u).derived_from != old.key for u in (3, 4, 5)) and a.derived_from == old.derived_from
+    # reg-sniping review 20 Oct: the pruned original stays in the copy registry, so the near-copies of others are
+    # refused as copies of it; the author's own recommit is not (carry-over)
+    assert all(env.sub(u).derived_from == old.key and env.sub(u).status == ST.REJECTED for u in (3, 4, 5))
+    assert a.derived_from == old.derived_from
     for _ in range(3):
         env.clock.advance(13 * H)
         await env.ev.evaluate_cycle(snapshot(500, neurons + [a_n]))

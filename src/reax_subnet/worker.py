@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping, Optional
 
+from . import elements
 from .competition_split import COMPETITIONS_START_UTC, ENGINE_HELD, SPLIT_PROFILE, release_engine_start
 from .competitions import CompetitionDriver, SpecialistAdapter
 from .config import (ENGINE_STATE_FILE, LOCAL_NETWORK_NAMES, MAINNET_NAMES, SPEC_STATE_FILE, CommonConfig, ConfigError,
@@ -239,7 +240,9 @@ async def run_worker(wc: WorkerConfig, chain: Any, env: Mapping[str, str] = os.e
         while True:
             if driver.due():
                 try:
-                    snap = await asyncio.to_thread(chain.snapshot)
+                    # the competition code reads the competition element only (docs/DESIGN-MULTIROLE.md section 3),
+                    # exactly as the validators do: a dual-role hotkey's entry is evaluated (critic round 3 NEW-3)
+                    snap = elements.role_views(await asyncio.to_thread(chain.snapshot)).competition
                     await sync_start_block_hash(chain, snap.block, 180.0)  # same tie order as the validators
                     exclude = {snap.owner_uid} if snap.owner_uid is not None else set()
                     await driver.run(snap, exclude, between=after_step)

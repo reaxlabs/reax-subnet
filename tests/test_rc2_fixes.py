@@ -13,6 +13,7 @@ from test_remote_competitions import (D, ENGINE_STATE_FILE, NOW0, SERVING, SPEC_
                                       stamp, write_engine_state)
 from test_spec_evaluator import env  # noqa: F401 - the fixture
 
+from reax_subnet import competition_split as CS
 from reax_subnet import engrunner as ER
 from reax_subnet import remote as RM
 from reax_subnet import worker as W
@@ -403,15 +404,18 @@ def test_m7_a_model_without_the_markers_is_refused_before_any_gpu_run(tmp_path):
     assert any("<|start_header_id|>" in v for v in ins.violations)
 
 
-def test_m7_templates_survive_a_tokenizer_without_bos_and_gemma4_is_not_accepted():
+def test_m7_templates_survive_a_tokenizer_without_bos_and_gemma4_is_only_accepted_in_the_open_class():
     jinja2 = pytest.importorskip("jinja2")
     from jinja2.sandbox import ImmutableSandboxedEnvironment
     envj = ImmutableSandboxedEnvironment()
-    for name in ("gemma3.jinja", "llama3.jinja"):
+    for name in ("gemma3.jinja", "gemma4.jinja", "llama3.jinja"):
         tpl = envj.from_string(open(TPL.template_path(name)).read())
         out = tpl.render(messages=[{"role": "user", "content": "hi"}], add_generation_prompt=True, bos_token=None)
         assert "None" not in out and out
     assert not any(a.startswith("Gemma4") for a in R.ARCH_ALLOWLIST)
+    assert not any(a.startswith("Gemma4") for a in R.rules_at(0).architectures)             # refused before the switch
+    assert {a for a in R.rules_at(CS.SPEC_OPEN_CLASS_START_UTC.timestamp()).architectures if a.startswith("Gemma4")} == {
+        "Gemma4ForConditionalGeneration", "Gemma4ForCausalLM", "Gemma4UnifiedForConditionalGeneration"}   # accepted after it
 
 
 def test_large_tokenizer_json_is_read_for_the_marker_rule(tmp_path):

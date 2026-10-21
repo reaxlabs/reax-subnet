@@ -71,7 +71,7 @@ def format_report(score: SC.Score, tiers: dict[str, SC.Score]) -> str:
 
 
 async def run(args: argparse.Namespace) -> int:
-    ins = F.inspect_dir(args.model_dir, category=args.category, hotkey=args.hotkey, rules=R.TrackRules(),
+    ins = F.inspect_dir(args.model_dir, category=args.category, hotkey=args.hotkey, rules=R.rules_at(category=args.category),
                         require_manifest=not args.no_manifest_check)
     report: dict[str, Any] = {"violations": ins.violations}
     if ins.violations:

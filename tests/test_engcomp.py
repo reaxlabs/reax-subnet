@@ -655,3 +655,66 @@ def test_thresholds_are_frozen_and_hashed():
     from reax_subnet.engvalidator import TRACKS, rules_sha256
 
     assert rules_sha256(TRACKS) == FROZEN_SHA256
+
+
+# ------------------------------------------------------------------------------------------------ first-cycle copy fairness
+def test_copy_within_noise_loses_to_the_earlier_original_before_a_champion():
+    orig = Submission(5, "hk-orig", "s1-fast", "ghcr.io/o/e", D1, block=10)
+    copy = Submission(6, "hk-copy", "s1-fast", "ghcr.io/c/e", D2, block=20)
+    st = TrackState()
+    subs = observe(st, [orig, copy], block=30)
+    st.results[D1] = _ok(D1, 1.50)
+    st.results[D2] = _ok(D2, 1.50 * 1.029)  # +2.9 %: inside the 3 % margin
+    assert update_champion(st, subs, P1, block=40).digest == D1
+
+
+def test_copy_beyond_the_margin_still_wins():
+    orig = Submission(5, "hk-orig", "s1-fast", "ghcr.io/o/e", D1, block=10)
+    copy = Submission(6, "hk-copy", "s1-fast", "ghcr.io/c/e", D2, block=20)
+    st = TrackState()
+    subs = observe(st, [orig, copy], block=30)
+    st.results[D1] = _ok(D1, 1.50)
+    st.results[D2] = _ok(D2, 1.50 * 1.031)
+    assert update_champion(st, subs, P1, block=40).digest == D2
+
+
+def test_earlier_within_margin_replaces_a_pending_later_challenger():
+    orig = Submission(5, "hk-orig", "s1-fast", "ghcr.io/o/e", D1, block=10)
+    copy = Submission(6, "hk-copy", "s1-fast", "ghcr.io/c/e", D2, block=20)
+    st = TrackState()
+    subs = observe(st, [orig, copy], block=30)
+    st.results[D2] = _res(D2, 1.55, "c1")
+    assert update_champion(st, subs, P, block=100) is None and st.challenger["digest"] == D2
+    st.results[D1] = _res(D1, 1.52, "o1")  # 2 % below the copy: noise, and committed earlier
+    update_champion(st, subs, P, block=100)
+    assert st.challenger["digest"] == D1 and len(st.challenger["measurements"]) == 1
+    # an earlier entry clearly below the pending one does not displace it
+    st2 = TrackState()
+    subs2 = observe(st2, [orig, copy], block=30)
+    st2.results[D2] = _res(D2, 1.60, "c1")
+    update_champion(st2, subs2, P, block=100)
+    st2.results[D1] = _res(D1, 1.50, "o1")
+    update_champion(st2, subs2, P, block=100)
+    assert st2.challenger["digest"] == D2
+
+
+def test_infra_retry_keeps_its_commitment_order_place():
+    st = TrackState()
+    old = Submission(1, "hk1", "s1-fast", "ghcr.io/x/e", D1, block=5)
+    new = Submission(2, "hk2", "s1-fast", "ghcr.io/y/e", D2, block=9)
+    elig = observe(st, [new, old], block=20)
+    st.attempts[D1] = 1  # one inconclusive try so far: keeps its place
+    assert [s.digest for s in pending(st, elig, 2)] == [D1, D2]
+    assert [s.digest for s in pending(st, elig, 1)] == [D1]
+    st.attempts[D1] = 2  # a second one: behind the untried entries (cannot hold the head for max_infra_attempts cycles)
+    assert [s.digest for s in pending(st, elig, 2)] == [D2, D1]
+
+
+def test_seen_order_uses_the_first_sighting_not_a_later_rewrite():
+    st = TrackState()
+    a = Submission(1, "hk1", "s1-fast", "ghcr.io/x/e", D1, block=5)
+    b = Submission(2, "hk2", "s1-fast", "ghcr.io/y/e", D2, block=9)
+    observe(st, [a, b], block=20)
+    a2 = Submission(1, "hk1", "s1-fast", "ghcr.io/x/e", D1, block=500)  # re-committed later
+    elig = observe(st, [a2, b], block=600)
+    assert [s.digest for s in pending(st, elig, 2)] == [D1, D2]

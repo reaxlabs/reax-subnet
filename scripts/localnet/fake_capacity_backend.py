@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Throughput-limited fake s1-fast runtime sidecar for the capacity-v2 localnet e2e. LOCAL TEST ONLY.
+"""Throughput-limited fake reax-s1 runtime sidecar (s1-fast by default) for the capacity-v2 localnet e2e. LOCAL TEST ONLY.
 
 Speaks the sidecar contract (GET /health, POST /internal/v1/decide with X-S1M-Internal-Token) and answers with the
 deterministic hash model (the same answers as the validators' ``hash`` reference), but at most ``--capacity``
 decisions per second in total: every decision occupies the one simulated machine for 1/capacity seconds, whoever
 asked. Several miner hotkeys pointing at one instance share that capacity, like several hotkeys on one GPU box.
 
-Usage: fake_capacity_backend.py --port P --capacity C --token-file F [--name N]
+Usage: fake_capacity_backend.py --port P --capacity C --token-file F [--name N] [--model s1-fast|s1-pro|s1-lite|s1-cpu]
 """
 
 from __future__ import annotations
@@ -28,14 +28,15 @@ def main() -> None:
     ap.add_argument("--capacity", type=float, required=True, help="decisions per second, all callers together")
     ap.add_argument("--token-file", required=True)
     ap.add_argument("--name", default="machine")
+    ap.add_argument("--model", default="s1-fast")
     args = ap.parse_args()
     token = open(args.token_file).read().strip()
-    backend = S1HashBackend("s1-fast")
+    backend = S1HashBackend(args.model)
     service = 1.0 / args.capacity
     state = {"next_free": 0.0, "served": 0, "t0": time.monotonic()}
 
     async def health(_request):
-        return web.json_response({"ok": True, "model": "s1-fast", "machine": args.name, "capacity": args.capacity})
+        return web.json_response({"ok": True, "model": args.model, "machine": args.name, "capacity": args.capacity})
 
     async def stats(_request):
         return web.json_response({"machine": args.name, "capacity": args.capacity, "served": state["served"],
@@ -47,7 +48,7 @@ def main() -> None:
         try:
             body = await request.json()
             (qid, q), = body["questions"].items()
-            decision = Decision(qid, body["state"], parse_question(qid, q, "s1-fast"))
+            decision = Decision(qid, body["state"], parse_question(qid, q, args.model))
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": {"message": f"bad request: {type(exc).__name__}"}}, status=400)
         loop = asyncio.get_running_loop()
@@ -57,7 +58,7 @@ def main() -> None:
         await asyncio.sleep(done_at - now)
         (answer,) = await backend.decide([decision])
         state["served"] += 1
-        return web.json_response({"model": "s1-fast", "answers": {qid: answer},
+        return web.json_response({"model": args.model, "answers": {qid: answer},
                                   "usage": {"input_tokens": 1, "output_tokens": 0}})
 
     app = web.Application(client_max_size=1 << 20)

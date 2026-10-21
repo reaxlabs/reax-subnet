@@ -62,12 +62,13 @@ class FakeBaseHub:
 
 
 def benv(tmp_path, *, budget_gb=40, min_free_gb=50, free_gb=500, retry=6, **kw):
-    """An evaluator with an empty base directory and a base fetcher on a fake hub."""
+    """An evaluator with an empty base directory and a base fetcher on a fake hub. The fetcher runs with the rules before the
+    open class (2 x the submission caps for a base), whatever the date: the open class has its tests in test_open_class.py."""
     root = tmp_path / "bases"
     env = Env(tmp_path, {}, base_dir=str(root))
     hub = FakeBaseHub(tmp_path)
     env.free = free_gb * GIB
-    env.bf = B.BaseFetcher(str(root), hub, retry_cycles=retry, budget_bytes=int(budget_gb * GIB),
+    env.bf = B.BaseFetcher(str(root), hub, rules=R.rules_at(0), retry_cycles=retry, budget_bytes=int(budget_gb * GIB),
                            min_free_bytes=int(min_free_gb * GIB), free_bytes=lambda p: env.free)
     env.basehub = hub
     env.ev = E.SpecEvaluator(env.cfg, fetcher=env.hub, backend_factory=env.server, clock=env.clock, base_fetcher=env.bf, **kw)
@@ -225,6 +226,50 @@ async def test_low_disk_skips_the_base_with_a_log_line(tmp_path, caplog):
     assert env.sub(1).status == ST.PENDING_CONFIRM
 
 
+async def test_unreferenced_cached_bases_are_removed_before_a_base_is_refused_for_disk(tmp_path, caplog):
+    root = tmp_path / "bases"
+    hub = FakeBaseHub(tmp_path)
+    hub.add(OTHER_BASE)
+    new_size = sum(F.list_dir(hub.bases[OTHER_BASE]).values())
+    names = {k: "acme/%s@%s" % (k, c * 40) for k, c in (("keep", "1"), ("preseed", "2"), ("rejected", "3"), ("old", "4"), ("newer", "5"))}
+    for i, (k, b) in enumerate(names.items()):
+        d = root / C.base_dir_name(b)
+        write_model(str(d), make_weights(i))
+        os.utime(d, (100 + (0 if k == "preseed" else 10) * i, 100 + (0 if k == "preseed" else 10) * i))
+    free = [50 * GIB + new_size - 1]                            # 1 byte short of keeping 50 GB free after the download
+    bf = B.BaseFetcher(str(root), hub, rules=R.rules_at(0), min_free_bytes=50 * GIB, free_bytes=lambda p: free[0])
+    live = {names["keep"], names["preseed"]}
+    bf.in_use = lambda: set(live)
+    with caplog.at_level(logging.WARNING, logger="reax.spec"):
+        assert await bf.ensure(OTHER_BASE) == str(root / C.base_dir_name(OTHER_BASE))
+    gone = {k for k, b in names.items() if not (root / C.base_dir_name(b)).exists()}
+    assert gone == {"rejected"}      # the oldest base no live submission declares; the preseed stays
+    assert any("removing" in r.message for r in caplog.records)
+    # not enough to free: nothing is removed and the base is deferred as before
+    hub.add("acme/big@" + "6" * 40)
+    free[0] = 0
+    assert await bf.ensure("acme/big@" + "6" * 40) is None and "disk space" in bf.reason("acme/big@" + "6" * 40)
+    assert sorted(os.listdir(root)) == sorted(C.base_dir_name(b) for k, b in names.items() if k != "rejected") + [C.base_dir_name(OTHER_BASE)]
+    # no ``in_use`` (no evaluator): never removes anything
+    bf.in_use = None
+    free[0] = 50 * GIB + new_size - 1
+    hub.add("acme/another@" + "7" * 40)
+    assert await bf.ensure("acme/another@" + "7" * 40) is None
+    assert len(os.listdir(root)) == 5
+
+
+async def test_the_evaluator_keeps_the_bases_of_live_submissions_and_the_preseed(tmp_path):
+    env = benv(tmp_path)
+    env.cfg.base_preseed = ("acme/seed@" + "8" * 40,)
+    assert env.bf.in_use == env.ev._bases_in_use
+    ts = env.ev.state.track(TRACK)
+    for i, (status, base) in enumerate(((ST.QUEUED, "a/q@" + "1" * 40), (ST.CHAMPION, "a/c@" + "2" * 40), (ST.FORMER, "a/f@" + "3" * 40),
+                                        (ST.NOT_BETTER, "a/n@" + "4" * 40), (ST.REJECTED, "a/r@" + "5" * 40), (ST.WITHDRAWN, "a/w@" + "6" * 40))):
+        ts.submissions[f"k{i}"] = ST.Submission(key=f"k{i}", uid=i, hotkey=f"h{i}", coldkey="c", track_id=TRACK, repo="a/m", revision="a" * 40,
+                                                first_seen_block=1, first_seen_ts=1.0, status=status, base_model=base)
+    assert env.ev._bases_in_use() == {"a/q@" + "1" * 40, "a/c@" + "2" * 40, "a/f@" + "3" * 40, "a/n@" + "4" * 40, "acme/seed@" + "8" * 40}
+
+
 async def test_unpinned_or_malformed_base_names_are_not_fetched(tmp_path):
     env = benv(tmp_path)
     for name in ("Qwen/Qwen3-4B@main", "../../etc@" + "b" * 40, "a/../x@" + "b" * 40, "Qwen/Qwen3-4B@" + "b" * 39):
@@ -320,5 +365,6 @@ def test_base_caps_are_looser_than_a_submissions():
     from reax_subnet.spec import rules as R
     gib = R.GIB
     files = {"config.json": 1000, "model-00001.safetensors": int(10 * gib), "model-00002.safetensors": int(9.3 * gib)}
-    assert R.check_base_listing(files) == []
-    assert R.check_base_listing({"config.json": 1, "m.safetensors": int(41 * gib)})  # still capped
+    before = R.rules_at(0)       # the rules before the open class: 2 x the submission caps
+    assert R.check_base_listing(files, before) == []
+    assert R.check_base_listing({"config.json": 1, "m.safetensors": int(41 * gib)}, before)  # still capped

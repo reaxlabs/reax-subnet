@@ -56,20 +56,19 @@ def test_50_50_is_the_active_profile_and_80_20_stays_ready():
     assert (old.engine, old.tracks, old.inference) == (0.10, (0.10,), pytest.approx(0.80))
 
 
-def test_the_first_pair_runs_from_16_oct_to_30_oct():
-    assert COMPETITIONS_START_UTC.isoformat() == "2026-10-16T12:00:00+00:00"
-    assert active_tracks(COMPETITIONS_START_UTC - timedelta(seconds=1)) == []
-    assert active_tracks(COMPETITIONS_START_UTC) == ["demand_forecasting", "risk_assessment"]
-    end = COMPETITIONS_START_UTC + timedelta(days=14)
-    assert end.isoformat() == "2026-10-30T12:00:00+00:00"
+def test_the_first_pair_runs_until_generalist_opens():
+    from reax_subnet import competition_split as cs
+    from reax_subnet.spec import config as SC
+    end = cs.GENERALIST_START_UTC
     assert active_tracks(end - timedelta(seconds=1)) == ["demand_forecasting", "risk_assessment"]
-    assert active_tracks(end) == []  # TODO in competition_split.py: the next pair
+    assert active_tracks(end) == ["generalist"]
+    assert [t.track_id for t in SC.DEFAULT_TRACKS if t.active(end.timestamp())] == ["generalist"]
 
 
 def test_the_specialist_evaluator_uses_the_same_schedule():
     spec = {t.track_id: (t.start_ts, t.days) for t in SC.DEFAULT_TRACKS}
-    rel = {s.track_id: (s.start.timestamp(), round((s.end - s.start).days)) for s in TRACK_SCHEDULE}
-    assert spec == rel and set(spec) == {"demand_forecasting", "risk_assessment"}
+    rel = {s.track_id: (s.start.timestamp(), (s.end - s.start).total_seconds() / 86400) for s in TRACK_SCHEDULE}
+    assert spec == rel and set(spec) == {"demand_forecasting", "risk_assessment", "generalist"}
     assert SC.ROTATION_DAYS == CS.ROTATION_DAYS
 
 
@@ -95,7 +94,8 @@ def test_no_specialist_results_and_no_champion_means_inference_only():
 def test_entry_floor_constants_are_the_measured_baselines():
     # 1.2.0rc7.post2: the reference model on six 300-item release draws of the refilled pools + 1.5 (27.32 / 28.54;
     # test_ka_nonproc.py has the method)
-    assert TRACK_ENTRY_FLOOR == {"demand_forecasting": 28.8, "risk_assessment": 30.0}
+    # rc10 release: the generalist floor is s1-fast + 1.5 = 36.8 (release constant)
+    assert TRACK_ENTRY_FLOOR == {"demand_forecasting": 28.8, "risk_assessment": 30.0, "generalist": 36.8}
 
 
 def test_a_track_pays_nothing_at_or_below_its_floor():
@@ -161,7 +161,7 @@ async def test_fake_evaluator_results_reach_the_weights_end_to_end(tmp_path):
     assert out[10] == pytest.approx(0.15 * 0.75 + 0)  # risk_assessment rank 1 (uid 10 has no serving weight here)
     assert out[11] / out[12] == pytest.approx(0.6 / 0.4)
     # after the window the tracks are not asked and pay nothing
-    now[0] = COMPETITIONS_START_UTC + timedelta(days=14, seconds=1)
+    now[0] = COMPETITIONS_START_UTC + timedelta(days=21, seconds=1)
     out = comp.weights(base, snap, {0})
     assert out[3] == pytest.approx(0.20) and 7 not in out
 

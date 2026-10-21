@@ -50,6 +50,14 @@ X_TIER_MODE = "off"
 X_TIER_SHARE = 0.20
 
 
+GENERALIST_CATEGORIES = (
+    "math_quant", "knowledge_reasoning", "rules_policy_law", "finance_commerce_insurance",
+    "support_ops_logistics", "coding_data_it", "tools_agent_routing", "safety_security_harm",
+    "language_taste", "forecasting_risk_science",
+)
+GENERALIST_PER_CATEGORY = 30
+
+
 class SampleError(RuntimeError):
     pass
 
@@ -64,6 +72,8 @@ def load_pool(sealed_dir: str, category: str) -> list[dict[str, Any]]:
                 for line in fh:
                     if line.strip():
                         rows.append(json.loads(line))
+            if category == "generalist":
+                _validate_generalist(rows)
             return rows
     raise SampleError(f"no sealed pool for {category} under {sealed_dir}")
 
@@ -129,7 +139,7 @@ def nonproc_draws_left(pool: Sequence[dict[str, Any]], use_counts: Mapping[str, 
 
 def draw(pool: Sequence[dict[str, Any]], *, n: int, seed: int, use_counts: Mapping[str, int] | None = None,
          exclude: set[str] | frozenset[str] = frozenset(), min_n: int = MIN_SAMPLE, x_mode: str = "off",
-         x_share: float = X_TIER_SHARE) -> tuple[list[dict], bool]:
+         x_share: float = X_TIER_SHARE, generalist: bool = False) -> tuple[list[dict], bool]:
     """Pick ``n`` items. Returns (rows, fresh) where fresh is False if any already-used item had to be reused.
 
     Each tier takes its ``TIER_MIX`` quota from its own items, fresh ones first, then its least-used ones. Only what a
@@ -142,6 +152,10 @@ def draw(pool: Sequence[dict[str, Any]], *, n: int, seed: int, use_counts: Mappi
     them to the result (the caller scores them apart); "scored" and "binding" take them out of the non-proc tiers' share of
     the ``n`` (fewer usable X items than that: the rest of the share is filled by the normal tiers, so the draw still has
     ``n`` items); without eligible cross-author items in the pool all of them are the same as "off"."""
+    if generalist:
+        if n != SAMPLE_SIZE:
+            raise SampleError("generalist draws require exactly 300 items")
+        return _draw_generalist(pool, seed, use_counts or {}, exclude, x_mode, x_share)
     use = use_counts or {}
     rng = random.Random(seed)
     usable = [r for r in pool if r["id"] not in exclude and use.get(r["id"], 0) < ITEM_MAX_USES]
@@ -199,3 +213,109 @@ def draw(pool: Sequence[dict[str, Any]], *, n: int, seed: int, use_counts: Mappi
         chosen += extra
     chosen.sort(key=lambda r: r["id"])   # a stable order, the same for every model of the draw
     return chosen, fresh
+
+
+def _validate_generalist(rows: Sequence[dict]) -> None:
+    ids: set[str] = set()
+    for row in rows:
+        if row.get("category") not in GENERALIST_CATEGORIES:
+            raise SampleError(f"invalid or missing generalist category on {row.get('id')!r}")
+        if row.get("id") in ids:
+            raise SampleError(f"duplicate generalist item id {row['id']!r}")
+        ids.add(row["id"])
+        if row.get("question", {}).get("type") not in PRIMITIVES:
+            raise SampleError(f"invalid generalist question type on {row['id']!r}")
+        if row.get("tier") not in {*TIER_MIX, *X_TIERS}:
+            raise SampleError(f"invalid generalist tier on {row['id']!r}")
+
+
+def _quotas(n: int, weights: Mapping[str, float]) -> dict[str, int]:
+    """Largest remainder allocation, stable key order breaks ties."""
+    total = sum(weights.values())
+    exact = {k: n * w / total for k, w in weights.items()} if total else {}
+    out = {k: int(v) for k, v in exact.items()}
+    for k in sorted(exact, key=lambda k: -(exact[k] - out[k]))[:n - sum(out.values())]:
+        out[k] += 1
+    return out
+
+
+def generalist_tier_quotas(x_mode: str, x_share: float) -> dict[str, dict[str, int]]:
+    """Tier targets apply across types within each category; carry rounding to keep full-draw totals."""
+    weights = dict(TIER_MIX)
+    if x_mode in ("scored", "binding"):
+        nonproc = 1 - weights["proc_sealed"]
+        weights = {t: w if t == "proc_sealed" else w * (nonproc - x_share) / nonproc
+                   for t, w in weights.items()}
+        weights[X_TIER] = x_share
+    targets = _quotas(SAMPLE_SIZE, weights)
+    assigned = {t: 0 for t in weights}
+    order = []
+    for i in range(SAMPLE_SIZE):
+        tier = max((t for t in weights if assigned[t] < targets[t]),
+                   key=lambda t: (i + 1) * weights[t] - assigned[t])
+        order.append(tier)
+        assigned[tier] += 1
+    return {c: {t: order[i * GENERALIST_PER_CATEGORY:(i + 1) * GENERALIST_PER_CATEGORY].count(t)
+                for t in weights} for i, c in enumerate(GENERALIST_CATEGORIES)}
+
+
+def generalist_shortfalls(rows: Sequence[dict], x_mode: str, x_share: float) -> dict[str, dict[str, int]]:
+    """Aggregate diagnostics only; no ids, text or predictions."""
+    quotas = generalist_tier_quotas(x_mode, x_share)
+    return {c: {t: max(0, n - sum(r["category"] == c and
+                                (X_TIER if r["tier"] in X_TIERS else r["tier"]) == t for r in rows))
+                for t, n in target.items()} for c, target in quotas.items()}
+
+
+def _draw_generalist(pool: Sequence[dict], seed: int, use: Mapping[str, int], exclude: set[str] | frozenset[str],
+                     x_mode: str, x_share: float) -> tuple[list[dict], bool]:
+    """Exactly 30/category. Category tier quotas may borrow across types, never categories.
+
+    Type proportions are targets within the tier constraints. Missing tiers use non-proc/non-X
+    first. If those are exhausted, remaining eligible rows preserve category liveness; tier
+    shortfalls are diagnostic. Only a category below 30 eligible items prevents a valid draw.
+    """
+    _validate_generalist(pool)
+    rng = random.Random(seed)
+    usable = [r for r in sorted(pool, key=lambda r: r["id"])
+              if r["id"] not in exclude and use.get(r["id"], 0) < ITEM_MAX_USES
+              and (r["tier"] not in X_TIERS or x_mode in ("scored", "binding"))]
+    chosen: list[dict] = []
+    targets = generalist_tier_quotas(x_mode, x_share)
+    for category in GENERALIST_CATEGORIES:
+        rows = [r for r in usable if r["category"] == category]
+        if len(rows) < GENERALIST_PER_CATEGORY:
+            raise SampleError(f"generalist category {category}: only {len(rows)} eligible items, need 30")
+        quotas = _quotas(GENERALIST_PER_CATEGORY,
+                         {p: sum(r["question"]["type"] == p for r in rows) for p in PRIMITIVES})
+        type_counts = {p: 0 for p in PRIMITIVES}
+        picked: list[dict] = []
+        have: set[str] = set()
+
+        def take(candidates: list[dict], count: int) -> None:
+            by_type = {p: [r for r in candidates if r["question"]["type"] == p and r["id"] not in have]
+                       for p in PRIMITIVES}
+            for part in by_type.values():
+                rng.shuffle(part)
+                part.sort(key=lambda r: use.get(r["id"], 0), reverse=True)
+            for _ in range(count):
+                kinds = [p for p in PRIMITIVES if by_type[p]]
+                if not kinds:
+                    break
+                kind = max(kinds, key=lambda p: (quotas[p] - type_counts[p],
+                                                -use.get(by_type[p][-1]["id"], 0)))
+                row = by_type[kind].pop()
+                picked.append(row)
+                have.add(row["id"])
+                type_counts[kind] += 1
+
+        for tier, count in targets[category].items():
+            take([r for r in rows if (X_TIER if r["tier"] in X_TIERS else r["tier"]) == tier], count)
+        take([r for r in rows if r["tier"] != "proc_sealed" and r["tier"] not in X_TIERS],
+             GENERALIST_PER_CATEGORY - len(picked))
+        # Degenerate all-proc/all-X categories still meet their category quota. The release
+        # dry-run exposes shortages; publication/calibration must review such pool shapes.
+        take(rows, GENERALIST_PER_CATEGORY - len(picked))
+        chosen += picked
+    chosen.sort(key=lambda r: r["id"])
+    return chosen, all(use.get(r["id"], 0) == 0 for r in chosen)

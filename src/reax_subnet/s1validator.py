@@ -1,10 +1,11 @@
 """The reax-s1 validator: miners serve the exact REAX reference models.
 
 Each round:
-1. read the metagraph with commitments; a miner's role is its commitment
-   ``reax-s1/1:<model>:<manifest_id>`` for an enabled pool and this release's manifest;
-   a changed role restarts that UID from zero,
-2. draw n fresh typed decisions per miner and query all miners at once (signed),
+1. read the metagraph with commitments; a miner's role is its inference element
+   ``reax-s1/1:<model>:<manifest_id>`` (or ``reax-s1m/1:...`` for several models on one hotkey) for an enabled pool
+   and this release's manifest; every model is its own scoring slot (elements.slot_key) and a changed role restarts
+   that slot from zero,
+2. draw n fresh typed decisions per slot and query all slots at once (signed),
 3. *after* the answers are in, draw a secret set of k items per miner and compute
    their references on the validator's own runtime of the same pinned model,
 4. score in logit space (s1scoring.py): a round mean above tau_strike or any item above tau_item = strike
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 import collections
 import asyncio
+import dataclasses
 import functools
 import logging
 import math
@@ -28,8 +30,9 @@ from typing import Any, Awaitable, Callable, Mapping, Optional
 import aiohttp
 from multidict import CIMultiDict
 
-from . import auth, probeshard
+from . import auth, elements, probeshard
 from .chain import Neuron, Snapshot
+from .elements import MODEL_INDEX, MODEL_ORDER, SLOT_STRIDE, slot_key, slot_uid
 from .manifest import load_manifest, parse_commitment
 from .protocol import ProtocolError
 from .s1backends import S1Backend
@@ -37,7 +40,7 @@ from .s1contract import Decision, parse_decision
 from .s1items import generate_s1_items
 from .s1protocol import MAX_RESPONSE_BYTES, S1_DECIDE_PATH, S1Request, parse_s1_request, parse_s1_response
 from .s1scoring import PoolParams, choose_verified, compute_pool_weights, score_round
-from .state import save
+from .state import MinerState, save
 from .tiers import (CAPACITY, CapacityParams, TierBudgets, compute_tiered_weights, pool_shares,
                     fold_capacity_bounded, probe_budgets)
 from .validator import CHAIN_READ_TIMEOUT_S, QueryResult, Validator, _read_limited, ip_allowed
@@ -232,11 +235,15 @@ class S1Validator(Validator):
             competitions = CompetitionDriver(engine, background=False)
         self.competitions = competitions
         self._weights_lock = asyncio.Lock()
+        # Every per-UID table below (and in the state) is keyed by scoring slot = elements.slot_key(uid, model); the
+        # s1-fast slot of a UID is the UID itself. A slot is queried, scored, struck and probed like a separate hotkey.
+        # The inference view (what the serving rounds and weights use) and the competition view of the last round.
         self._latest_snap: Optional[Snapshot] = None
-        self._last_verified: dict[int, int] = {}  # uid -> round of its last verified answer (rotation)
+        self._latest_comp: Optional[Snapshot] = None
+        self._last_verified: dict[int, int] = {}  # slot -> round of its last verified answer (rotation)
         self._probe_scale = 1.0  # common factor the last probe's budgets were cut by (tiers.probe_budgets)
-        self._probe_holds: dict[int, int] = {}  # held averages in a row per UID (tiers.fold_capacity_bounded)
-        self._probe_last: dict[int, float] = {}  # uid -> last verified probe measurement (sizes its next probe)
+        self._probe_holds: dict[int, int] = {}  # held averages in a row per slot (tiers.fold_capacity_bounded)
+        self._probe_last: dict[int, float] = {}  # slot -> last verified probe measurement (sizes its next probe)
         self.last_probe_stats: dict[str, Any] = {}  # the last probe's total throughput and event-loop lag
         self._probe_skipped_round = -10 ** 9  # round of the last probe dropped by the saturation guard
         self._probe_drops = 0  # probes dropped in a row (any reason); a kept probe resets it (review N2)
@@ -246,37 +253,76 @@ class S1Validator(Validator):
         self.last_probe_trace: dict[str, Any] = {}
 
     # --------------------------------------------------------------- roles
+    def slot_roles(self, n: Neuron) -> dict[str, str]:
+        """{model: role} of the inference element in ``n.commitment`` (a neuron of the inference view): every model
+        that is an enabled pool with this release's manifest, role ``<model>:<manifest_id>``. A stale manifest or a
+        disabled pool for one model never voids the other models of the element."""
+        models = elements.parse_inference(n.commitment) or {}
+        return {m: f"{m}:{mid}" for m, mid in sorted(models.items(), key=lambda kv: MODEL_INDEX[kv[0]])
+                if m in self.pools and mid == self.manifests[m].manifest_id}
+
     def role_of(self, n: Neuron) -> Optional[str]:
-        parsed = parse_commitment(n.commitment)
-        if parsed is None:
+        """The model of a single-model inference commitment this release scores, else None."""
+        if elements.is_multimodel(n.commitment):
             return None
-        model, manifest_id = parsed
-        if model not in self.pools or manifest_id != self.manifests[model].manifest_id:
-            return None
-        return model
+        return next(iter(self.slot_roles(n)), None)
 
     def _why_rejected(self, commitment: str) -> str:
         parsed = parse_commitment(commitment)
         if parsed is None:
             return "not a reax-s1/1 commitment"
         model, manifest_id = parsed
+        return self._why_model_rejected(model, manifest_id)
+
+    def _why_model_rejected(self, model: str, manifest_id: str) -> str:
         if model not in self.pools:
             return f"the {model} pool is not enabled in this release"
         return (f"manifest {manifest_id} differs from this release's {model} manifest "
                 f"{self.manifests[model].manifest_id} (miner and validator run different releases)")
 
-    def _log_rejected_commitments(self, snap: Snapshot) -> None:
-        """Say once per UID and commitment why a committed miner is not queried."""
+    def _why_invalid(self, n: Neuron, block: int) -> str:
+        """Why the raw commitment of ``n`` has no role at all (``elements.split_elements`` returned None)."""
+        fields = elements.fields_of(n)
+        kinds = [elements.kind_of(f.strip()) if isinstance(f, str) else None for f in fields]
+        if len(fields) == 1:
+            if kinds[0] == elements.INFERENCE:  # a valid multi-model element, not started
+                return (f"multi-model commitments count from block {elements.MULTIMODEL_START_BLOCK}, held before "
+                        "the start block")
+            return self._why_rejected(n.commitment)
+        if len(fields) != 2 or None in kinds or len(set(kinds)) != 2:
+            return "invalid multi-element commitment (needs exactly one inference and one competition element)"
+        if not elements._started(elements.DUALROLE_START_BLOCK, block):
+            return (f"multi-field commitments count from block {elements.DUALROLE_START_BLOCK}, held before the start "
+                    "block")
+        return (f"multi-model commitments count from block {elements.MULTIMODEL_START_BLOCK}, held before the start "
+                "block")
+
+    def _log_rejected_commitments(self, snap: Snapshot, views: Optional[elements.RoleViews] = None) -> None:
+        """Say once per UID and commitment why a committed miner is not queried (or not for some model)."""
+        views = views or elements.role_views(snap)
+        inference = {n.uid: n for n in views.inference.neurons}
         seen: dict[int, str] = {}
         for n in snap.neurons:
-            if not n.commitment or n.hotkey == self.hotkey or n.uid == snap.owner_uid or self.role_of(n):
+            if not n.commitment or n.hotkey == self.hotkey or n.uid == snap.owner_uid:
                 continue
-            if self.engine is not None and self.engine.is_engine_commitment(n.commitment):
-                continue
+            el = views.elements.get(n.uid)
+            if el is None:
+                reason = self._why_invalid(n, snap.block)
+            elif not el.inference:  # a competition entry only
+                if self.engine is not None and self.engine.is_engine_commitment(el.competition):
+                    continue
+                reason = self._why_rejected(el.competition)
+            else:
+                have = self.slot_roles(inference[n.uid])
+                models = elements.parse_inference(el.inference) or {}
+                missing = [self._why_model_rejected(m, mid) for m, mid in sorted(models.items(),
+                           key=lambda kv: MODEL_INDEX[kv[0]]) if m not in have]
+                if not missing:
+                    continue
+                reason = "; ".join(missing)
             seen[n.uid] = n.commitment
             if self._rejected_commitment.get(n.uid) != n.commitment:
-                log.warning("uid %d is not queried: commitment %r: %s", n.uid, n.commitment[:80],
-                            self._why_rejected(n.commitment))
+                log.warning("uid %d is not queried: commitment %r: %s", n.uid, n.commitment[:80], reason)
         self._rejected_commitment = seen
 
     # --------------------------------------------------------------- query
@@ -315,7 +361,7 @@ class S1Validator(Validator):
             return f"protocol: {exc}"
         if isinstance(exc, (aiohttp.ClientError, OSError, ValueError)):
             return f"network: {type(exc).__name__}"
-        log.warning("unexpected error querying uid %d: %r", neuron.uid, exc)
+        log.warning("unexpected error querying uid %d: %r", slot_uid(neuron.uid), exc)
         return f"internal: {type(exc).__name__}"
 
     async def _query_s1(self, session: aiohttp.ClientSession, sem: asyncio.Semaphore, neuron: Neuron,
@@ -442,66 +488,89 @@ class S1Validator(Validator):
             return None
         self._shrunk_count = None
         self._last_neuron_count = count
-        reset = self.state.sync(snap)
+        views = elements.role_views(snap)
+        isnap = views.inference  # commitment = the inference element; the competition code gets views.competition
+        reset = self.state.sync(isnap)
         if reset:
             log.info("hotkey changed on uids %s; their scores were reset", reset)
-        for uid in set(self._last_shield) - set(self.state.miners) | set(reset):
-            self._last_shield.pop(uid, None)  # a new hotkey starts without the previous one's cooldown
-        self._log_rejected_commitments(snap)
+        reset_uids = set(reset)
+        for slot in [s for s in self._last_shield if s not in self.state.miners or slot_uid(s) in reset_uids]:
+            self._last_shield.pop(slot, None)  # a new hotkey starts without the previous one's cooldown
+        self._log_rejected_commitments(snap, views)
 
+        # One scoring slot per (UID, model) of the inference element; a UID that serves no s1-fast keeps its plain
+        # entry (role "") like any non-miner. A slot whose model left the commitment proposes the empty role.
+        excluded = {n.uid for n in isnap.neurons if n.hotkey == self.hotkey or n.uid == isnap.owner_uid}
         proposed: dict[int, tuple[Optional[str], str]] = {}
-        for n in snap.neurons:
-            if n.hotkey == self.hotkey or n.uid == snap.owner_uid:
+        slot_neurons: dict[int, Neuron] = {}  # slot -> the neuron with uid = slot (virtual: same endpoint and keys)
+        for n in isnap.neurons:
+            if n.uid in excluded:
                 continue
-            model = self.role_of(n)
-            proposed[n.uid] = (model, f"{model}:{self.manifests[model].manifest_id}" if model else "")
+            slot_roles = self.slot_roles(n)
+            if "s1-fast" not in slot_roles:
+                proposed[n.uid] = (None, "")
+            for model in MODEL_ORDER:
+                if model in slot_roles:
+                    slot = slot_key(n.uid, model)
+                    proposed[slot] = (model, slot_roles[model])
+                    slot_neurons[slot] = dataclasses.replace(n, uid=slot)
+                    self.state.miners.setdefault(slot, MinerState(hotkey=n.hotkey))
+        for slot in [s for s in self.state.miners if s >= SLOT_STRIDE and s not in proposed]:
+            if slot_uid(slot) in excluded:
+                self.state.drop_slot(slot)
+            else:
+                proposed[slot] = (None, "")
         # Commitments have no "shrank" signal like the neuron count. A role change is applied only when two
-        # consecutive reads agree on it for that UID; until then the UID is neither queried nor scored. One bad
+        # consecutive reads agree on it for that slot; until then the slot is neither queried nor scored. One bad
         # read can therefore never reset anybody; a whole-round guard could be stalled by a
-        # few rotating hotkeys). A UID that stays unconfirmed for a second read in a row (it keeps flipping its
+        # few rotating hotkeys). A slot that stays unconfirmed for a second read in a row (it keeps flipping its
         # commitment) is decayed like a miner that did not answer, so flipping cannot freeze an old score
         #.
         unconfirmed: set[int] = set()
         pending: dict[int, str] = {}
         streak: dict[int, int] = {}
-        for uid, (_model, role) in proposed.items():
-            if self.state.miners[uid].role != role and self._role_pending.get(uid) != role:
-                unconfirmed.add(uid)
-                pending[uid] = role
-                streak[uid] = self._unconfirmed_streak.get(uid, 0) + 1
+        for slot, (_model, role) in proposed.items():
+            if self.state.miners[slot].role != role and self._role_pending.get(slot) != role:
+                unconfirmed.add(slot)
+                pending[slot] = role
+                streak[slot] = self._unconfirmed_streak.get(slot, 0) + 1
         self._role_pending = pending
         self._unconfirmed_streak = streak
-        # The first unconfirmed read is shielded at most once per SHIELD_COOLDOWN_ROUNDS per UID, so alternating
+        # The first unconfirmed read is shielded at most once per SHIELD_COOLDOWN_ROUNDS per slot, so alternating
         # between the stored role and anything else on every read cannot skip half the work (round 3, MECH-L5).
-        shielded = {uid for uid in unconfirmed if streak[uid] == 1
-                    and self.state.rounds - self._last_shield.get(uid, -SHIELD_COOLDOWN_ROUNDS) >= SHIELD_COOLDOWN_ROUNDS}
-        for uid in shielded:
-            if self.state.miners[uid].role:  # a first registration has nothing to protect and uses no shield
-                self._last_shield[uid] = self.state.rounds
+        shielded = {slot for slot in unconfirmed if streak[slot] == 1
+                    and self.state.rounds - self._last_shield.get(slot, -SHIELD_COOLDOWN_ROUNDS) >= SHIELD_COOLDOWN_ROUNDS}
+        for slot in shielded:
+            if self.state.miners[slot].role:  # a first registration has nothing to protect and uses no shield
+                self._last_shield[slot] = self.state.rounds
         if unconfirmed:
-            log.info("role change on uids %s seen once; applied when the next read confirms", sorted(unconfirmed))
+            log.info("role change on uids %s seen once; applied when the next read confirms",
+                     [_slot_label(s) for s in sorted(unconfirmed)])
 
-        roles: dict[int, str] = {}
-        targets: list[Neuron] = []
-        for n in snap.neurons:
-            if n.uid not in proposed or n.uid in unconfirmed:
+        roles: dict[int, str] = {}  # slot -> model
+        targets: list[Neuron] = []  # one virtual neuron per queryable slot (uid = slot)
+        for slot, (model, role) in proposed.items():
+            if slot in unconfirmed:
                 continue
-            model, role = proposed[n.uid]
-            if self.state.set_role(n.uid, role):
-                log.info("uid %d changed its committed role to %r; score restarts from zero", n.uid, role or "none")
-            if model is None or n.ip is None or n.port is None or not ip_allowed(n.ip, self.cfg.allow_private_ips):
+            if self.state.set_role(slot, role):
+                log.info("uid %s changed its committed role to %r; score restarts from zero", _slot_label(slot),
+                         role or "none")
+            if not role:
+                self.state.drop_slot(slot)  # a model slot whose model left the commitment (plain entries stay)
+            n = slot_neurons.get(slot)
+            if model is None or n is None or n.ip is None or n.port is None or not ip_allowed(n.ip, self.cfg.allow_private_ips):
                 continue
-            roles[n.uid] = model
+            roles[slot] = model
             targets.append(n)
 
-        rested: set[int] = set()
+        rested: set[int] = set()  # slots
         if self.tiered:
             for model in sorted(m for m in REFERENCE_CAP if m in self.pools):
                 pool_targets = [n for n in targets if roles[n.uid] == model]
                 keep, rest = self._rotate(model, pool_targets)
                 if rest:
                     rested |= {n.uid for n in rest}
-                    log.info("%s: %d miners, reference cap %d decisions/round: %d verified this round, %d rested "
+                    log.info("%s: %d slots, reference cap %d decisions/round: %d verified this round, %d rested "
                              "(rotation)", model, len(pool_targets), self._reference_cap(model), len(keep), len(rest))
         queryable = list(targets)
         if rested:
@@ -560,15 +629,15 @@ class S1Validator(Validator):
                 "latency_s": None if math.isinf(res.latency_s) else round(res.latency_s, 3), "error": res.error,
             }
             log.info("uid %d [%s]: score %.3f items %d/%d mean_d %s max_d %s latency %s ema %.3f%s%s",
-                     res.uid, roles[res.uid], outcome_score, passed, verified,
+                     slot_uid(res.uid), roles[res.uid], outcome_score, passed, verified,
                      "-" if not math.isfinite(mean) else f"{mean:.3f}",
                      "-" if not math.isfinite(worst) else f"{worst:.3f}",
                      "-" if math.isinf(res.latency_s) else f"{res.latency_s:.2f}s", self.state.miners[res.uid].ema,
                      " STRIKE" if strike else "", f" error={res.error}" if res.error else "")
-        for n in snap.neurons:
-            if (n.uid not in queried and n.uid not in shielded and n.uid not in rested and n.hotkey != self.hotkey
-                    and n.uid != snap.owner_uid):
-                self.state.update(n.uid, 0.0, 0.0, self.params.ema_alpha)
+        for slot in list(self.state.miners):
+            if (slot not in queried and slot not in shielded and slot not in rested
+                    and slot_uid(slot) not in excluded):
+                self.state.update(slot, 0.0, 0.0, self.params.ema_alpha)
         answered = {res.uid for res in results if res.answers is not None and res.uid not in unscored}
         # A probe measures every queryable UID of each pool at once, rested by the rotation or not, answered this round
         # or not (a UID that is down measures 0): probing only part of a pool would let a machine's hotkeys be
@@ -600,6 +669,9 @@ class S1Validator(Validator):
                 log.exception("capacity probe failed; no capacity update this round")
                 self._probe_dropped([f"failed: {type(exc).__name__}"])
         self.state.rounds += 1
+        for slot in [s for s, m in self.state.miners.items() if s >= SLOT_STRIDE and not m.role
+                     and s not in self._role_pending]:
+            self.state.drop_slot(slot)  # model slots that never got a role are not kept
         try:
             save(self.state, self.cfg.state_path)
         except OSError as exc:
@@ -607,19 +679,20 @@ class S1Validator(Validator):
         log.info("round %d at block %d: %d miners queried, %d answered, %d failed",
                  self.state.rounds, snap.block, len(targets), summary["ok"], summary["failed"])
         self.last_round = summary
-        self._latest_snap = snap
+        csnap = views.competition  # the engine, specialist and generalist code see the competition element only
+        self._latest_snap, self._latest_comp = isnap, csnap
         drv = self.competitions
         if drv is not None:
-            drv.refresh(snap)
-            between = lambda: self.maybe_set_weights(self._latest_snap or snap)  # noqa: E731
+            drv.refresh(csnap)
+            between = lambda: self.maybe_set_weights(self._latest_snap or isnap)  # noqa: E731
             if drv.background:
-                drv.kick(snap, self._not_competitors(snap), between=between)
+                drv.kick(csnap, self._not_competitors(csnap), between=between)
             elif drv.due():
                 try:
-                    summary["engine_competition"] = await drv.run(snap, self._not_competitors(snap), between=between)
+                    summary["engine_competition"] = await drv.run(csnap, self._not_competitors(csnap), between=between)
                 except Exception:
                     log.exception("engine competition cycle failed; serving rounds continue")
-        await self.maybe_set_weights(snap)
+        await self.maybe_set_weights(isnap)
         return summary
 
     async def maybe_set_weights(self, snap: Snapshot) -> bool:
@@ -798,7 +871,7 @@ class S1Validator(Validator):
                         answers.update(self._check_s1(n, req, raw, headers, max_age))
                         decisions.update((d.ident, d) for d in req.decisions)
                 except Exception as exc:
-                    log.warning("uid %d [%s] capacity probe: invalid answer (%s); probe counts 0", uid, roles[uid],
+                    log.warning("uid %d [%s] capacity probe: invalid answer (%s); probe counts 0", slot_uid(uid), roles[uid],
                                 self._s1_error(n, exc))
                     out[uid] = None
                     continue
@@ -847,7 +920,7 @@ class S1Validator(Validator):
                            "strike": bool(o and o.strike), "capacity": round(self.state.miners[uid].capacity or 0.0, 3),
                            "refused_lanes": win.refused.get(uid, 0)}
             log.info("uid %d [%s] capacity probe: %d decisions in %.2fs = %.2f/s%s; moving average %.2f/s%s",
-                     uid, model, items, elapsed, dps, " STRIKE" if o and o.strike else "",
+                     slot_uid(uid), model, items, elapsed, dps, " STRIKE" if o and o.strike else "",
                      self.state.miners[uid].capacity or 0.0,
                      f"; {win.refused[uid]} lanes refused by the miner's own limits" if win.refused.get(uid) else "")
         self._probe_scale = scale  # only a kept probe updates the capacities, so only it changes the divisor
@@ -913,7 +986,7 @@ class S1Validator(Validator):
                             refused[n.uid] = refused.get(n.uid, 0) + 1
                         if events is not None:
                             events.append((k, sent, time.monotonic(), False))
-                        log.debug("uid %d capacity probe lane ended: %s", n.uid, self._s1_error(n, exc))
+                        log.debug("uid %d capacity probe lane ended: %s", slot_uid(n.uid), self._s1_error(n, exc))
                         return
                     arrived = time.monotonic()
                     if events is not None:
@@ -991,24 +1064,49 @@ class S1Validator(Validator):
         return probeshard.ProbeWindow(results=list(results), lag_p95=lag.p95(), lag_samples=len(lag.samples),
                                       cpu_share=share, started=started, trace=trace, refused=refused)
 
+    def _competition_view(self, snap: Snapshot) -> Snapshot:
+        """The snapshot the competition code reads: its view of the round that produced ``snap`` (the inference view the
+        serving round hands to the weights); for any other snapshot (tests, tools) the split is made here."""
+        if self._latest_comp is not None:
+            if snap is self._latest_snap:
+                return self._latest_comp
+            if snap is self._latest_comp:
+                return snap
+        return elements.role_views(snap).competition
+
     def compute_weights(self, snap: Snapshot) -> dict[int, float]:
         ema_by_pool: dict[str, dict[int, float]] = {m: {} for m in self.pools}
+        capacity_by_pool: dict[str, dict[int, float]] = {m: {} for m in self.pools}
         current = {f"{model}:{man.manifest_id}": model for model, man in self.manifests.items()}
-        for uid, m in self.state.miners.items():
+        for slot, m in self.state.miners.items():
             model = current.get(m.role)  # only roles on the current manifest count (MECH-M1)
             if model is not None:
-                ema_by_pool[model][uid] = m.ema
+                ema_by_pool[model][slot] = m.ema
+                if m.capacity is not None:
+                    capacity_by_pool[model][slot] = m.capacity
+        # A slot of the owner's UID never earns as a miner (the owner UID has no slots; stale state is ignored).
+        if snap.owner_uid is not None:
+            for pool in self.pools:
+                for slot in [s for s in ema_by_pool[pool] if s >= SLOT_STRIDE and slot_uid(s) == snap.owner_uid]:
+                    del ema_by_pool[pool][slot]
+        # Per pool each slot is a miner of that pool with the pool's cap (the tier-order cap counts slots); the slot
+        # weights are summed per UID before the competition layer.
         if self.tiered:
-            capacity_by_pool: dict[str, dict[int, float]] = {m: {} for m in self.pools}
-            for uid, m in self.state.miners.items():
-                model = current.get(m.role)
-                if model is not None and m.capacity is not None:
-                    capacity_by_pool[model][uid] = m.capacity
-            base = compute_tiered_weights(ema_by_pool, capacity_by_pool, self.budgets, snap.owner_uid,
-                                          self.params.min_ema, self.params.burn_fraction)
+            slot_weights = compute_tiered_weights(ema_by_pool, capacity_by_pool, self.budgets, snap.owner_uid,
+                                                  self.params.min_ema, self.params.burn_fraction)
         else:
-            base = compute_pool_weights(ema_by_pool, self.shares, snap.owner_uid, self.params.min_ema,
-                                        self.params.burn_fraction)
+            slot_weights = compute_pool_weights(ema_by_pool, self.shares, snap.owner_uid, self.params.min_ema,
+                                                self.params.burn_fraction)
+        per_uid: dict[int, list[float]] = {}
+        for slot, w in slot_weights.items():
+            per_uid.setdefault(slot_uid(slot), []).append(w)
+        base = {uid: math.fsum(ws) for uid, ws in sorted(per_uid.items())}
         if self.engine is None:
             return base
-        return self.engine.weights(base, snap, self._not_competitors(snap), self.params.burn_fraction)
+        csnap = self._competition_view(snap)
+        return self.engine.weights(base, csnap, self._not_competitors(csnap), self.params.burn_fraction)
+
+
+def _slot_label(slot: int) -> Any:
+    """A slot for log lines: the UID for a plain slot, "<uid> [<model>]" for a model slot."""
+    return slot if slot < SLOT_STRIDE else f"{slot_uid(slot)} [{elements.slot_model(slot)}]"

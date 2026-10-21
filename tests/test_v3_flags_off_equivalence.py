@@ -18,12 +18,25 @@ async def scripted_states(tmp_path):
             raw = ST._to_json(env.ev.state)
         # New optional defaults are the only permissible schema difference.
         for ts in raw['tracks'].values():
+            # Generalist diagnostics are add-only defaults, empty on the legacy specialist path.
+            assert ts.pop('item_categories', {}) == {}
+            for draw in ts['draws'].values():
+                assert draw.pop('item_categories', {}) == {}
+                assert draw.pop('x_shortfall', {}) == {}
             for sub in ts['submissions'].values():
+                # 1.2.0rc9.post6: the parameter count recorded at the fetch (open-class keep-alive) is not in the 107cbf5 schema
+                assert sub.pop('params', None) in (None, 4 * 64 * 64)
                 for field, default in [('decision_rule',
-        ''), ('close_draws', []), ('confirm_draws', [])]:
+        ''), ('close_draws', []), ('confirm_draws', []),
+                    ('category_draws', {}), ('category_pooled', {}), ('generalist_budget_checked', False), ('hash_backbone', ''), ('joint_infra_outcomes', 0)]:
                     if field in sub:
                         assert sub[field] == default
                         del sub[field]
+                # Joint-layout canonicalization renews stored sketches (rule 4); this cache-version
+                # bookkeeping must not change the legacy decisions compared with rule-3 source.
+                from reax_subnet.spec import tensors as T
+                assert sub['sketch_rule'] == T.SKETCH_RULE == 4
+                sub['sketch_rule'] = 3
                 # Python 3.12's more accurate float sum changes scores/margins by a
                 # few ulps (also with the actual 107cbf5 source). Canonicalize only
                 # these numeric fields for hashing, retaining 12 decimal places;

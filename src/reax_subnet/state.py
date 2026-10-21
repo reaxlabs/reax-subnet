@@ -17,6 +17,7 @@ import tempfile
 import time
 from dataclasses import dataclass, field
 from .chain import Snapshot
+from .elements import MODEL_INDEX, MODEL_ORDER, SLOT_STRIDE, slot_key
 
 log = logging.getLogger("reax.state")
 STATE_VERSION = 1
@@ -40,26 +41,35 @@ class MinerState:
 class ValidatorState:
     netuid: int
     hotkey: str
+    # Scoring slots (docs/DESIGN-MULTIROLE.md section 4): key = elements.slot_key(uid, model). The s1-fast slot of a UID
+    # is the UID itself, so a UID's plain entry exists for every registered neuron, as before; the slots of its other
+    # models (one hotkey serving several models) sit at uid + SLOT_STRIDE x model index.
     miners: dict[int, MinerState] = field(default_factory=dict)
     rounds: int = 0
 
     def sync(self, snapshot: Snapshot) -> list[int]:
         """Drop UIDs that left and reset UIDs whose hotkey changed.
 
-        A new hotkey on a recycled UID must never inherit the previous
-        owner's score. Returns the UIDs that were reset.
+        A new hotkey on a recycled UID must never inherit the previous owner's score: all of that UID's slots are
+        reset. A hotkey that moved to a new UID (owner trim) takes all its slots along. Returns the UIDs that were
+        reset.
         """
         current = {n.uid: n.hotkey for n in snapshot.neurons}
-        by_hotkey = {m.hotkey: m for m in self.miners.values()}
+        by_hotkey: dict[str, dict[int, MinerState]] = {}
+        for slot, m in self.miners.items():
+            by_hotkey.setdefault(m.hotkey, {})[slot // SLOT_STRIDE] = m
+        had = {slot % SLOT_STRIDE for slot in self.miners}
         new: dict[int, MinerState] = {}
         reset = []
         for uid, hotkey in current.items():
-            if hotkey in by_hotkey:
+            moved = by_hotkey.pop(hotkey, None)
+            if moved is not None:
                 # Same hotkey, possibly under a new UID (owner trim renumbers UIDs).
-                new[uid] = by_hotkey.pop(hotkey)
-            else:
+                for index, m in moved.items():
+                    new[uid + SLOT_STRIDE * index] = m
+            if uid not in new:
                 new[uid] = MinerState(hotkey=hotkey)
-                if uid in self.miners:
+                if moved is None and uid in had:
                     reset.append(uid)
         self.miners = new
         return reset
@@ -98,6 +108,11 @@ class ValidatorState:
 
     def ema(self) -> dict[int, float]:
         return {uid: m.ema for uid, m in self.miners.items()}
+
+    def drop_slot(self, slot: int) -> None:
+        """Forget a model slot (index > 0) whose model left the commitment; a plain UID entry is never dropped."""
+        if slot >= SLOT_STRIDE:
+            self.miners.pop(slot, None)
 
     def to_json(self) -> dict:
         return {
@@ -159,6 +174,20 @@ def _capacity(value: object) -> float | None:
     return float(value)  # type: ignore[arg-type]
 
 
+def _migrate_legacy_slots(state: ValidatorState) -> None:
+    """Before multi-model hotkeys every model's entry sat at its UID. An entry at a plain UID whose role is
+    ``<model>:<manifest>`` of a model with slot index > 0 moves to that model's slot (no score reset) and the UID's
+    plain entry is recreated empty for the hotkey. Idempotent: the recreated entry has no role, and an entry that is
+    already at its slot is kept (the legacy duplicate is dropped)."""
+    for uid in sorted(u for u in state.miners if u < SLOT_STRIDE):
+        m = state.miners[uid]
+        model = m.role.partition(":")[0]
+        if MODEL_INDEX.get(model, 0) > 0:
+            slot = slot_key(uid, model)
+            state.miners.setdefault(slot, m)
+            state.miners[uid] = MinerState(hotkey=m.hotkey)
+
+
 def load(path: str, netuid: int, hotkey: str) -> ValidatorState:
     fresh = ValidatorState(netuid=netuid, hotkey=hotkey)
     if not os.path.exists(path):
@@ -170,6 +199,8 @@ def load(path: str, netuid: int, hotkey: str) -> ValidatorState:
             raise ValueError("state belongs to a different version, subnet or hotkey")
         state = ValidatorState(netuid=netuid, hotkey=hotkey, rounds=int(raw.get("rounds", 0)))
         for uid_s, m in raw["miners"].items():
+            if not 0 <= int(uid_s) < SLOT_STRIDE * len(MODEL_ORDER):
+                raise ValueError(f"bad slot key {uid_s}")
             values = (m["ema"], m["last_score"], m["last_fidelity"])
             if not all(_valid_number(v) and 0.0 <= v <= 1.0 for v in values):
                 raise ValueError(f"bad numbers for uid {uid_s}")
@@ -183,6 +214,7 @@ def load(path: str, netuid: int, hotkey: str) -> ValidatorState:
                 strikes=int(m.get("strikes", 0)),
                 capacity=_capacity(m.get("capacity")),
             )
+        _migrate_legacy_slots(state)
         return state
     except Exception as exc:
         aside = f"{path}.corrupt-{int(time.time())}"

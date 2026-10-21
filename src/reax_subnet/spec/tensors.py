@@ -138,21 +138,34 @@ class WeightHashes:
     unnamed: str    # sha256 over sorted digests without names: also survives renaming tensors
     params: int
     weight_bytes: int
+    backbone: str = ""
 
 
 def canonical_hashes(model_dir: str) -> WeightHashes:
     tensors = read_model(model_dir)
-    named, unnamed = [], []
+    named, unnamed, backbone = [], [], []
     for name in sorted(tensors):
         e = tensors[name]
-        d = tensor_digest(e, with_name=True)
-        named.append(f"{name}\t{d}\n")
-        unnamed.append(tensor_digest(e, with_name=False))
+        canonical = canonical_name(name)
+        named_hash = hashlib.sha256(e.name.encode() + b"\0")
+        unnamed_hash = hashlib.sha256()
+        backbone_hash = hashlib.sha256(canonical.encode() + b"\0")
+        header = e.dtype.encode() + b"\0" + ",".join(map(str, e.shape)).encode() + b"\0"
+        for h in (named_hash, unnamed_hash, backbone_hash):
+            h.update(header)
+        for block in _read_chunks(e):
+            for h in (named_hash, unnamed_hash, backbone_hash):
+                h.update(block)
+        named.append(f"{name}\t{named_hash.hexdigest()}\n")
+        unnamed.append(unnamed_hash.hexdigest())
+        if os.path.basename(e.path) != "readout.safetensors" and canonical != "lm_head.weight":
+            backbone.append(f"{canonical}\t{backbone_hash.hexdigest()}\n")
     return WeightHashes(
         named=hashlib.sha256("".join(named).encode()).hexdigest(),
         unnamed=hashlib.sha256("".join(sorted(unnamed)).encode()).hexdigest(),
         params=param_count(tensors),
         weight_bytes=weight_bytes(tensors),
+        backbone=hashlib.sha256("".join(sorted(backbone)).encode()).hexdigest(),
     )
 
 
@@ -206,7 +219,10 @@ def seed_id(seed: bytes) -> str:
 
 def canonical_name(name: str) -> str:
     """The tensor name the base model uses: a ``base_model.model.`` prefix (PEFT export) is dropped."""
-    return name[len(PEFT_PREFIX):] if name.startswith(PEFT_PREFIX) else name
+    name = name[len(PEFT_PREFIX):] if name.startswith(PEFT_PREFIX) else name
+    if name.startswith(("language_model.", "visual.")):
+        name = "model." + name
+    return name
 
 
 def _canonical(tensors: dict[str, TensorEntry]) -> dict[str, TensorEntry]:
@@ -276,7 +292,7 @@ def delta_sketch_ex(model_dir: str, base_dir: str, stride: int = STRIDE, seed: "
     Two sketches taken with the same seed and stride estimate the cosine and relative L2 distance of the full deltas, so
     the near-duplicate check works against earlier submissions whose weights are no longer on disk."""
     seed = _PROCESS_SEED if seed is None else seed
-    model, base = _canonical(read_model(model_dir)), read_model(base_dir)
+    model, base = _canonical(read_model(model_dir)), _canonical(read_model(base_dir))
     out: dict[str, np.ndarray] = {}
     changed = False
     for name in sorted(model):
@@ -298,7 +314,7 @@ def delta_sketch(model_dir: str, base_dir: str, stride: int = STRIDE, seed: "byt
 
 
 MIN_SKETCH_COVERAGE = 0.90   # share of the base's float parameters the compared tensors must hold
-SKETCH_RULE = 3              # 1: same dtype only (rc5); 2: any float dtype + coverage; 3: rounded to the base dtype, secret
+SKETCH_RULE = 4              # 1: same dtype only (rc5); 2: any float dtype + coverage; 3: rounded to the base dtype, secret
                              # positions (rc6). A pending verdict of an older rule is re-checked, an older sketch recomputed
 
 
@@ -319,7 +335,7 @@ class Coverage:
 
 def sketch_coverage(sketch: dict[str, np.ndarray], model_dir: str, base_dir: str) -> Coverage:
     """How much of the declared base the sketch compares (tensor headers only, no weights read)."""
-    model, base = _canonical(read_model(model_dir)), read_model(base_dir)
+    model, base = _canonical(read_model(model_dir)), _canonical(read_model(base_dir))
     floats = {n: e for n, e in base.items() if e.dtype in FLOAT_DTYPES + FP8_DTYPES}
     fp8 = sorted(n for n, e in model.items() if n in floats and (e.dtype in FP8_DTYPES or floats[n].dtype in FP8_DTYPES))
     quantized = sorted(n for n, e in model.items() if e.dtype in INT_DTYPES and (base.get(n) is None or base[n].dtype not in INT_DTYPES))

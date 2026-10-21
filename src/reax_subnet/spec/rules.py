@@ -9,15 +9,21 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import dataclass, field, replace
 from typing import Any, Mapping
 
+from ..competition_split import spec_open_class_active
 from .templates import TEMPLATE_MARKERS, template_name
 
 GIB = 1024 ** 3
 MAX_PARAMS = 9_000_000_000
 MAX_WEIGHT_BYTES = 20 * GIB          # a 9 B model in bf16 is ~18 GB; fp32 (36 GB) is refused
 MAX_TOTAL_BYTES = 22 * GIB           # everything the validator downloads for one submission
+# The open class (``rules_at``, from competition_split.SPEC_OPEN_CLASS_START_UTC): a 36 B model in bf16 is ~67 GiB.
+OPEN_CLASS_MAX_PARAMS = 36_000_000_000
+OPEN_CLASS_MAX_WEIGHT_BYTES = 68 * GIB
+OPEN_CLASS_MAX_TOTAL_BYTES = 72 * GIB
 MAX_FILES = 256
 MAX_JSON_BYTES = 16 * 1024 * 1024    # config / manifest / tokenizer_config json
 MAX_TOKENIZER_JSON_BYTES = 64 * 1024 * 1024    # tokenizer.json of large vocabularies (Qwen3.5 ~20 MB, Gemma ~33 MB)
@@ -43,6 +49,23 @@ ARCH_ALLOWLIST = (
     "LlamaForCausalLM",
 )
 
+# Architectures that are additionally allowed in the open class (``rules_at``): Gemma 4 (served by the same pinned vLLM as the
+# s1-pro runtime; template spec/templates/gemma4.jinja) and the Qwen3.5 MoE models (template qwen.jinja). NOT verified against
+# the vLLM 0.30.0 model registry of the pinned image by this change: CHECK on a GPU host before the switch.
+OPEN_CLASS_ARCHS = (
+    "Qwen3_5Model",   # joint-readout only; spec/joint.py validates the separate head
+    "Gemma4ForConditionalGeneration",
+    "Gemma4ForCausalLM",
+    "Gemma4UnifiedForConditionalGeneration",
+    "Qwen3_5MoeForConditionalGeneration",
+    "Qwen3_5MoeForCausalLM",
+)
+# The multimodal checkpoints among them are served text-only in the open class: spec/vllm.py
+# passes ``--limit-mm-per-prompt`` with zero images for these.
+# Only the new architectures: an entry on an architecture allowed before the switch (e.g. Qwen3_5ForConditionalGeneration, which
+# may be a current champion) is served with exactly the same command line as before.
+OPEN_CLASS_TEXT_ONLY_ARCHS = tuple(a for a in OPEN_CLASS_ARCHS if a.endswith("ForConditionalGeneration"))
+
 # Weight formats that execute code on load (pickle) or that the pinned image should not be asked to read.
 FORBIDDEN_SUFFIXES = (".bin", ".pt", ".pth", ".pkl", ".pickle", ".ckpt", ".h5", ".msgpack", ".gguf", ".onnx", ".npz", ".npy")
 LICENSE_FILES = ("LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING", "COPYING.txt")
@@ -59,6 +82,36 @@ class TrackRules:
     licences: tuple[str, ...] = LICENCE_ALLOWLIST
     approved_extra: tuple[str, ...] = ()
     architectures: tuple[str, ...] = ARCH_ALLOWLIST
+    # Caps of a declared base (spec/bases.py). None = ``BASE_CAP_FACTOR`` x the submission caps above (until the open class).
+    base_max_params: int | None = None
+    base_max_weight_bytes: int | None = None
+    base_max_total_bytes: int | None = None
+
+
+OPEN_CLASS_RULES = TrackRules(max_params=OPEN_CLASS_MAX_PARAMS, max_weight_bytes=OPEN_CLASS_MAX_WEIGHT_BYTES,
+                              max_total_bytes=OPEN_CLASS_MAX_TOTAL_BYTES, architectures=ARCH_ALLOWLIST + OPEN_CLASS_ARCHS,
+                              base_max_params=OPEN_CLASS_MAX_PARAMS, base_max_weight_bytes=OPEN_CLASS_MAX_WEIGHT_BYTES,
+                              base_max_total_bytes=OPEN_CLASS_MAX_TOTAL_BYTES)
+
+
+def _wall_clock() -> float:
+    return time.time()
+
+
+def open_class_active(now_ts: float | None = None) -> bool:
+    """True when the open class applies at ``now_ts`` (default the wall clock)."""
+    return spec_open_class_active(_wall_clock() if now_ts is None else now_ts)
+
+
+def rules_at(now_ts: float | None = None, *, category: str | None = None) -> TrackRules:
+    """The release rules in force at ``now_ts`` (unix seconds; default the wall clock): the ``TrackRules()`` defaults before
+    competition_split.SPEC_OPEN_CLASS_START_UTC, the open class from it on."""
+    return OPEN_CLASS_RULES if category in (None, "generalist") and open_class_active(now_ts) else TrackRules()
+
+
+def _rules(rules: TrackRules | None, now_ts: float | None = None) -> TrackRules:
+    """An explicitly given rules object always wins; None = the release rules at the time of the check."""
+    return rules if rules is not None else rules_at(now_ts)
 
 
 @dataclass
@@ -79,8 +132,9 @@ def _norm_licence(value: Any) -> str:
     return value.strip().lower() if isinstance(value, str) else ""
 
 
-def check_listing(files: Mapping[str, int], rules: TrackRules = TrackRules()) -> list[str]:
+def check_listing(files: Mapping[str, int], rules: TrackRules | None = None) -> list[str]:
     """Checks on the file list alone, before anything is downloaded."""
+    rules = _rules(rules)
     out = _listing_limits(files, rules)
     if not any(n in files for n in LICENSE_FILES):
         out.append("no LICENSE file")
@@ -91,27 +145,32 @@ def check_listing(files: Mapping[str, int], rules: TrackRules = TrackRules()) ->
 
 # A declared base is only read for the copy check: it may be larger than a submission (a text-only 9 B fine-tune of
 # Qwen3.5-9B declares the full 9.65 B multimodal model as its base), so its size caps are BASE_CAP_FACTOR x a submission's.
+# In the open class the base caps are explicit (``TrackRules.base_max_*``), equal to the open-class submission caps.
 BASE_CAP_FACTOR = 2
 
 
 def _base_rules(rules: TrackRules) -> TrackRules:
     f = BASE_CAP_FACTOR
-    return replace(rules, max_params=rules.max_params * f, max_weight_bytes=rules.max_weight_bytes * f,
-                   max_total_bytes=rules.max_total_bytes * f)
+    return replace(rules,
+                   max_params=rules.base_max_params if rules.base_max_params is not None else rules.max_params * f,
+                   max_weight_bytes=(rules.base_max_weight_bytes if rules.base_max_weight_bytes is not None
+                                     else rules.max_weight_bytes * f),
+                   max_total_bytes=(rules.base_max_total_bytes if rules.base_max_total_bytes is not None
+                                    else rules.max_total_bytes * f))
 
 
-def check_base_listing(files: Mapping[str, int], rules: TrackRules = TrackRules()) -> list[str]:
+def check_base_listing(files: Mapping[str, int], rules: TrackRules | None = None) -> list[str]:
     """A declared base model (spec/bases.py) is only read for the copy check, never served: it needs no licence and no
     manifest, and files that are never downloaded (pickle weights next to the safetensors) do not matter. What is
     downloaded keeps the limits of a submission (count, paths, safetensors only, size caps)."""
-    return _listing_limits({n: s for n, s in files.items() if _is_downloaded(n)}, _base_rules(rules))
+    return _listing_limits({n: s for n, s in files.items() if _is_downloaded(n)}, _base_rules(_rules(rules)))
 
 
-def check_base_facts(facts: RepoFacts, rules: TrackRules = TrackRules()) -> list[str]:
+def check_base_facts(facts: RepoFacts, rules: TrackRules | None = None) -> list[str]:
     """A downloaded base model: the file limits, ``config.json`` (allowlisted architecture, no ``auto_map``) and the
     parameter and weight caps (``BASE_CAP_FACTOR`` x a submission's). No manifest, licence or tokenizer rule (the base
     is never served)."""
-    rules = _base_rules(rules)
+    rules = _base_rules(_rules(rules))
     out = list(facts.problems)
     out += _listing_limits(facts.files, rules)
     out += check_config(facts.config, rules)
@@ -153,7 +212,8 @@ def _is_downloaded(name: str) -> bool:
     return any(fnmatch.fnmatch(base, p) for p in DOWNLOAD_PATTERNS)
 
 
-def check_config(config: Mapping[str, Any] | None, rules: TrackRules = TrackRules()) -> list[str]:
+def check_config(config: Mapping[str, Any] | None, rules: TrackRules | None = None) -> list[str]:
+    rules = _rules(rules)
     if not isinstance(config, Mapping):
         return ["config.json missing or not an object"]
     out: list[str] = []
@@ -189,8 +249,9 @@ def check_tokenizer(config: Mapping[str, Any] | None, tokens: frozenset[str] | N
 
 
 def check_manifest(manifest: Mapping[str, Any] | None, *, category: str, hotkey: str | None,
-                   rules: TrackRules = TrackRules()) -> list[str]:
+                   rules: TrackRules | None = None) -> list[str]:
     """``reax-specialist.json``: binds the model to its track, its committing hotkey and a licence."""
+    rules = rules if rules is not None else rules_at(category=category)
     if not isinstance(manifest, Mapping):
         return [f"{MANIFEST_NAME} missing or not an object"]
     out: list[str] = []
@@ -209,8 +270,9 @@ def check_manifest(manifest: Mapping[str, Any] | None, *, category: str, hotkey:
     return out
 
 
-def check_facts(facts: RepoFacts, *, category: str, hotkey: str | None, rules: TrackRules = TrackRules()) -> list[str]:
+def check_facts(facts: RepoFacts, *, category: str, hotkey: str | None, rules: TrackRules | None = None) -> list[str]:
     """All rules, in a stable order. An empty list means the submission is acceptable."""
+    rules = rules if rules is not None else rules_at(category=category)
     out = list(facts.problems)
     out += check_listing(facts.files, rules)
     out += check_config(facts.config, rules)

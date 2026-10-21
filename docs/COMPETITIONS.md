@@ -75,17 +75,18 @@ A track is a use case (for example `demand_forecasting`) with a start and end ti
 miners. Inside a track the share is **winner-take-most**: rank 1 gets 75 %, rank 2 17 %, rank 3 8 %; ranks that do not
 exist go to inference. Ties are broken by the lower UID.
 
-Tracks run for **14 days and rotate**. The schedule is a release constant (`TRACK_SCHEDULE`):
+DF/RA retain their published end, capped by the generalist opening. The release schedule is shared by worker and validator:
 
-| Track | From | Until | Profile |
+| Track | From | Until | Share (`50/50`) |
 |---|---|---|---|
-| `demand_forecasting` | 2026-10-16 12:00 UTC | 2026-10-30 12:00 UTC | both (the only track of `80/20`) |
-| `risk_assessment` | 2026-10-16 12:00 UTC | 2026-10-30 12:00 UTC | `50/50` (the second slot) |
+| `demand_forecasting` | 2026-10-16 12:00 UTC | min(30 Oct 12:00 UTC, generalist opening) | 0.15 |
+| `risk_assessment` | 2026-10-16 12:00 UTC | min(30 Oct 12:00 UTC, generalist opening) | 0.15 |
+| `generalist` | `GENERALIST_START_UTC` (default target 30 Oct 12:00 UTC) | next release decision | 0.30 |
 
-Only as many tracks as the profile has slots are paid. **The next pair is not in the schedule yet** (a TODO in
-`competition_split.py`): after 30 Oct 12:00 UTC no track is active, and its share stays with inference, until a release
-adds the next pair (rotation every 14 days). The schedule is the single source of truth: the specialist evaluator
-(`reax_subnet.spec.config`) derives its tracks from it.
+At opening the active `50/50` profile has one track slot, inference 0.50 and engine 0.20. Ranks stay 75/17/8.
+Generalist regular and provisional keep-alive together stay within 25% of its share. Every unclaimed part returns
+to inference. The cancelled 6 Nov DF/RA extension and specialist open class do not apply.
+See [GENERALIST-RELEASE.md](GENERALIST-RELEASE.md) for the release gates.
 
 **Entry floor:** `TRACK_ENTRY_FLOOR` (release constant, per track; `None` = no floor). A submission whose score is at or
 below its track's floor earns nothing from that track. The floor is the score of the s1-fast reference model (Plumb-4B)
@@ -100,6 +101,13 @@ learned the public procedural families reaches at most 20.7 / 21.6 on these draw
 ([SPECIALIST-TRACKS.md](SPECIALIST-TRACKS.md), "Keep-alive") must also score above it on the non-proc items of its latest
 draw. The value is the reference model's score on the non-proc items of the same six draws plus 1.5 points:
 **demand_forecasting 32.6** (baseline 31.10), **risk_assessment 34.5** (baseline 32.95) (1.2.0rc6: 49.8 / 37.8).
+
+**Keep-alive base floor (open class):** `KEEPALIVE_BASE_FLOOR` (release constant: base tensor hash -> floor per track). From
+`GENERALIST_START_UTC` a generalist entry with more than `KEEPALIVE_BIG_PARAMS` = 10 billion parameters
+gets a keep-alive only if its declared base is in the table and its qualifying score is above that floor + 1.5
+(`KEEPALIVE_BIG_MARGIN`); it gets no provisional keep-alive. The table is empty in 1.2.0rc9.post6, so no entry above 10 B
+parameters has a keep-alive yet. Entries with at most 10 B parameters are not affected
+([SPECIALIST-TRACKS.md](SPECIALIST-TRACKS.md), "Open class").
 
 **The specialist evaluator** ([SPECIALIST-TRACKS.md](SPECIALIST-TRACKS.md)) is wired in: `SpecEvaluator` results
 (`{track_id: [(uid, score), ...]}` in rank order: champion, then the most recently crowned former champions) go through

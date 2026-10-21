@@ -1,0 +1,13 @@
+{{- '<bos>' -}}
+{%- for message in messages -%}
+{%- if message['role'] == 'system' -%}
+{{- '<|turn>system\n' + (message['content'] | trim) + '<turn|>\n' -}}
+{%- elif message['role'] == 'user' -%}
+{{- '<|turn>user\n' + (message['content'] | trim) + '<turn|>\n' -}}
+{%- else -%}
+{{- '<|turn>model\n' + (message['content'] | trim) + '<turn|>\n' -}}
+{%- endif -%}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+{{- '<|turn>model\n<|channel>thought\n<channel|>' -}}
+{%- endif -%}

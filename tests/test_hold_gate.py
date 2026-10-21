@@ -69,7 +69,7 @@ def test_engine_track_opens_at_the_release_date_and_the_specialists_keep_their_s
     assert not CS.engine_track_open(start - timedelta(seconds=1))
     assert CS.engine_track_open(start)
     assert CS.SPECIALIST_TRACKS_START_UTC == datetime(2026, 10, 16, 12, 0, tzinfo=timezone.utc)
-    assert [s.start for s in CS.TRACK_SCHEDULE] == [CS.SPECIALIST_TRACKS_START_UTC] * 2
+    assert [s.start for s in CS.TRACK_SCHEDULE[:2]] == [CS.SPECIALIST_TRACKS_START_UTC] * 2
     assert A.AWARD_APPROVAL_PUBKEY is None or len(A.AWARD_APPROVAL_PUBKEY) == 64
 
 

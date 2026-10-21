@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 from spec_helpers import HOTKEYS, make_weights, write_model
 
+from reax_subnet import competition_split as CS
 from reax_subnet.spec import config as C
 from reax_subnet.spec import fetch as F
 from reax_subnet.spec import rules as R
@@ -86,7 +87,7 @@ async def test_backend_uses_the_work_dir_and_cleans_up(tmp_path, monkeypatch):
 
 async def test_backend_refuses_an_architecture_without_fixed_template(tmp_path, monkeypatch):
     model = tmp_path / "m"
-    write_model(str(model), make_weights(1), arch="Gemma4ForCausalLM")
+    write_model(str(model), make_weights(1), arch="Gemma5ForCausalLM")
     monkeypatch.setattr(V, "_run", _FakeDocker())
     with pytest.raises(V.ModelUnavailable, match="chat template"):
         async with V.VllmDockerBackend(str(model), 8 * V.GIB, gpu_total_gb=96, work_dir=str(tmp_path / "w")):
@@ -165,7 +166,11 @@ def test_every_allowed_architecture_has_a_template_or_is_refused():
             assert any("no fixed chat template" in v for v in R.check_config(cfg))
         else:
             assert os.path.isfile(TPL.template_path(name))
-    assert TPL.template_name("Gemma4ForCausalLM") is None          # not shipped: refused until the lead adds the template
+    # Gemma 4 has its template since 1.2.0rc9.post6 but is only allowed in the open class (tests/test_open_class.py)
+    assert TPL.template_name("Gemma4ForCausalLM") == "gemma4.jinja" and "Gemma4ForCausalLM" not in R.ARCH_ALLOWLIST
+    assert any("allowlist" in v for v in R.check_config({"architectures": ["Gemma4ForCausalLM"]}, R.rules_at(0)))
+    assert R.check_config({"architectures": ["Gemma4ForCausalLM"]}, R.rules_at(CS.SPEC_OPEN_CLASS_START_UTC.timestamp())) == []
+    assert TPL.template_name("Gemma5ForCausalLM") is None
 
 
 def test_shipped_templates_render_the_decision_prompt():

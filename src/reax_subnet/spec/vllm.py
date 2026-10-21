@@ -41,7 +41,13 @@ GPU_BUDGET_GB = 25.0      # the candidate must fit next to the s1-fast and s1-pr
 GPU_OVERHEAD_GB = 1.5
 MAX_MODEL_LEN = 8192
 MAX_NUM_SEQS = 32
-STARTUP_TIMEOUT_S = 900
+STARTUP_TIMEOUT_S = 900       # default; REAX_SPEC_STARTUP_TIMEOUT_S (60..1800: a start that never gets healthy is infra and costs the GPU every cycle)
+STARTUP_TIMEOUT_MIN_S, STARTUP_TIMEOUT_MAX_S = 60, 1800
+CONTAINER_MEM = "48g"         # default of docker --memory / --memory-swap; REAX_SPEC_CONTAINER_MEM (8..512, <int>g)
+CONTAINER_MEM_MIN_G, CONTAINER_MEM_MAX_G = 8, 512
+# Multimodal checkpoints are served text-only in the open class (rules.OPEN_CLASS_TEXT_ONLY_ARCHS): no image per prompt, as
+# runtimes/s1-pro/start.sh passes ``--limit-mm-per-prompt '{"image":1}'`` (JSON syntax of vLLM 0.30.0).
+LIMIT_MM_TEXT_ONLY = '{"image":0}'
 REQUEST_TIMEOUT_S = 120
 GIB = 1024 ** 3
 # sitecustomize.py that switches vLLM's UVA off (confidential-compute GPUs: UVA views of pinned host memory go stale).
@@ -104,14 +110,41 @@ def host_lacks_gpu_memory(logs: str) -> bool:
     return bool(_HOST_GPU_MEMORY.search(_ANSI.sub("", logs or "")))
 
 
+def parse_container_mem(value: str) -> str:
+    """``REAX_SPEC_CONTAINER_MEM``: ``<int>g`` with 8 <= int <= 512 (the docker ``--memory`` and ``--memory-swap`` value).
+    Empty = ``CONTAINER_MEM``; anything else refuses to start (like ``REAX_SPEC_UID``)."""
+    v = (value or "").strip()
+    if not v:
+        return CONTAINER_MEM
+    m = re.fullmatch(r"([0-9]{1,4})[gG]", v)
+    if m is None or not CONTAINER_MEM_MIN_G <= int(m.group(1)) <= CONTAINER_MEM_MAX_G:
+        raise ValueError(f"REAX_SPEC_CONTAINER_MEM must be <int>g with {CONTAINER_MEM_MIN_G} <= int <= {CONTAINER_MEM_MAX_G}, got {value!r}")
+    return f"{int(m.group(1))}g"
+
+
+def parse_startup_timeout(value: str) -> int:
+    """``REAX_SPEC_STARTUP_TIMEOUT_S``: whole seconds, 60..1800. Empty = ``STARTUP_TIMEOUT_S``; anything else refuses to start."""
+    v = (value or "").strip()
+    if not v:
+        return STARTUP_TIMEOUT_S
+    if not re.fullmatch(r"[0-9]{1,5}", v) or not STARTUP_TIMEOUT_MIN_S <= int(v) <= STARTUP_TIMEOUT_MAX_S:
+        raise ValueError(f"REAX_SPEC_STARTUP_TIMEOUT_S must be whole seconds, {STARTUP_TIMEOUT_MIN_S}..{STARTUP_TIMEOUT_MAX_S}, got {value!r}")
+    return int(v)
+
+
 def gpu_memory_utilization(weight_bytes: int, *, gpu_total_gb: float = GPU_TOTAL_GB, budget_gb: float = GPU_BUDGET_GB) -> float:
     """Fraction of the GPU vLLM may take: weights + 15 % + a fixed 6 GB for activations and KV cache, capped so that this
     share plus ``GPU_OVERHEAD_GB`` (what the process uses outside the share) stays within the budget.
 
-    Raises ModelUnavailable if the weights alone do not fit the budget."""
+    Raises if the weights alone do not fit the budget: ModelUnavailable up to the pre-switch weight cap (20 GiB needs 25 GB,
+    the default budget, so a default host never raises for an entry the old rules accept), HostUnavailable above it. Only
+    the open-class rules accept such weights, so a budget that is too small is this host's configuration (the entry waits,
+    no strike), never the miner's (docs/SPECIALIST-TRACKS.md, operator table)."""
+    from .rules import MAX_WEIGHT_BYTES
     need_gb = weight_bytes * 1.15 / GIB + 6.0
     if weight_bytes * 1.15 / GIB + 2.0 > budget_gb:
-        raise ModelUnavailable(f"weights ({weight_bytes / GIB:.1f} GiB) do not fit the {budget_gb:.0f} GB budget")
+        exc = ModelUnavailable if weight_bytes <= MAX_WEIGHT_BYTES else HostUnavailable
+        raise exc(f"weights ({weight_bytes / GIB:.1f} GiB) do not fit the {budget_gb:.0f} GB budget")
     if budget_gb > gpu_total_gb:
         budget_gb = gpu_total_gb
     # Round DOWN so the instance never exceeds the budget.
@@ -146,6 +179,8 @@ class ServeSpec:
     user: str = ""         # uid:gid of the container; "" = the caller's own (the miner CLI)
     runtime: str = ""      # docker --runtime (e.g. runsc), REAX_SPEC_DOCKER_RUNTIME
     cpus: str = "8"
+    memory: str = CONTAINER_MEM   # docker --memory and --memory-swap, REAX_SPEC_CONTAINER_MEM
+    text_only: bool = False       # open class, multimodal architecture: --limit-mm-per-prompt with zero images
 
 
 def build_docker_command(s: ServeSpec) -> list[str]:
@@ -161,7 +196,7 @@ def build_docker_command(s: ServeSpec) -> list[str]:
         *(["--runtime", s.runtime] if s.runtime else []),
         "--network", "none", "--read-only", "--ipc", "private",
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "1024",
-        "--memory", "48g", "--memory-swap", "48g", "--cpus", s.cpus, "--ulimit", "nofile=4096:4096",
+        "--memory", s.memory, "--memory-swap", s.memory, "--cpus", s.cpus, "--ulimit", "nofile=4096:4096",
         "--log-driver", "local", "--log-opt", "max-size=10m", "--log-opt", "max-file=2",
         "--user", user,
         # exec: Docker mounts tmpfs noexec by default, and Triton loads the shared objects it compiles into HOME/.triton.
@@ -184,6 +219,7 @@ def build_docker_command(s: ServeSpec) -> list[str]:
         "--logprobs-mode", "processed_logits", "--max-logprobs", "64",
         "--generation-config", "vllm", "--no-enable-prefix-caching",
         *tpl,
+        *(["--limit-mm-per-prompt", LIMIT_MM_TEXT_ONLY] if s.text_only else []),
         *(["--enforce-eager"] if s.eager else []),
     ]
 
@@ -197,6 +233,16 @@ def architecture_of(model_dir: str) -> str:
         return archs[0] if isinstance(archs, list) and len(archs) == 1 and isinstance(archs[0], str) else ""
     except (OSError, ValueError, AttributeError):
         return ""
+
+
+def _text_only(arch: str, weight_bytes: int = 0) -> bool:
+    """Open class (from competition_split.SPEC_OPEN_CLASS_START_UTC) and a multimodal architecture: serve it text-only.
+    That is every new multimodal architecture, and an architecture allowed before the switch only when its weights exceed
+    the pre-switch cap (``MAX_WEIGHT_BYTES``): up to that size the command line stays exactly the old one."""
+    from .rules import MAX_WEIGHT_BYTES, OPEN_CLASS_TEXT_ONLY_ARCHS, open_class_active
+    if not open_class_active():
+        return False
+    return arch in OPEN_CLASS_TEXT_ONLY_ARCHS or (arch.endswith("ForConditionalGeneration") and weight_bytes > MAX_WEIGHT_BYTES)
 
 
 def prepare_run_dir(work_dir: str | None, *, template: str, disable_uva: bool) -> tuple[str, str, str]:
@@ -277,16 +323,18 @@ class VllmDockerBackend:
     def __init__(self, model_dir: str, weight_bytes: int, *, gpu_device: str = "0", gpu_total_gb: float | None = None,
                  budget_gb: float = GPU_BUDGET_GB, image: str = VLLM_IMAGE, concurrency: int = MAX_NUM_SEQS,
                  disable_uva: bool | None = None, work_dir: str | None = None, user: str = "", runtime: str = "",
-                 cpus: str = "8"):
+                 cpus: str = "8", memory: str = CONTAINER_MEM, startup_timeout_s: float = STARTUP_TIMEOUT_S):
         if not gpu_total_gb:
             gpu_total_gb = detect_gpu_total_gb(gpu_device)
         self.disable_uva = os.environ.get(UVA_ENV) == "1" if disable_uva is None else disable_uva
+        self.weight_bytes = weight_bytes
         self.util = gpu_memory_utilization(weight_bytes, gpu_total_gb=gpu_total_gb, budget_gb=budget_gb)
         self.required_gib = self.util * gpu_total_gb + GPU_OVERHEAD_GB
         self.model_dir = os.path.abspath(model_dir)
         self.gpu_device, self.image, self.concurrency = gpu_device, image, concurrency
         self.name = "reax-spec-" + secrets.token_hex(6)
         self.work_dir, self.user, self.runtime, self.cpus = work_dir, user, runtime, cpus
+        self.memory, self.startup_timeout_s = memory, startup_timeout_s
         self.run_dir = self.sock_dir = ""
         self._http: aiohttp.ClientSession | None = None
         self._letter_ids: dict[str, int] = {}
@@ -302,7 +350,8 @@ class VllmDockerBackend:
         self.run_dir, self.sock_dir, aux_dir = prepare_run_dir(self.work_dir, template=template, disable_uva=self.disable_uva)
         try:
             spec = ServeSpec(self.name, self.model_dir, self.sock_dir, self.util, self.gpu_device, self.image, self.disable_uva,
-                             aux_dir=aux_dir, template=template, user=self.user, runtime=self.runtime, cpus=self.cpus)
+                             aux_dir=aux_dir, template=template, user=self.user, runtime=self.runtime, cpus=self.cpus,
+                             memory=self.memory, text_only=_text_only(arch, self.weight_bytes))
             code, out = await _run(*build_docker_command(spec), timeout=120)
             if code != 0:
                 raise HostUnavailable(f"docker run failed: {out[-300:]}")
@@ -327,7 +376,7 @@ class VllmDockerBackend:
 
     async def _wait_healthy(self) -> None:
         assert self._http is not None
-        deadline = time.monotonic() + STARTUP_TIMEOUT_S
+        deadline = time.monotonic() + self.startup_timeout_s
         while time.monotonic() < deadline:
             code, state = await _run("docker", "inspect", "-f", "{{.State.Running}}", self.name, timeout=20)
             if code != 0:

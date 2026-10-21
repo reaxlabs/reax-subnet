@@ -135,7 +135,7 @@ def _snap_reg(block, regs):
 
 
 def test_immunity_constant():
-    assert E.IMMUNITY_BLOCKS_ASSUMED == 5000
+    assert E.IMMUNITY_BLOCKS_ASSUMED == 7200   # chain ImmunityPeriod since 17 Oct 2026
 
 
 def test_queue_goes_by_soonest_immunity_end_and_expired_entries_first():

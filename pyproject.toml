@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reax-subnet"
-version = "1.2.0rc9.post8"
+version = "1.2.0rc10"
 description = "REAX Bittensor subnet: miners serve an approved decision model, validators verify fidelity"
 readme = "README.md"
 license = {text = "MIT"}
@@ -40,6 +40,7 @@ reax-router = "reax_subnet.router:main"
 reax-selfcheck = "reax_subnet.selfcheck:main"
 reax-engine-eval = "reax_subnet.engcli:eval_main"
 reax-engine-submit = "reax_subnet.engcli:submit_main"
+reax-commit = "reax_subnet.commitcli:main"
 reax-spec-eval = "reax_subnet.spec.cli:main"
 reax-competition-worker = "reax_subnet.worker:main"
 reax-award-approve = "reax_subnet.award:main"

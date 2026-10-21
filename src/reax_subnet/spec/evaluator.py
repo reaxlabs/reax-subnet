@@ -25,10 +25,12 @@ import time
 from dataclasses import dataclass
 from typing import Any, AsyncContextManager, Awaitable, Callable, Collection, Mapping, Sequence
 
+from .. import competition_split as split
 from ..chain import Snapshot
-from ..competition_split import (KEEPALIVE_LEGACY_FLOOR, KEEPALIVE_MAX_ENTRIES, KEEPALIVE_NONPROC_FLOOR,
-                                 PROVISIONAL_KA, PROVISIONAL_KA_LEAD_BLOCKS, PROVISIONAL_KA_MAX_HOURS,
-                                 TRACK_ENTRY_FLOOR, RankedLeaders)
+from ..competition_split import (CHAIN_IMMUNITY_BLOCKS, KEEPALIVE_BASE_FLOOR, KEEPALIVE_BIG_MARGIN, KEEPALIVE_BIG_PARAMS,
+                                 KEEPALIVE_LEGACY_FLOOR, KEEPALIVE_MAX_ENTRIES, KEEPALIVE_NONPROC_FLOOR, PROVISIONAL_KA,
+                                 PROVISIONAL_KA_LEAD_BLOCKS, PROVISIONAL_KA_MAX_HOURS,
+                                 TRACK_ENTRY_FLOOR, RankedLeaders, spec_open_class_active)
 from . import bases as B
 from . import config as C
 from . import fetch as F
@@ -200,10 +202,12 @@ async def score_model(backend: Backend, rows: Sequence[Mapping[str, Any]]) -> tu
     return SC.score_run(rows, probs)
 
 
-def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot) -> dict[str, list[tuple[int, float]]]:
+def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot,
+                    limit: int | None = C.MAX_LEADERS) -> dict[str, list[tuple[int, float]]]:
     """Champion first, then former champions (most recently crowned first), only submissions their hotkey still
     commits to. This order IS the rank (docs/SPECIALIST-TRACKS.md, "Ranks"): the result is a ``RankedLeaders``, which the
-    share layer pays in this order. The scores come from different draws and are reported, never compared.
+    share layer pays in this order. The scores come from different draws and are reported, never compared. ``limit``:
+    at most this many per track (None = all; only the legacy keep-alive uses None).
 
     Pure function of the saved state and the chain snapshot (no docker, no GPU): the validator in remote mode calls it on
     the state file the competition worker wrote, so the hotkey/uid and commitment are re-verified on every call."""
@@ -229,9 +233,36 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
             res.append((uid_c[0], float(s.score)))
             if isinstance(s.champion_since_ts, (int, float)) and math.isfinite(s.champion_since_ts):
                 res.crowned.setdefault(uid_c[0], float(s.champion_since_ts))
-            if len(res) >= C.MAX_LEADERS:
+            if limit is not None and len(res) >= limit:
                 break
         out[track_id] = res
+    return out
+
+
+def legacy_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot) -> dict[str, list[tuple[int, bool]]]:
+    """Legacy keep-alive input (competition_split.LEGACY_KA_*): ``compute_leaders`` of the ended tracks, each entry as
+    ``(uid, is_champion)``; True only for the track's current champion (rank 1 can also be a former champion when the
+    champion no longer commits). Same checks as ``compute_leaders`` (hotkey registered, still commits to the SAME
+    submission key), so a hotkey that commits to another track drops out. Not cut at ``MAX_LEADERS``: every approved
+    former champion counts (the share layer caps the uids at ``LEGACY_KA_MAX_ENTRIES``). A track missing from the state
+    gives no entry (the state is not changed). Pure."""
+    live = {n.hotkey: (n.uid, n.commitment) for n in snapshot.neurons}
+    ids = [t for t in track_ids if t in state.tracks]
+    leaders = compute_leaders(state, ids, snapshot, limit=None)
+    out: dict[str, list[tuple[int, bool]]] = {}
+    for track_id in ids:
+        ts = state.tracks[track_id]
+        champ = ts.submissions.get(ts.champion) if ts.champion else None
+        champ_uid = None
+        if champ is not None and champ.status == ST.CHAMPION and champ.score is not None and champ.hotkey in live:
+            c = parse_commitment(live[champ.hotkey][1])
+            if c is not None and f"{champ.hotkey}|{c.text()}" == champ.key:
+                champ_uid = live[champ.hotkey][0]
+        res = leaders.get(track_id, ())
+        crowned = getattr(res, "crowned", {})
+        # only entries crowned before the switch: a DF/RA worker still evaluating after it never adds a payee
+        out[track_id] = [(uid, i == 0 and uid == champ_uid) for i, (uid, _) in enumerate(res)
+                         if crowned.get(uid, math.inf) < split.GENERALIST_START_UTC.timestamp()]
     return out
 
 
@@ -243,10 +274,37 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
 # must also score above ``KEEPALIVE_NONPROC_FLOOR`` on the non-proc items of its latest draw (``Submission.nonproc``), so
 # learning the public procedural families alone does not earn it. An entry last scored before 1.2.0rc6 has no such score
 # (``nonproc`` None and no ``by_tier``); it qualifies only with a total score above ``KEEPALIVE_LEGACY_FLOOR`` (1.2.0rc7),
-# which a rules-only model cannot reach under the rc5 mix.
+# which a rules-only model cannot reach under the rc5 mix. In the open class (competition_split.SPEC_OPEN_CLASS_START_UTC,
+# 1.2.0rc9.post6) an entry above ``KEEPALIVE_BIG_PARAMS`` parameters needs the base floor of its declared base on top
+# (``_big_ok``; a larger entry without a recorded base hash gets none).
 KEEPALIVE_STATUSES = (ST.CHAMPION, ST.PENDING_CONFIRM)
 KEEPALIVE_HOURS = 24.0
 KEEPALIVE_FUTURE_S = 3600.0    # a window start further in the future than this gives no slot
+
+
+def _big_ok(s: ST.Submission, track_id: str, now: float, base_floors: Mapping[str, Mapping[str, float]] | None = None,
+            qual: float | None = None) -> bool:
+    """Open-class base floor (``KEEPALIVE_BASE_FLOOR``). Before the open class starts: always True. From it on: an entry with
+    at most ``KEEPALIVE_BIG_PARAMS`` parameters is not affected; a larger entry needs its declared base's tensor hash
+    (``base_id``) in the table with a floor for the track and a qualifying score ``qual`` above that floor +
+    ``KEEPALIVE_BIG_MARGIN`` (no score, e.g. a provisional entry: never). A missing base hash or floor, or an empty table,
+    gives False for a larger entry (fail closed). A parameter count that is not recorded (``None``) counts as small: every fetch
+    of this release records it, so ``None`` means fetched by an earlier release, under the 9 B cap, or not fetched yet (only the
+    time-bounded provisional keep-alive applies to those, and it stops once the fetch records a count above 10 B). A recorded
+    value that is not a non-negative int gives False."""
+    if track_id != "generalist" or not spec_open_class_active(now):
+        return True
+    p = s.params
+    if p is None:
+        return True
+    if isinstance(p, bool) or not isinstance(p, int) or p < 0:
+        return False
+    if p <= KEEPALIVE_BIG_PARAMS:
+        return True
+    table = KEEPALIVE_BASE_FLOOR if base_floors is None else base_floors
+    floor = (table.get(s.base_id) or {}).get(track_id) if s.base_id else None
+    ok = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)  # noqa: E731
+    return bool(ok(floor) and ok(qual) and qual > floor + KEEPALIVE_BIG_MARGIN)
 
 
 def _keepalive_since(s: ST.Submission) -> float | None:
@@ -266,7 +324,8 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
                       floors: Mapping[str, float | None] | None = None,
                       now: float | None = None,
                       nonproc_floors: Mapping[str, float | None] | None = None,
-                      legacy_floors: Mapping[str, float | None] | None = None) -> dict[str, list[tuple[int, float]]]:
+                      legacy_floors: Mapping[str, float | None] | None = None,
+                      base_floors: Mapping[str, Mapping[str, float]] | None = None) -> dict[str, list[tuple[int, float]]]:
     """Per track, the keep-alive entries ``[(uid, score), ...]`` the share layer pays the median serving weight each (at most ``KEEPALIVE_MAX_SHARE`` of the track share in total).
 
     An entry is a submission that passed the copy checks (exact hashes and the near-duplicate check against its base:
@@ -278,7 +337,9 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
     pending-verification, withdrawn, rejected, never-scored and below-floor entries get nothing. The same draw's score on
     its non-proc items must be above ``nonproc_floors`` (default the release ``KEEPALIVE_NONPROC_FLOOR``); without a
     non-proc score and without per-tier scores (last scored before 1.2.0rc6) its total score must instead be above
-    ``legacy_floors`` (default the release ``KEEPALIVE_LEGACY_FLOOR``; a track without one: no slot). Whether a champion's
+    ``legacy_floors`` (default the release ``KEEPALIVE_LEGACY_FLOOR``; a track without one: no slot). In the open class (at
+    ``now``) an entry above ``KEEPALIVE_BIG_PARAMS`` parameters must also beat its base's floor in ``base_floors`` (default the
+    release ``KEEPALIVE_BASE_FLOOR``) by ``KEEPALIVE_BIG_MARGIN`` (``_big_ok``; fail closed). Whether a champion's
     award is approved is not visible here: ``combine_weights`` drops an approved champion's slot. At most
     ``MAX_OPEN_PER_COLDKEY_TRACK`` entries per coldkey and track (by status priority, then commitment order); of what is
     left, at most ``KEEPALIVE_MAX_ENTRIES`` non-champion entries per track with any champion listed on top (``combine_weights``
@@ -325,6 +386,8 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
                 continue
             else:
                 qual = float(nonproc)
+            if not _big_ok(s, track_id, now, base_floors, qual):
+                continue
             n = live.get(s.hotkey)
             c = parse_commitment(n.commitment) if n is not None else None
             if c is None or f"{s.hotkey}|{c.text()}" != s.key:
@@ -362,9 +425,11 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
 
 # First-pass queue order (mechanism v2): the chain prunes the lowest-emission non-immune uid once a hotkey's immunity has
 # run out, and a queued entry earns no keep-alive, so the entry whose immunity ends soonest is evaluated first. The code
-# does not read the chain's ImmunityPeriod hyperparameter; this is the subnet's value (5000 blocks, about 16.7 h) as a
-# release constant. Entries whose registration block is unknown (0) keep the plain commitment order, after the others.
-IMMUNITY_BLOCKS_ASSUMED = 5000
+# does not read the chain's ImmunityPeriod hyperparameter; this is the subnet's value as a release constant (7200 blocks,
+# about 24 h, since block ~9,305,000 on 17 Oct 2026; it was 5000 before, and the 5000 left the provisional keep-alive
+# window mostly inside the real immunity). Entries whose registration block is unknown (0) keep the plain commitment
+# order, after the others.
+IMMUNITY_BLOCKS_ASSUMED = CHAIN_IMMUNITY_BLOCKS   # 7200
 
 
 def queue_order(cands: Sequence[ST.Submission], snap: Snapshot) -> list[ST.Submission]:
@@ -454,9 +519,15 @@ def _provisional_ok(s: ST.Submission, live: Mapping[str, Any], block: int, open_
     - fetched (``hash_named``: the fetch, the rule checks and the exact tensor-hash check passed, else the entry would
       have been rejected): QUEUED and copy-checked (``delta_checked``), or held for this host's infrastructure.
     Either way the hotkey's immunity ends within ``PROVISIONAL_KA_LEAD_BLOCKS`` or is over, registration block known."""
-    if s.score is not None:
+    if s.track_id == "generalist" and (not math.isfinite(TRACK_ENTRY_FLOOR.get("generalist", math.inf))
+                                       or split.GENERALIST_G_MED is None):
         return None
-    if not s.hash_named:
+    if s.score is not None:
+        # a close call that waits for its extra draw (QUEUED with ``close_draws``) is still undecided: it keeps the slot
+        # until the verdict (critic reg-sniping 20 Oct: uid 85 earned nothing between its first draw and its verdict)
+        if not (s.status == ST.QUEUED and s.close_draws and s.hash_named and s.delta_checked):
+            return None
+    elif not s.hash_named:
         if s.status != ST.QUEUED or open_for_coldkey > C.MAX_OPEN_PER_COLDKEY_TRACK:
             return None
         if s.reason.startswith(WAITING_FOR_REPO):
@@ -497,7 +568,8 @@ def mark_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sn
     for track_id in track_ids:
         opened = _open_counts(state, track_id)
         for s in state.track(track_id).submissions.values():
-            if s.provisional_since_ts is None and _provisional_ok(s, live, snapshot.block, opened.get(s.coldkey, 0)) is not None:
+            if (s.provisional_since_ts is None and _provisional_ok(s, live, snapshot.block, opened.get(s.coldkey, 0)) is not None
+                    and _big_ok(s, track_id, now)):
                 # the window belongs to the hotkey: a later entry of it inherits the hotkey's earliest start
                 s.provisional_since_ts = first.setdefault(s.hotkey, now)
                 state.track(track_id).log(now, f"{s.key[:12]}: provisional keep-alive window starts")
@@ -510,7 +582,8 @@ def compute_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot:
     """Per track, the uids with a provisional keep-alive slot (``combine_weights`` pays them): see
     ``_provisional_ok`` for the conditions, at most ``PROVISIONAL_KA_MAX_HOURS`` after ``provisional_since_ts`` (not set
     or more than an hour in the future: nothing, fail closed), at most one per coldkey and track (earlier on-chain
-    commitment block, unknown last, then uid). Pure, like ``compute_keepalive``; never counts against the top-8."""
+    commitment block, unknown last, then uid). In the open class an entry with a recorded parameter count above
+    ``KEEPALIVE_BIG_PARAMS`` gets none (``_big_ok``; not fetched yet = no count = eligible as before). Pure, like ``compute_keepalive``; never counts against the top-8."""
     out: dict[str, list[int]] = {t: [] for t in track_ids}
     if not PROVISIONAL_KA:
         return out
@@ -528,7 +601,7 @@ def compute_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot:
             if now - since > PROVISIONAL_KA_MAX_HOURS * 3600.0 or since > now + KEEPALIVE_FUTURE_S:
                 continue
             n = _provisional_ok(s, live, snapshot.block, opened.get(s.coldkey, 0))
-            if n is None:
+            if n is None or not _big_ok(s, track_id, now):
                 continue
             cb = n.commitment_block if isinstance(n.commitment_block, int) and n.commitment_block > 0 else sys.maxsize
             cands.append((cb, n.uid, s.key, n))
@@ -549,6 +622,7 @@ def _no_base(sub: ST.Submission, detail: str = "") -> str:
 class _Prepared:
     def __init__(self, sub: ST.Submission, path: str, weight_bytes: int):
         self.sub, self.path, self.weight_bytes = sub, path, weight_bytes
+        self.joint = False
         self.preflight_failure = False
         self.model_specific_failure = False
         self.infra_failure = False  # the last _serve failed for a host reason (docker, socket), not the model's
@@ -563,14 +637,16 @@ class SpecEvaluator:
         """``base_fetcher``: downloads missing declared bases (spec/bases.py). By default only the production setup (no
         injected ``fetcher``, ``base_dir`` set, ``base_fetch`` on) gets one; tests pass their own with a fake hub."""
         self.cfg = cfg
-        self.fetcher = fetcher or F.HfFetcher()
+        self._free_bytes = free_bytes or (lambda path: shutil.disk_usage(path).free)
+        self.fetcher = fetcher or F.HfFetcher(min_free_bytes=cfg.min_free_bytes, free_bytes=self._free_bytes)
         self.backend_factory = backend_factory or self._docker_backend
         self.base_provider = base_provider or C.dir_base_provider(cfg.base_dir)
         if base_fetcher is None and fetcher is None and cfg.base_dir and cfg.base_fetch:
             base_fetcher = B.BaseFetcher.from_config(cfg)
         self.base_fetcher = base_fetcher
+        if base_fetcher is not None:
+            base_fetcher.in_use = self._bases_in_use
         self.clock = clock
-        self._free_bytes = free_bytes or (lambda path: shutil.disk_usage(path).free)
         self.seed_source = seed_source or (lambda track, block: int.from_bytes(
             hashlib.sha256(f"{track}|{block}|{os.urandom(16).hex()}".encode()).digest()[:8], "big"))
         self.state = ST.load(cfg.state_path)
@@ -583,6 +659,7 @@ class SpecEvaluator:
         self._probes_halted = False    # a hub infrastructure error (429, 5xx, timeout) ends this cycle's probing
         self._retry_tracks: set[str] = set()
         self._host_failed: set[str] = set()
+        self._disk_wait = False                  # a download did not fit the free-space floor: no further download this cycle
         self._oversize_used = False
         self._gmed_warned: set[str] = set()      # tracks whose missing G_med was logged in this cycle (binding mode)
         self._track_cap: int | None = None       # this track's share of the cycle's budget (None = all that is left)
@@ -602,6 +679,10 @@ class SpecEvaluator:
             now = self.clock()
             if self.base_fetcher is not None:
                 self.base_fetcher.new_cycle()
+            warning = self.cfg.budget_warning(now)
+            if warning:
+                log.warning(warning)
+            self._disk_wait = False
             active = self.cfg.active_tracks(now)
             self._pools.clear()
             self._cycle_prepared.clear()
@@ -611,8 +692,12 @@ class SpecEvaluator:
             self._retry_tracks.clear()
             self._oversize_used = False
             self._gmed_warned.clear()
-            for tdef in active:
-                self._sync(tdef, snapshot, now)
+            for tdef in self.cfg.tracks:
+                if tdef.track_id == "generalist" and (split.GENERALIST_COMMIT_FROM_UTC is None
+                        or now < split.GENERALIST_COMMIT_FROM_UTC.timestamp()):
+                    continue
+                if tdef in active or (tdef.track_id == "generalist" and now < tdef.start_ts):
+                    self._sync(tdef, snapshot, now)
             for tdef in active:
                 try:
                     await self._retry_waiting(tdef, snapshot, now)
@@ -681,6 +766,11 @@ class SpecEvaluator:
         return compute_keepalive(self.state, [t.track_id for t in active], snapshot,
                                  {t.track_id: self._entry_floor(t) for t in active}, now=self.clock())
 
+    def legacy(self, snapshot: Snapshot) -> dict[str, list[tuple[int, bool]]]:
+        """Leaders of the ended DF/RA tracks from this evaluator's state (``legacy_leaders``); the window is checked by
+        the share layer."""
+        return legacy_leaders(self.state, split.LEGACY_KA_TRACKS, snapshot)
+
     def provisional(self, active: Sequence[C.TrackDef], snapshot: Snapshot) -> dict[str, list[int]]:
         ids = [t.track_id for t in active]
         now = self.clock()
@@ -722,7 +812,7 @@ class SpecEvaluator:
                                 revision=c.revision, first_seen_block=snap.block, first_seen_ts=now)
             ts.submissions[key] = sub
             ts.log(now, f"new submission uid {n.uid} {c.repo}@{c.revision[:8]}")
-            why = self._budget_violation(sub, now)
+            why = self._budget_violation(sub, now) if tdef.track_id != "generalist" else ""
             if why:
                 sub.status, sub.reason = ST.REJECTED, why
         for key, sub in ts.submissions.items():
@@ -737,18 +827,36 @@ class SpecEvaluator:
                                   else "changed")
             sub.status, sub.reason = ST.WITHDRAWN, "commitment changed or hotkey left"
             ts.log(now, f"withdrawn {key[:12]}")
+        if tdef.track_id == "generalist" and now >= tdef.start_ts:
+            # Admit pre-commitments only at opening, in observed order. Unadmitted peers cannot
+            # consume each other's budget; pre-opening commitments never consume DF/RA's budget.
+            for sub in sorted(ts.submissions.values(), key=lambda s: (s.first_seen_block, s.first_seen_ts, s.key)):
+                if sub.status == ST.QUEUED and not sub.generalist_budget_checked:
+                    why = self._budget_violation(sub, now)
+                    sub.generalist_budget_checked = True
+                    if why:
+                        sub.status, sub.reason = ST.REJECTED, why
         if ts.champion and ts.submissions[ts.champion].status != ST.CHAMPION:
             ts.champion = ""
 
     def _budget_violation(self, sub: ST.Submission, now: float) -> str:
         """docs/SPECIALIST-TRACKS.md: at most 2 open submissions per coldkey and track, 4 new per coldkey per 7 days."""
+        generalist = sub.track_id == "generalist"
+        if generalist and now < split.GENERALIST_START_UTC.timestamp():
+            return ""
         ts = self.state.track(sub.track_id)
         open_ = [s for s in ts.submissions.values()
-                 if s is not sub and s.coldkey == sub.coldkey and s.status in (ST.QUEUED, ST.PENDING_CONFIRM, ST.PENDING_VERIFY)]
+                 if s is not sub and s.coldkey == sub.coldkey
+                 and (not generalist or s.generalist_budget_checked)
+                 and s.status in (ST.QUEUED, ST.PENDING_CONFIRM, ST.PENDING_VERIFY)]
         if len(open_) >= C.MAX_OPEN_PER_COLDKEY_TRACK:
             return f"coldkey already has {C.MAX_OPEN_PER_COLDKEY_TRACK} open submissions in this track"
         week = [s for t in self.state.tracks.values() for s in t.submissions.values()
-                if s is not sub and s.coldkey == sub.coldkey and s.first_seen_ts > now - 7 * 86400 and s.status != ST.REJECTED]
+                if s is not sub and s.coldkey == sub.coldkey and s.status != ST.REJECTED
+                and (s.track_id == "generalist") == generalist
+                and (not generalist or s.generalist_budget_checked)
+                and (max(s.first_seen_ts, split.GENERALIST_START_UTC.timestamp()) if generalist
+                     else s.first_seen_ts) > now - 7 * 86400]
         if len(week) >= C.MAX_NEW_PER_COLDKEY_WEEK:
             return f"coldkey already made {C.MAX_NEW_PER_COLDKEY_WEEK} submissions in 7 days"
         return ""
@@ -764,12 +872,55 @@ class SpecEvaluator:
     def _docker_backend(self, model_dir: str, weight_bytes: int) -> AsyncContextManager[Backend]:
         return VllmDockerBackend(model_dir, weight_bytes, gpu_device=self.cfg.gpu_device, gpu_total_gb=self.cfg.gpu_total_gb,
                                  budget_gb=self.cfg.gpu_budget_gb, image=self.cfg.image, work_dir=self.cfg.work_dir,
-                                 user=self.cfg.user, runtime=self.cfg.docker_runtime, cpus=self.cfg.cpus)
+                                 user=self.cfg.user, runtime=self.cfg.docker_runtime, cpus=self.cfg.cpus,
+                                 memory=self.cfg.container_mem, startup_timeout_s=self.cfg.startup_timeout_s)
+
+    def _joint_backend(self, model_dir: str, weight_bytes: int) -> AsyncContextManager[Backend]:
+        from .joint_docker import JointDockerBackend
+        return JointDockerBackend(model_dir, weight_bytes, gpu_device=self.cfg.gpu_device,
+                                  gpu_total_gb=self.cfg.gpu_total_gb, budget_gb=self.cfg.gpu_budget_gb,
+                                  image=self.cfg.image, work_dir=self.cfg.work_dir, user=self.cfg.user,
+                                  runtime=self.cfg.docker_runtime, cpus=self.cfg.cpus,
+                                  memory=self.cfg.container_mem, startup_timeout_s=self.cfg.startup_timeout_s)
 
     def _pool(self, category: str) -> list[dict]:
         if category not in self._pools:
-            self._pools[category] = S.load_pool(self.cfg.sealed_dir, category)
+            rows = S.load_pool(self.cfg.sealed_dir, category)
+            if category == "generalist":
+                known = self.state.track(category).item_categories
+                if any(r["id"] in known and known[r["id"]] != r["category"] for r in rows):
+                    raise S.SampleError("generalist item category changed after use")
+            self._pools[category] = rows
         return self._pools[category]
+
+    @staticmethod
+    def _category_diagnostics(sub: ST.Submission, draw: ST.Draw, items: Sequence[SC.ItemScore]) -> None:
+        if draw.draw_id in sub.category_draws:
+            return
+        per_draw: dict[str, Any] = {}
+        for category in S.GENERALIST_CATEGORIES:
+            part = [it for it in items if draw.item_categories.get(it.item_id) == category]
+            if not part:
+                continue
+            score = SC.score_items(part)
+            per_draw[category] = score.as_dict()
+            pooled = sub.category_pooled.setdefault(category, {"n": 0, "primitives": {}})
+            pooled["n"] += len(part)
+            for it in part:
+                stats = pooled["primitives"].setdefault(it.kind, {"n": 0, "valid": 0, "correct": 0,
+                    "chance": 0.0, "err": 0.0, "brier": 0.0, "brier_uniform": 0.0})
+                for name in stats:
+                    stats[name] += 1 if name == "n" else getattr(it, name)
+            # The existing scorer consumes per-primitive weighted means; reconstruct its arrays from the sums.
+            import numpy as np
+            counts = np.array([s["n"] for s in pooled["primitives"].values()], dtype=float)
+            arrays = {kind: {"idx": np.array([i]), **{name: np.array([s[source] / s["n"]])
+                      for name, source in (("correct", "correct"), ("chance", "chance"), ("err", "err"),
+                                           ("brier", "brier"), ("bu", "brier_uniform"), ("valid", "valid"))}}
+                      for i, (kind, s) in enumerate(pooled["primitives"].items())}
+            competence, calibration, _ = SC._score_weighted(arrays, counts)
+            pooled["score"] = SC.combine(competence, calibration)
+        sub.category_draws[draw.draw_id] = per_draw
 
     def _entry_floor(self, tdef: C.TrackDef) -> float:
         """The release constant ``competition_split.TRACK_ENTRY_FLOOR`` (None = none) or the configured floor, if higher."""
@@ -826,9 +977,12 @@ class SpecEvaluator:
             # its record (and a later carry-over) is not touched
             sub.reason = f"withdrawn; parent not fetchable: {exc}"[:300]
             return None
+        preopening = sub.track_id == "generalist" and sub.first_seen_ts < split.GENERALIST_START_UTC.timestamp()
+        publish_expired = (now > split.GENERALIST_START_UTC.timestamp() + 24 * 3600 if preopening
+                           else snap.block > sub.first_seen_block + C.PUBLISH_DEADLINE_BLOCKS)
         rejects = (exc.kind == "rejected" or (exc.kind == "unavailable" and
                    ((sub.hash_named and sub.unavailable_fetches + 1 >= C.MAX_ATTEMPTS) or
-                    (not sub.hash_named and snap.block > sub.first_seen_block + C.PUBLISH_DEADLINE_BLOCKS))))
+                    (not sub.hash_named and publish_expired))))
         if rejects and self._cycle_fetch_rejections.get(tdef.track_id, 0) >= MAX_SKIPS_PER_CYCLE:
             sub.reason, sub.wait_kind = f"waiting for the repo: {exc}"[:300], ST.WAIT_MINER
             return None
@@ -848,8 +1002,9 @@ class SpecEvaluator:
                 ts.log(now, f"rejected {sub.key[:12]}: {sub.reason}")
             else:
                 sub.reason, sub.wait_kind = f"waiting for the repo: {exc}"[:300], ST.WAIT_MINER
-        elif not sub.hash_named and snap.block > sub.first_seen_block + C.PUBLISH_DEADLINE_BLOCKS:
-            sub.status, sub.reason = ST.REJECTED, f"not available within {C.PUBLISH_DEADLINE_BLOCKS} blocks: {exc}"[:300]
+        elif not sub.hash_named and publish_expired:
+            deadline = "24 hours after generalist opening" if preopening else f"{C.PUBLISH_DEADLINE_BLOCKS} blocks"
+            sub.status, sub.reason = ST.REJECTED, f"not available within {deadline}: {exc}"[:300]
             ts.log(now, f"expired {sub.key[:12]}")
         else:
             # Missing/private revisions are skipped and re-checked, never serve-failure strikes.
@@ -865,6 +1020,7 @@ class SpecEvaluator:
         commitment = SpecCommitment(sub.track_id, sub.repo, sub.revision)
         kept = self._kept(sub, dest)
         if kept is not None:
+            self._backfill_params(sub, dest)
             if sub.delta_checked:
                 return kept
             # kept by a release whose base check could pass without the base: check it before it is served again
@@ -874,9 +1030,12 @@ class SpecEvaluator:
         if (sub.reason.startswith(WAITING_FOR_REPO) and sub.last_fetch_ts is not None
                 and now - sub.last_fetch_ts < C.RETRY_UNAVAILABLE_S):
             return None
+        if self._disk_wait:
+            return None
         sub.last_fetch_ts = now
         try:
-            ins = await self.fetcher.fetch(commitment, dest, category=tdef.category, hotkey=sub.hotkey, rules=self.cfg.rules)
+            ins = await self.fetcher.fetch(commitment, dest, category=tdef.category, hotkey=sub.hotkey,
+                                          rules=self.cfg.rules_for(now, tdef.category))
         except OSError as exc:
             # A full/read-only filesystem affects the host: abandon this track rather than blaming its entries.
             if exc.errno in (errno.ENOSPC, errno.EDQUOT, errno.EROFS):
@@ -887,6 +1046,9 @@ class SpecEvaluator:
             log.warning("fetch %s deferred (host I/O): %s", sub.key[:12], exc)
             return None
         except F.FetchError as exc:
+            if isinstance(exc, F.DiskLow):
+                self._disk_wait = True
+                log.warning("track %s: %s waits for this host, no further download this cycle: %s", tdef.track_id, sub.key[:12], exc)
             return self._fetch_failure(tdef, sub, snap, now, exc)
         sub.unavailable_fetches = 0
         sub.wait_kind = ""
@@ -900,6 +1062,8 @@ class SpecEvaluator:
             sub.status, sub.reason = ST.REJECTED, "fetched again: other weights than at its first check"
             ts.log(now, f"rejected {sub.key[:12]}: {sub.reason}")
             return None
+        if sub.params is None:
+            sub.params = int(ins.hashes.params)
         with open(os.path.join(dest, MARKER), "w") as fh:
             json.dump({"hash": ins.hashes.named, "weight_bytes": ins.hashes.weight_bytes, "files": ins.facts.files}, fh)
         if sub.status == ST.WITHDRAWN:
@@ -913,6 +1077,7 @@ class SpecEvaluator:
             # a pending entry fetched again with the weights of its first check: as if its files had been kept (``_kept``)
             return _Prepared(sub, dest, ins.hashes.weight_bytes)
         sub.hash_named, sub.hash_unnamed = ins.hashes.named, ins.hashes.unnamed
+        sub.hash_backbone = ins.hashes.backbone if sub.track_id == "generalist" else ""
         sub.base_model = str((ins.facts.manifest or {}).get("base_model", ""))
         await self._fetch_base(sub)
         if not await self._refresh_sketches(tdef, ts, sub):
@@ -969,6 +1134,11 @@ class SpecEvaluator:
         shutil.rmtree(p.path, ignore_errors=True)
         return None
 
+    def _bases_in_use(self) -> set[str]:
+        """Declared bases the base cache must keep: those of every submission that is not rejected or withdrawn, and the preseed."""
+        return {s.base_model for ts in self.state.tracks.values() for s in ts.submissions.values()
+                if s.base_model and s.status not in (ST.REJECTED, ST.WITHDRAWN)} | set(self.cfg.base_preseed)
+
     async def _fetch_base(self, sub: ST.Submission) -> None:
         """Download the declared base of ``sub`` if it is missing here and the base fetcher may fetch it now."""
         if self.base_fetcher is not None and sub.base_model and self.base_provider(sub.base_model) is None:
@@ -1010,13 +1180,41 @@ class SpecEvaluator:
         return None
 
     @staticmethod
+    def _backfill_params(sub: ST.Submission, dest: str) -> None:
+        """An entry kept from before 1.2.0rc9.post6 has no recorded parameter count: read it from the safetensors headers."""
+        if sub.params is None:
+            try:
+                sub.params = int(T.param_count(T.read_model(dest)))
+            except (T.SafetensorsError, OSError, ValueError) as exc:
+                # stays None on purpose (unknown counts as small, _big_ok); the next successful read fills it in
+                log.warning("could not read the parameter count of %s from %s: %s", sub.key[:12], dest, exc)
+
+    @staticmethod
     def _earlier(a: ST.Submission, b: ST.Submission) -> bool:
         return (a.first_seen_block, a.uid, a.key) < (b.first_seen_block, b.uid, b.key)
+
+    @staticmethod
+    def _foreign_original(other: ST.Submission, sub: ST.Submission) -> bool:
+        """``other`` is a withdrawn (pruned or replaced) commitment of somebody else: another coldkey and another repo.
+        Its weights stay in the copy registry (exact hashes and the near-duplicate sketch), so a copy of a pruned
+        entrant's work is linked to it (``derived_from``) instead of passing as new work (reg-sniping review 20 Oct)."""
+        return other.status == ST.WITHDRAWN and other.coldkey != sub.coldkey and other.repo != sub.repo
 
     def _copy_check(self, ts: ST.TrackState, sub: ST.Submission, model_dir: str) -> tuple[str, str]:
         """Exact tensor hashes (re-sharding and renaming proof), then the near-duplicate check.
 
         Returns ``(verdict, reason)``: verdict "" = passed, ``ST.REJECTED`` or ``ST.PENDING_VERIFY``."""
+        if sub.track_id == "generalist":
+            # Backfill retained pre-upgrade champions before comparing a new readout head.
+            for other in ts.submissions.values():
+                if other.hash_backbone or not other.hash_named:
+                    continue
+                dest = self._model_dir(other)
+                if self._kept(other, dest) is not None:
+                    hashes = T.canonical_hashes(dest)
+                    if hashes.named == other.hash_named:
+                        other.hash_backbone = hashes.backbone
+                        ts.hashes.setdefault(hashes.backbone, other.key)
         why = self._exact_check(ts, sub)
         if why:
             return ST.REJECTED, why
@@ -1025,7 +1223,7 @@ class SpecEvaluator:
     def _exact_check(self, ts: ST.TrackState, sub: ST.Submission) -> str:
         """Exact tensor hashes against every earlier commitment of the track. Returns a rejection reason. A withdrawn
         commitment of the same coldkey or HF repo does not count (control proven by the bound manifest)."""
-        for h in (sub.hash_named, sub.hash_unnamed):
+        for h in filter(None, (sub.hash_named, sub.hash_unnamed, sub.hash_backbone)):
             owner_key = ts.hashes.get(h)
             owner = ts.submissions.get(owner_key) if owner_key else None
             if owner is None or owner is sub:
@@ -1037,13 +1235,19 @@ class SpecEvaluator:
             # a carried recommit (rule 17 Oct) is as old as its pruned original: an exact copy committed during the prune
             # window but fetched after the recommit must not take its hash (critic delta 2, D1)
             first = (ts.submissions.get(owner.carried_from) if owner.carried_from else None) or owner
-            if self._earlier(first, sub) or owner.status in (ST.CHAMPION, ST.FORMER):
+            if self._earlier(first, sub) or (owner.status in (ST.CHAMPION, ST.FORMER)
+                                             and (owner.coldkey == sub.coldkey or sub.first_seen_block >= first.first_seen_block)):
                 return f"identical tensors to an earlier commitment (uid {owner.uid})"
+            # ``sub`` is the earlier commitment of another coldkey (first seen in a strictly earlier sync, never by the uid
+            # tie-break), checked later (e.g. queued behind the copy because the copier's immunity ended first): the copy
+            # is rejected even if it was crowned (reg-sniping review 20 Oct)
             owner.status, owner.reason = ST.REJECTED, f"identical tensors to an earlier commitment (uid {sub.uid})"
             if ts.champion == owner.key:
                 ts.champion = ""
         ts.hashes[sub.hash_named] = sub.key
         ts.hashes[sub.hash_unnamed] = sub.key
+        if sub.hash_backbone:
+            ts.hashes[sub.hash_backbone] = sub.key
         return ""
 
     def _sketch_current(self, sub: ST.Submission) -> bool:
@@ -1067,9 +1271,9 @@ class SpecEvaluator:
         base_id = self._base_identity(base_dir)
         loop = asyncio.get_running_loop()
         for other in sorted(ts.submissions.values(), key=lambda s: (s.first_seen_block, s.uid, s.key)):
-            if (other is sub or not self._earlier(other, sub) or not other.delta_checked
-                    or other.status in (ST.REJECTED, ST.WITHDRAWN) or self._resolved_base(other) != base_id
-                    or self._sketch_current(other)):
+            if (other is sub or not self._earlier(other, sub) or not other.delta_checked or other.status == ST.REJECTED
+                    or (other.status == ST.WITHDRAWN and not self._foreign_original(other, sub))
+                    or self._resolved_base(other) != base_id or self._sketch_current(other)):
                 continue
             dest = self._model_dir(other)
             try:
@@ -1082,7 +1286,8 @@ class SpecEvaluator:
                         return False
                     try:
                         ins = await self.fetcher.fetch(SpecCommitment(other.track_id, other.repo, other.revision), dest,
-                                                       category=tdef.category, hotkey=other.hotkey, rules=self.cfg.rules)
+                                                       category=tdef.category, hotkey=other.hotkey,
+                                                       rules=self.cfg.rules_for(self.clock(), tdef.category))
                     except F.FetchError as exc:
                         log.warning("track %s: sketch of %s cannot be renewed: %s", tdef.track_id, other.key[:12], exc)
                         continue
@@ -1202,8 +1407,10 @@ class SpecEvaluator:
         if not sk.changed:
             return ST.REJECTED, "weights are identical to the declared base model"
         for other in sorted(ts.submissions.values(), key=lambda s: (s.first_seen_block, s.uid, s.key)):
-            if other is sub or other.status in (ST.REJECTED, ST.WITHDRAWN) or self._resolved_base(other) != sub.base_id:
+            if other is sub or other.status == ST.REJECTED or self._resolved_base(other) != sub.base_id:
                 continue
+            if other.status == ST.WITHDRAWN and not self._foreign_original(other, sub):
+                continue    # the author's own withdrawn model (re-registration, carry-over): not a copy
             if not self._earlier(other, sub) or not self._sketch_current(other):
                 continue    # another seed or rule samples other positions: not comparable (_refresh_sketches renews it)
             stats = T.compare_sketches(T.load_sketch(self._sketch_path(other)), sketch)
@@ -1211,6 +1418,12 @@ class SpecEvaluator:
                 sub.derived_from, sub.derived_how = other.key, "weights"
                 ts.log(self.clock(), f"{sub.key[:12]} is derived from {other.key[:12]} (cos {stats.cosine:.3f}, rel {stats.relative_l2:.3f}"
                                        + (f", alpha {stats.alpha:.3f})" if self.cfg.nc_r3 else ")"))
+                if other.status == ST.WITHDRAWN:
+                    # a copy of a withdrawn (pruned or replaced) entrant's work: its author cannot defend it as a parent
+                    # (the repo may be gone, the hotkey is), so the copy is refused, not crowned (reg-sniping review 20 Oct)
+                    T.save_sketch(sketch, self._sketch_path(sub), sk.seed_id)
+                    return ST.REJECTED, (f"near-copy of the weights of an earlier, withdrawn commitment (uid {other.uid}, "
+                                         f"cos {stats.cosine:.3f}, rel {stats.relative_l2:.3f})")
                 break
         T.save_sketch(sketch, self._sketch_path(sub), sk.seed_id)
         return "", ""
@@ -1218,17 +1431,30 @@ class SpecEvaluator:
     # ------------------------------------------------------------------ one group
 
     async def _serve(self, p: _Prepared, rows: list[dict], now: float) -> list[SC.ItemScore] | None:
+        p.joint = False
         p.infra_failure = p.preflight_failure = p.model_specific_failure = False
         p.sub.last_eval_ts = now
         self.state.eval_times.append(now)
         try:
-            async with self.backend_factory(p.path, p.weight_bytes) as backend:
+            factory = self.backend_factory
+            # Explicit category/time gating; custom test backends retain their original two-argument contract.
+            if factory == self._docker_backend:
+                from .joint import detect
+                try:
+                    info = detect(p.path, category=p.sub.track_id, now_ts=now)
+                except (ValueError, OSError, TypeError) as exc:
+                    raise ModelUnavailable(f"invalid config: joint readout: {exc}") from exc
+                if info is not None:
+                    factory = self._joint_backend
+                    p.joint = True
+            async with factory(p.path, p.weight_bytes) as backend:
                 probs = await asyncio.wait_for(backend.decide(rows), SERVE_TIMEOUT_S)
         except (ModelUnavailable, asyncio.TimeoutError, OSError) as exc:
+            from .joint_docker import JointModelUnavailable
             p.infra_failure = isinstance(exc, (HostUnavailable, OSError, asyncio.TimeoutError))
             p.preflight_failure = isinstance(exc, GPUPreflightUnavailable)
             p.model_specific_failure = (not p.infra_failure
-                                        and (isinstance(exc, ModelBudgetOOM) or model_specific_failure(str(exc))))
+                                        and (isinstance(exc, (ModelBudgetOOM, JointModelUnavailable)) or model_specific_failure(str(exc))))
             log.warning("serving %s failed%s: %s", p.sub.key[:12], " (host problem, not counted)" if p.infra_failure else "", exc)
             p.sub.reason = f"could not be served: {exc}"[:300]
             return None
@@ -1237,10 +1463,15 @@ class SpecEvaluator:
         return items
 
     @staticmethod
-    def _serve_round(ts: ST.TrackState, sub: ST.Submission, outcome: str, now: float) -> None:
+    def _serve_round(ts: ST.TrackState, sub: ST.Submission, outcome: str, now: float, *, joint: bool = False) -> None:
         """One verdict per scheduled round; retries share the verdict. Old consecutive counters are not migrated."""
         if sub.status == ST.WITHDRAWN:
             return
+        if joint:
+            sub.joint_infra_outcomes = sub.joint_infra_outcomes + 1 if outcome == "infra" else 0
+            if outcome == "infra" and sub.joint_infra_outcomes > 3:
+                outcome = "model"
+                ts.log(now, f"joint {sub.key[:12]} exceeded three consecutive infrastructure outcomes; model strike")
         sub.serve_log.append([now, outcome])
         del sub.serve_log[:-C.START_FAIL_LOG_SIZE]
         sub.attempts = sum(entry[1] == "model" for entry in sub.serve_log[-C.START_FAIL_WINDOW:])
@@ -1325,6 +1556,11 @@ class SpecEvaluator:
             sub.reason, sub.wait_kind = "", ""
 
     async def _run_track(self, tdef: C.TrackDef, snap: Snapshot, now: float) -> None:
+        if tdef.track_id == "generalist" and (
+                split.GENERALIST_G_MED is None or not math.isfinite(self._entry_floor(tdef)) or
+                not math.isfinite(self.cfg.g_med.get("generalist", math.inf)) or self.cfg.x_tier_mode != "binding"):
+            log.warning("generalist waits for release calibration: finite entry floor, frozen G_med and binding mode required")
+            return
         ts = self.state.track(tdef.track_id)
         champ = ts.submissions.get(ts.champion)
         if champ is not None:
@@ -1407,6 +1643,11 @@ class SpecEvaluator:
                 # prepared as queued, restored as pending by the carry-over rule (17 Oct): its confirmation is selected on
                 # the next cycle, it never gets a second first draw
                 continue
+            if champ is not None and champ.status == ST.REJECTED and not ref:
+                # this entry's exact check found the champion to be a copy of it (reg-sniping review 20 Oct): the track
+                # is vacant from now on, the copy is not served as the incumbent
+                ts.log(now, f"champion {champ.key[:12]} rejected: {champ.reason[:100]}")
+                ts.champion, champ = "", None
             if champ is not None and not ref:
                 incumbent_tried = champ.key in self._cycle_prepared
                 cp = await self._prepare_cycle(tdef, champ, snap, now)
@@ -1487,7 +1728,8 @@ class SpecEvaluator:
         seed = self.seed_source(tdef.track_id, snap.block)
         try:
             rows, fresh = S.draw(self._pool(tdef.category), n=self.cfg.sample_size, seed=seed, use_counts=ts.used, exclude=exclude,
-                                 x_mode=self._x_mode_for(tdef.track_id), x_share=self.cfg.x_tier_share)
+                                 x_mode=self._x_mode_for(tdef.track_id), x_share=self.cfg.x_tier_share,
+                                 generalist=tdef.track_id == "generalist")
         except S.SampleError as exc:
             log.warning("track %s: no draw this cycle: %s", tdef.track_id, exc)
             ts.log(now, f"no draw: {exc}; refill the sealed pool")
@@ -1534,7 +1776,7 @@ class SpecEvaluator:
         host_problem = len(attempted) > 1 and len(failed) == len(attempted)
         for p in attempted:
             outcome = "ok" if p.sub.key in results else ("infra" if host_problem or p.infra_failure else "model")
-            self._serve_round(ts, p.sub, outcome, now)
+            self._serve_round(ts, p.sub, outcome, now, joint=p.joint)
         if host_problem:
             ts.log(now, "no model of the group could be served: host problem, nothing counted")
             self._host_failed.add(tdef.track_id)
@@ -1558,6 +1800,13 @@ class SpecEvaluator:
     def _record_draw(self, ts: ST.TrackState, pool: list[dict], rows: list[dict], fresh: bool, seed: int, snap: Snapshot, now: float) -> str:
         draw_id = hashlib.sha256(f"{ts.track_id}|{seed}".encode()).hexdigest()[:16]
         ts.draws[draw_id] = ST.Draw(draw_id, now, snap.block, seed, [r["id"] for r in rows], fresh)
+        if ts.track_id == "generalist":
+            categories = {r["id"]: r["category"] for r in rows}
+            ts.draws[draw_id].item_categories = categories
+            ts.item_categories.update(categories)
+            shortfalls = S.generalist_shortfalls(rows, self._x_mode_for(ts.track_id), self.cfg.x_tier_share)
+            ts.draws[draw_id].x_shortfall = {c: counts[S.X_TIER] for c, counts in shortfalls.items()
+                                              if counts.get(S.X_TIER, 0)}
         for r in rows:
             ts.used[r["id"]] = ts.used.get(r["id"], 0) + 1
         self._prune_draws(ts, now)
@@ -1610,6 +1859,8 @@ class SpecEvaluator:
         rest = [d for d in sorted(ts.draws.values(), key=lambda d: d.ts) if d.draw_id not in needed]
         for old in rest[:-MAX_UNREFERENCED_DRAWS]:
             ts.draws.pop(old.draw_id, None)
+        for sub in ts.submissions.values():
+            sub.category_draws = {d: scores for d, scores in sub.category_draws.items() if d in ts.draws}
 
     def _behaviour_twins(self, ts: ST.TrackState, served: list[_Prepared], challengers: list[_Prepared], rows: list[dict],
                          draw_id: str, now: float) -> dict[str, list[str]]:
@@ -1661,6 +1912,9 @@ class SpecEvaluator:
                 twins: Mapping[str, Sequence[str]] | None = None, paths: Mapping[str, str] | None = None) -> None:
         """``twins``: per challenger, the earlier submissions it answers like on this draw (``_behaviour_twins``).
         ``paths``: the served model directories (near-champion rule: a challenger on another base is sketched again)."""
+        if tdef.track_id == "generalist":
+            for key, items in results.items():
+                self._category_diagnostics(ts.submissions[key], ts.draws[draw_id], items)
         twins = twins or {}
         v3 = self.cfg.v3_decisions
         # cross-author items (stage 2 plumbing, off unless the pool has the tier and X_TIER_MODE says so): scored apart; in
@@ -1823,7 +2077,7 @@ class SpecEvaluator:
             if ok and current is None:
                 # vacant track (1.2.0rc7): not crowned yet; the cohort playoff decides (``_cohort_step``)
                 ch.confirm_draw, ch.confirm_score = draw_id, ch.score
-                _, open_ = self._cohort(ts, ch.first_seen_block)
+                _, open_ = self._cohort(ts, self._cohort_block(ch))
                 ts.log(now, f"{ch.key[:12]} passed the confirmation draw ({ch.score:.2f}); waits for its cohort "
                             f"(first seen by block {ch.first_seen_block}, {len(open_)} entries still open)")
                 continue
@@ -2018,14 +2272,20 @@ class SpecEvaluator:
 
     # ------------------------------------------------------- first champion: cohort playoff
 
+    @staticmethod
+    def _cohort_block(s: ST.Submission) -> int:
+        if s.track_id == "generalist" and s.first_seen_ts < split.GENERALIST_START_UTC.timestamp():
+            return 0   # every pre-opening commitment belongs to the same first-champion playoff
+        return s.first_seen_block
+
     def _cohort(self, ts: ST.TrackState, block: int) -> tuple[list[ST.Submission], list[ST.Submission]]:
         """The cohort of ``block`` on a vacant track: (its entries that passed their confirmation and wait for the playoff,
         best confirmation score first; the entries first seen in that block or earlier that are still open)."""
         ready = [s for s in ts.submissions.values()
-                 if s.status == ST.PENDING_CONFIRM and s.confirm_draw and s.first_seen_block == block]
+                 if s.status == ST.PENDING_CONFIRM and s.confirm_draw and self._cohort_block(s) == block]
         ready.sort(key=lambda s: (-(s.confirm_score if s.confirm_score is not None else -math.inf),
                                   s.first_seen_block, s.uid, s.key))
-        open_ = [s for s in ts.submissions.values() if s.first_seen_block <= block and self._cohort_open(ts, s)]
+        open_ = [s for s in ts.submissions.values() if self._cohort_block(s) <= block and self._cohort_open(ts, s)]
         return ready, sorted(open_, key=lambda s: (s.first_seen_block, s.uid, s.key))
 
     @staticmethod
@@ -2049,7 +2309,7 @@ class SpecEvaluator:
         if ts.champion:
             self._release_waiting(ts, now, "")
             return []
-        blocks = [s.first_seen_block for s in ts.submissions.values() if s.status == ST.PENDING_CONFIRM and s.confirm_draw]
+        blocks = [self._cohort_block(s) for s in ts.submissions.values() if s.status == ST.PENDING_CONFIRM and s.confirm_draw]
         if not blocks:
             return []
         block = min(blocks)
@@ -2155,7 +2415,7 @@ class SpecEvaluator:
         host_problem = len(prepared) > 1 and len(failed) == len(prepared)
         for p in prepared:
             outcome = "ok" if p.sub.key in results else ("infra" if host_problem or p.infra_failure else "model")
-            self._serve_round(ts, p.sub, outcome, now)
+            self._serve_round(ts, p.sub, outcome, now, joint=p.joint)
         if preparation_infra or host_problem or any(p.infra_failure for p in failed):
             if not preparation_infra:
                 ts.playoff_aborts += 1
@@ -2224,7 +2484,7 @@ class SpecEvaluator:
         host_problem = len(failed) == len(group)
         for p in group:
             outcome = "ok" if p.sub.key in extra else ("infra" if host_problem or p.infra_failure else "model")
-            self._serve_round(ts, p.sub, outcome, now)
+            self._serve_round(ts, p.sub, outcome, now, joint=p.joint)
         if failed:
             ts.log(now, "playoff extension abandoned: a model could not be served; decided on the first draw")
             return {}, ""
@@ -2238,8 +2498,8 @@ class SpecEvaluator:
         """Draw arguments of a playoff draw: cross-author items are part of it in binding mode only (as before, no other
         mode puts them into a playoff draw)."""
         if self._x_mode_for(tdef.track_id) != "binding":
-            return {}
-        return {"x_mode": "binding", "x_share": self.cfg.x_tier_share}
+            return {"generalist": tdef.track_id == "generalist"}
+        return {"x_mode": "binding", "x_share": self.cfg.x_tier_share, "generalist": tdef.track_id == "generalist"}
 
     @staticmethod
     def _tied_group(served: list[_Prepared], results: Mapping[str, Sequence[SC.ItemScore]], total: Mapping[str, float],
@@ -2284,6 +2544,11 @@ class SpecEvaluator:
         total1 = dict(total)
         for k, items in extra.items():
             total[k] = (total1[k] + (SC.score_items(items).total - pen.get(k, 0.0))) / 2
+        if tdef.track_id == "generalist":
+            for s in field:
+                self._category_diagnostics(s, ts.draws[draw_id], results[s.key])
+                if s.key in extra:
+                    self._category_diagnostics(s, ts.draws[draw2], extra[s.key])
         floor = self._entry_floor(tdef)
         for s in field:
             np_, by_tier = nonproc_scores(results[s.key])

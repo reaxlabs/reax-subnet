@@ -19,7 +19,8 @@ from aiohttp import web
 
 from . import auth
 from .config import ConfigError, _bool, _float, _int, load_validator
-from .manifest import load_manifest, parse_commitment
+from . import elements
+from .manifest import load_manifest
 from .protocol import ProtocolError, _loads
 from .s1contract import ContractError, parse_decision
 from .s1protocol import MAX_DECISIONS, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES, S1_DECIDE_PATH, S1Request, parse_s1_response
@@ -150,26 +151,32 @@ class Router:
             snap = await asyncio.to_thread(self.chain.snapshot)
             scores, fresh = await asyncio.to_thread(self._read_scores)
             selected = {m: [] for m in self.cfg.models}
-            for n in snap.neurons:
-                role = parse_commitment(n.commitment)
-                if not role or role[0] not in self.manifests or role[1] != self.manifests[role[0]].manifest_id:
-                    continue
-                if (n.uid == snap.owner_uid or n.hotkey == self.hotkey or not n.ip or not n.port
-                        or not ip_allowed(n.ip, self.validator_cfg.allow_private_ips)):
-                    continue
-                score = scores.get(str(n.uid), {})
-                ema = score.get("ema")
-                if (score.get("hotkey") != n.hotkey or score.get("role") != f"{role[0]}:{role[1]}"
-                        or isinstance(ema, bool) or not isinstance(ema, (int, float))
-                        or not math.isfinite(ema) or not self.cfg.min_ema <= ema <= 1):
-                    continue
-                # Current state.py has only cumulative strikes. Future timestamp fields are honored.
-                struck = score.get("last_strike_at", score.get("last_strike", 0))
-                if (isinstance(struck, bool) or not isinstance(struck, (int, float))
-                        or not math.isfinite(struck) or (struck and time.time() - struck < 86400)):
-                    continue
-                selected[role[0]].append((n, float(ema)))
-                self.health.setdefault(n.hotkey, MinerHealth())
+            views = elements.role_views(snap)  # the inference element of single- and multi-model commitments
+            for n in views.inference.neurons:
+                for model, manifest_id in (elements.parse_inference(n.commitment) or {}).items():
+                    if model not in self.manifests or manifest_id != self.manifests[model].manifest_id:
+                        continue
+                    if (n.uid == snap.owner_uid or n.hotkey == self.hotkey or not n.ip or not n.port
+                            or not ip_allowed(n.ip, self.validator_cfg.allow_private_ips)):
+                        continue
+                    # A model slot lives at uid + SLOT_STRIDE x index; the s1-fast slot and state files from before
+                    # multi-model hotkeys keep the plain uid key (the role check keeps the models apart).
+                    role = f"{model}:{manifest_id}"
+                    score = scores.get(str(elements.slot_key(n.uid, model)))
+                    if score is None or score.get("role") != role:
+                        score = scores.get(str(n.uid), {})
+                    ema = score.get("ema")
+                    if (score.get("hotkey") != n.hotkey or score.get("role") != role
+                            or isinstance(ema, bool) or not isinstance(ema, (int, float))
+                            or not math.isfinite(ema) or not self.cfg.min_ema <= ema <= 1):
+                        continue
+                    # Current state.py has only cumulative strikes. Future timestamp fields are honored.
+                    struck = score.get("last_strike_at", score.get("last_strike", 0))
+                    if (isinstance(struck, bool) or not isinstance(struck, (int, float))
+                            or not math.isfinite(struck) or (struck and time.time() - struck < 86400)):
+                        continue
+                    selected[model].append((n, float(ema)))
+                    self.health.setdefault(n.hotkey, MinerHealth())
             self.miners, self.fresh_at = selected, fresh
         except Exception:
             log.warning("snapshot refresh outcome=unavailable")

@@ -71,12 +71,12 @@ def safe_endpoint(network: str) -> str:
     return f"{parts.scheme}://{parts.hostname}{port}"
 
 
-def _banner(role: str, common: CommonConfig, hotkey: str) -> None:
+def _banner(role: str, common: CommonConfig, hotkey: str, models: tuple[str, ...] = ()) -> None:
     protocol = PROTOCOL_S1 if common.mechanism == "s1" else PROTOCOL
     log.info(
         "REAX %s %s (mechanism %s, protocol %s, weights version %d) netuid=%d network=%s model=%s hotkey=%s",
         role, __version__, common.mechanism, protocol, WEIGHTS_VERSION_KEY, common.netuid,
-        safe_endpoint(common.network), common.model, hotkey,
+        safe_endpoint(common.network), ",".join(models) or common.model, hotkey,
     )
 
 
@@ -115,16 +115,18 @@ def _worker_backend(model: str):
     return make
 
 
-async def _multinode_backend(cfg):
-    """REAX_FEATURE_MULTINODE=1: the workers of REAX_WORKERS_FILE behind this hotkey (docs/DESIGN-MULTINODE.md)."""
+async def _multinode_backend(cfg, served=None):
+    """REAX_FEATURE_MULTINODE=1: the workers of one model's workers file behind this hotkey (docs/DESIGN-MULTINODE.md);
+    ``served`` = that model's ``MinerModel`` (default: the first)."""
     from .multinode import WorkersWatcher
     from .s1backends import PooledBackend
     from .selfcheck import check_backend_identity
 
-    model = cfg.common.model
+    served = served or cfg.served[0]
+    model = served.model
     make = _worker_backend(model)
     try:
-        pool = PooledBackend.from_workers(model, cfg.workers, make)
+        pool = PooledBackend.from_workers(model, served.workers, make)
     except ValueError as exc:
         sys.exit(f"configuration error: {exc}")
     reference = None
@@ -133,18 +135,41 @@ async def _multinode_backend(cfg):
 
         reference = S1HashBackend(model)  # development networks: workers run the hash test model
     pool.readmit_check = lambda b: check_backend_identity(b, model, reference_backend=reference)
-    pool.min_healthy = cfg.workers_min_healthy
-    healthy = await pool.startup(cfg.workers_min_healthy)
-    if healthy < cfg.workers_min_healthy:
-        sys.exit(f"refusing to start: {healthy} of {pool.size} workers passed the test decision and identity check, "
-                 f"REAX_WORKERS_MIN_HEALTHY is {cfg.workers_min_healthy} (the log names the failing workers)")
+    pool.min_healthy = served.workers_min_healthy
+    healthy = await pool.startup(served.workers_min_healthy)
+    if healthy < served.workers_min_healthy:
+        sys.exit(f"refusing to start: {healthy} of {pool.size} {model} workers passed the test decision and identity "
+                 f"check, REAX_WORKERS_MIN_HEALTHY is {served.workers_min_healthy} (the log names the failing workers)")
     await pool.start()
-    watcher = WorkersWatcher(cfg.workers_file, model, pool, make)
+    watcher = WorkersWatcher(served.workers_file, model, pool, make)
     watcher.start()  # its first pass re-reads the file; unchanged entries are kept as they are
     pool.watcher = watcher  # keep a reference for the miner's lifetime
     log.info("multinode: %d of %d workers in rotation behind this hotkey (workers file %s, re-read every %.0f s)",
-             healthy, pool.size, cfg.workers_file, watcher.interval)
+             healthy, pool.size, served.workers_file, watcher.interval)
     return pool
+
+
+async def _single_machine_backend(cfg, model: str):
+    """The runtime sidecar(s) of one model on this machine: authenticated test decision, pool identity, readmission."""
+    try:
+        backend = _s1_backend(cfg.common, model)
+    except ValueError as exc:
+        sys.exit(f"configuration error: {exc}")
+    urls = ", ".join(u for u, _t in cfg.common.endpoints(model))
+    if not await backend.probe():
+        sys.exit(f"the {model} runtime at {urls} did not answer an authenticated test decision (is it "
+                 "running, and do both sides use the same token? With several backends every one must answer; "
+                 "the log names the failing one)")
+    if getattr(backend, "size", 1) > 1:
+        from .selfcheck import check_backend_identity, check_pool_identity
+
+        bad = await check_pool_identity(backend, model)
+        if bad:
+            sys.exit("refusing to start: " + "; ".join(bad))
+        backend.readmit_check = lambda b: check_backend_identity(b, model)
+        await backend.start()
+        log.info("%d %s runtime backends behind this hotkey: %s", backend.size, model, urls)
+    return backend
 
 
 def miner_main() -> None:
@@ -157,7 +182,7 @@ def miner_main() -> None:
         wallet, hotkey = _wallet(cfg.common)
     except ConfigError as exc:
         sys.exit(str(exc))
-    _banner("miner", cfg.common, hotkey)
+    _banner("miner", cfg.common, hotkey, tuple(m.model for m in cfg.served))
     asyncio.run(_run_miner(cfg, wallet))
 
 
@@ -166,33 +191,22 @@ async def _run_miner(cfg, wallet) -> None:
 
     from .backends import load_backend
     from .chain import SdkChain
-    from .miner import Miner, S1Miner, refresh_validators_forever
+    from .elements import fields_of
+    from .miner import CommitmentPublisher, Miner, S1Miner, multimodel_refusal, refresh_validators_forever
 
     s1 = cfg.common.mechanism == "s1"
-    if s1 and cfg.multinode:
-        backend = await _multinode_backend(cfg)
-    elif s1:
-        try:
-            backend = _s1_backend(cfg.common, cfg.common.model)
-        except ValueError as exc:
-            sys.exit(f"configuration error: {exc}")
-        urls = ", ".join(u for u, _t in cfg.common.endpoints(cfg.common.model))
-        if not await backend.probe():
-            sys.exit(f"the {cfg.common.model} runtime at {urls} did not answer an authenticated test decision (is it "
-                     "running, and do both sides use the same token? With several backends every one must answer; "
-                     "the log names the failing one)")
-        if getattr(backend, "size", 1) > 1:
-            from .selfcheck import check_pool_identity
-
-            bad = await check_pool_identity(backend, cfg.common.model)
-            if bad:
-                sys.exit("refusing to start: " + "; ".join(bad))
-            from .selfcheck import check_backend_identity
-
-            model = cfg.common.model
-            backend.readmit_check = lambda b: check_backend_identity(b, model)
-            await backend.start()
-            log.info("%d runtime backends behind this hotkey: %s", backend.size, urls)
+    served = cfg.served
+    if s1 and cfg.publish_commitment:
+        refusal = multimodel_refusal(len(served), None, cfg.force_multirole)
+        if refusal:
+            sys.exit(f"refusing to start: {refusal}")
+    backends = {}
+    if s1:
+        for mm in served:
+            if cfg.multinode and mm.workers_file:
+                backends[mm.model] = await _multinode_backend(cfg, mm)
+            else:
+                backends[mm.model] = await _single_machine_backend(cfg, mm.model)
     else:
         backend = await asyncio.to_thread(
             load_backend, cfg.common.model, cfg.common.allow_dev_models, cfg.common.device, cfg.common.dtype
@@ -216,38 +230,41 @@ async def _run_miner(cfg, wallet) -> None:
                 log.error("could not publish endpoint (on chain: %s:%s): %s", current.ip, current.port, exc)
     on_snapshot = None
     if s1 and cfg.publish_commitment:
-        from .manifest import commitment_text
-
-        wanted = commitment_text(backend.model, backend.manifest.manifest_id)
-        last_try = [0.0]
-
-        async def publish() -> None:
-            last_try[0] = time.monotonic()
-            try:
-                await asyncio.to_thread(chain.set_commitment, wanted)
-                log.info("published commitment %s", wanted)
-            except Exception as exc:
-                log.error("could not publish commitment %s (validators will not query this miner until it is "
-                          "on chain; retrying every 10 minutes): %s", wanted, exc)
-
+        refusal = multimodel_refusal(len(served), snap.block, cfg.force_multirole)
+        if refusal:
+            sys.exit(f"refusing to start: {refusal}")
+        hotkey = wallet.hotkey.ss58_address
+        publisher = CommitmentPublisher(chain, {m: b.manifest.manifest_id for m, b in backends.items()},
+                                        force=cfg.force_multirole, hotkey=hotkey)
         current = next(n for n in snap.neurons if n.uid == uid)
-        if current.commitment != wanted:
-            await publish()
-
-        def on_snapshot(s) -> None:
-            mine = next((n for n in s.neurons if n.hotkey == wallet.hotkey.ss58_address), None)
-            if mine is not None and mine.commitment != wanted and time.monotonic() - last_try[0] > 600:
-                asyncio.get_running_loop().create_task(publish())
-    miner = (S1Miner if s1 else Miner)(
-        wallet,
-        backend,
-        max_concurrent=cfg.max_concurrent,
-        per_caller_concurrency=cfg.per_caller_concurrency,
-        per_caller_per_minute=cfg.per_caller_per_minute,
-        body_timeout_s=cfg.body_timeout_s,
-        max_pending_per_ip=cfg.max_pending_per_ip,
-        max_pending_total=cfg.max_pending_total,
-    )
+        if not publisher.published(fields_of(current)):
+            await publisher.publish(fields_of(current), snap.block)
+        on_snapshot = publisher.on_snapshot(hotkey)
+    if s1:
+        first = served[0]
+        limits = {m.model: (m.max_concurrent, m.per_caller_concurrency, m.per_caller_per_minute) for m in served}
+        miner = S1Miner(
+            wallet,
+            backends,
+            model_limits=limits,
+            max_concurrent=first.max_concurrent,
+            per_caller_concurrency=first.per_caller_concurrency,
+            per_caller_per_minute=first.per_caller_per_minute,
+            body_timeout_s=cfg.body_timeout_s,
+            max_pending_per_ip=cfg.max_pending_per_ip,
+            max_pending_total=cfg.max_pending_total,
+        )
+    else:
+        miner = Miner(
+            wallet,
+            backend,
+            max_concurrent=cfg.max_concurrent,
+            per_caller_concurrency=cfg.per_caller_concurrency,
+            per_caller_per_minute=cfg.per_caller_per_minute,
+            body_timeout_s=cfg.body_timeout_s,
+            max_pending_per_ip=cfg.max_pending_per_ip,
+            max_pending_total=cfg.max_pending_total,
+        )
     from .miner import allowed_validators
 
     miner.set_validators(allowed_validators(snap, cfg.min_validator_stake))

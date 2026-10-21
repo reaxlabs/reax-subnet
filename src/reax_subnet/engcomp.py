@@ -415,6 +415,14 @@ def commit_order(s: "Submission", unknown_block: int = 0) -> tuple[int, str, int
     return (effective_block(s.block or unknown_block), tie_key(s.block, s.hotkey, s.digest), s.uid)
 
 
+def seen_order(state: TrackState, s: "Submission") -> tuple[int, str, int]:
+    """Sort key of an observed submission from its persisted first sighting (``state.first_seen``): (effective block, opening
+    tie hash, uid). Unlike ``commit_order`` it does not move when the hotkey rewrites its commitment later (e.g. the
+    inference element of a dual-role hotkey; docs/DESIGN-MULTIROLE.md section 2)."""
+    first = state.first_seen[s.digest][0]
+    return (effective_block(first), tie_key(first, s.hotkey, s.digest), s.uid)
+
+
 def observe(state: TrackState, subs: Sequence[Submission], block: int,
             first_committer_only: bool = True) -> list[Submission]:
     """Record first sightings and return the *eligible* submissions.
@@ -440,9 +448,14 @@ def observe(state: TrackState, subs: Sequence[Submission], block: int,
 
 
 def pending(state: TrackState, eligible: Sequence[Submission], limit: int) -> list[Submission]:
-    """Not yet evaluated digests, oldest commitment first, at most ``limit``."""
+    """Not yet evaluated digests, oldest commitment first, at most ``limit``. ``state.attempts`` counts inconclusive
+    (infrastructure) tries only, so a retry keeps its commitment-order place; the cap is ``max_infra_attempts``, after which
+    the submission is recorded as failed and leaves this list."""
     todo = [s for s in eligible if s.digest not in state.results]
-    todo.sort(key=lambda s: (state.attempts.get(s.digest, 0), *commit_order(s, state.first_seen[s.digest][0])))
+    # a digest that already failed twice for an infrastructure reason (a slow or oversized image is indistinguishable from
+    # our own trouble) goes behind the untried ones, so a few such entries cannot hold the head of the queue for
+    # max_infra_attempts cycles; the first retry keeps its commitment-order place
+    todo.sort(key=lambda s: (state.attempts.get(s.digest, 0) >= 2, *seen_order(state, s)))
     return todo[:limit]
 
 
@@ -522,10 +535,17 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
     bar = held * (1.0 + max(params.margin, required_engine_margin(params.reference_noise_std))) if ch is not None else 0.0
     contenders = sorted(
         (s for s in eligible if _valid(state.results.get(s.digest), params)),
-        key=lambda s: (-state.results[s.digest].score, effective_block(state.first_seen[s.digest][0]),
-                       tie_key(s.block, s.hotkey, s.digest), s.uid),
+        key=lambda s: (-state.results[s.digest].score, *seen_order(state, s)),
     )
-    best = next((s for s in contenders if ch is None or s.digest != ch.digest), None)
+    margin = max(params.margin, required_engine_margin(params.reference_noise_std))
+    pool = [s for s in contenders if (ch is None or s.digest != ch.digest) and (ch is None or state.results[s.digest].score >= bar)]
+    best = None
+    if pool:
+        # Within-margin rule: candidates not separated from the top score by the displacement margin are a tie on merit
+        # (measurement noise); the earliest commitment (persisted first sighting) wins, so a later copy does not take the
+        # title from the original by a lucky run.
+        top = state.results[pool[0].digest].score
+        best = min((s for s in pool if state.results[s.digest].score * (1.0 + margin) > top), key=lambda s: seen_order(state, s))
     c = state.challenger
     cand: Optional[Submission] = None
     if c is not None:
@@ -542,7 +562,9 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
                 cand = None  # the bar rose (new champion score) above what it was measured at
     if best is not None and (cand is None or best.digest != cand.digest):
         rb = state.results[best.digest]
-        beats_pending = cand is None or rb.score >= _pooled(c["measurements"]) * (1.0 + max(params.margin, required_engine_margin(params.reference_noise_std)))
+        pooled = _pooled(c["measurements"]) if cand is not None else 0.0
+        beats_pending = (cand is None or rb.score >= pooled * (1.0 + margin)
+                         or (rb.score * (1.0 + margin) > pooled and seen_order(state, best) < seen_order(state, cand)))
         if rb.score >= bar and beats_pending:
             cand = best
             c = {"digest": best.digest, "hotkey": best.hotkey, "measurements": [[rb.block, rb.score, rb.session]]}
@@ -609,21 +631,45 @@ def former_champions(state: TrackState) -> list[dict[str, Any]]:
 
 
 def waiting_uids(state: TrackState, eligible: Sequence[Submission], block: int,
-                 coldkeys: Mapping[int, str]) -> list[int]:
-    """Engine keep-alive candidates (competition_split.ENGINE_KA_*): eligible submissions without a result whose image
-    was pulled and bound to the committing hotkey (``owners``), first seen (effective commitment block) at most
-    ENGINE_KA_MAX_HOURS ago, at most one per coldkey (a missing coldkey counts as its own), oldest first, at most
-    ENGINE_KA_MAX_ENTRIES. Pure; fails closed on a missing owner record."""
+                 coldkeys: Mapping[int, str], registered: Optional[Mapping[int, int]] = None) -> list[int]:
+    """Engine keep-alive candidates (competition_split.ENGINE_KA_*): eligible submissions that wait for a decision,
+    at most one per coldkey (a missing coldkey counts as its own), oldest first, at most ENGINE_KA_MAX_ENTRIES. Pure.
+
+    Waiting = no result yet and the image is bound to the committing hotkey (``owners``) or, not pulled yet, the hotkey
+    is the digest's first committer and no other hotkey is bound to it; or the pending challenger (its first session
+    beat the bar, the confirming one is due). The ENGINE_KA_MAX_HOURS window counts from the first sighting (effective
+    commitment block of the hotkey's first digest, so a new digest does not restart it; the challenger: its first session)
+    or, if later and ``registered`` gives the uid's registration
+    block, from the end of its immunity minus PROVISIONAL_KA_LEAD_BLOCKS (an immune hotkey is not pruned)."""
     max_blocks = _cs.ENGINE_KA_MAX_HOURS * 3600.0 / ENGINE_BLOCK_SECONDS
+    c = state.challenger
     cands = []
     for s in eligible:
         first = state.first_seen.get(s.digest)
-        if s.digest in state.results or state.owners.get(s.digest) != s.hotkey or first is None:
+        if first is None:
             continue
-        since = effective_block(first[0])
+        pending = (c is not None and c.get("digest") == s.digest and c.get("hotkey") == s.hotkey and c.get("measurements")
+                   and (state.champion is None or state.champion.digest != s.digest))
+        if pending:
+            try:
+                since = max(effective_block(first[0]), int(c["measurements"][0][0]))
+            except (TypeError, ValueError, IndexError, KeyError):
+                continue    # malformed challenger record: fail closed
+        elif s.digest in state.results:
+            continue
+        else:
+            owner = state.owners.get(s.digest)
+            if not (owner == s.hotkey or (owner is None and first[1] == s.hotkey)):
+                continue
+            # one window per hotkey: its earliest first sighting on any digest (``first_seen`` is never pruned), so
+            # committing a fresh digest does not restart it
+            since = min([effective_block(b) for b, hk in state.first_seen.values() if hk == s.hotkey] or [effective_block(first[0])])
+        reg = (registered or {}).get(s.uid, 0)
+        if isinstance(reg, int) and reg > 0:
+            since = max(since, reg + _cs.CHAIN_IMMUNITY_BLOCKS - _cs.PROVISIONAL_KA_LEAD_BLOCKS)
         if since <= 0 or since > block + 5 or block - since > max_blocks:
             continue
-        cands.append((commit_order(s, first[0]), s))
+        cands.append((seen_order(state, s), s))
     out: list[int] = []
     seen: set[str] = set()
     for _, s in sorted(cands, key=lambda c: c[0]):
@@ -672,8 +718,7 @@ def competition_weights(state: TrackState, eligible: Sequence[Submission], param
     frac = champion_fraction(reward, block - ch.crowned_block)
     others = sorted(
         (s for s in eligible if s.digest != ch.digest and _valid(state.results.get(s.digest), params)),
-        key=lambda s: (-state.results[s.digest].score, effective_block(state.first_seen[s.digest][0]),
-                       tie_key(s.block, s.hotkey, s.digest), s.uid),
+        key=lambda s: (-state.results[s.digest].score, *seen_order(state, s)),
     )[: reward.runner_ups]
     weights = {ch.uid: frac}
     if not others:

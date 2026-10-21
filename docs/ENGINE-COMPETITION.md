@@ -274,7 +274,18 @@ and decide separately whether to deploy pinned configs to serving runtimes.
 **Runtime (release mode / finney).** Every engine, reference and candidate, runs under gVisor. `preflight()` and the start
 itself refuse unless `REAX_ENGINE_DOCKER_RUNTIME=runsc` is set **and** `docker info` lists a `runsc` runtime; if `docker info`
 cannot be read the answer is no (fail closed). The `runsc` entry must also point at a binary named `runsc` and carry
-`--network=none` and `--nvproxy=true` in its `runtimeArgs` (daemon.json), otherwise it is not accepted. The result is a `session_void` event: no score, strike or attempt is
+`--network=none`, `--nvproxy=true`, `--nvproxy-allowed-driver-capabilities=compute,utility` and
+`--host-uds=create` in its `runtimeArgs` (daemon.json), otherwise it is not accepted. The host UDS creation mode exposes
+`RUNTIME_UDS=/run/reax/engine.sock` in the bind-mounted per-run I/O directory so the runner outside gVisor can connect.
+It permits creating host sockets in mounts without permitting connections to existing host sockets. Any other
+`--host-uds=` value (including `open` or `all`) and the deprecated `--fsgofer-host-uds` flag are refused, even alongside
+`--host-uds=create`. A later `--network=` flag must still be `none`. For example:
+
+```json
+{"runtimes":{"runsc":{"path":"/usr/local/bin/runsc","runtimeArgs":["--network=none","--nvproxy=true","--nvproxy-allowed-driver-capabilities=compute,utility","--host-uds=create"]}}}
+```
+
+The result of a runtime refusal is a `session_void` event: no score, strike or attempt is
 recorded and no container is started. Development networks and the testnet keep working without runsc.
 
 **Container flags** (all engines): `--network none --read-only --cap-drop ALL --security-opt no-new-privileges`,

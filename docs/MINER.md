@@ -40,7 +40,10 @@ nothing. Changing the commitment (model or manifest) restarts that UID's score f
 
 ## Models, licences and hardware (s1)
 
-One model per hotkey; your commitment says which one.
+A hotkey serves one model, or **several models** (below); your commitment says which. Several models on one hotkey and a
+competition entry next to the inference element count only from the start blocks of the multirole release
+(`elements.MULTIMODEL_START_BLOCK` / `DUALROLE_START_BLOCK`; both are held in a build until the date is announced on
+#92). Until then, one model per hotkey.
 
 | Pool | Model | Weights (pinned revision) | Licence | `manifest_id` (this release) | GPU (sidecar) |
 |---|---|---|---|---|---|
@@ -211,6 +214,62 @@ its manifest; a release with a new manifest ships new ones.
 * Downtime: every missed round counts as zero in the moving average.
 * Changing your commitment (model or manifest) restarts that UID's score from zero.
 
+## Several models on one hotkey, and a competition entry next to it
+
+From `MULTIMODEL_START_BLOCK` one hotkey can serve `s1-fast`, `s1-pro`, `s1-lite` and `s1-cpu` (any subset of at least
+two; one model keeps the old `REAX_MODEL`). Design: [DESIGN-MULTIROLE.md](DESIGN-MULTIROLE.md).
+
+* **Caps are per model, exactly like separate hotkeys.** Each served model is scored as its own slot with its own pool
+  cap, its own score and its own strikes, and gets at most what one hotkey of that model gets; you save the
+  registrations, not the hardware. A slot of a model whose manifest id is not this release's is not scored, the other
+  models still are.
+* **Configure:** `REAX_MODELS=s1-fast,s1-pro,s1-lite` (each at most once, known models only; default: the single
+  `REAX_MODEL`, so existing configs are unchanged). The first listed model is the primary one (`REAX_MODEL` may name
+  another listed model to change that). Every model has its own sidecar and its own variables, as for a single model:
+  `REAX_S1_FAST_RUNTIME_URL(S)`, `REAX_S1_PRO_RUNTIME_URL(S)`, `REAX_S1_LITE_RUNTIME_URL`, ... (two models must not share
+  a URL: every answer is verified against that model's own reference). With `REAX_FEATURE_MULTINODE=1` each of
+  `s1-fast` / `s1-pro` takes its workers from `REAX_<MODEL>_WORKERS_FILE` (for example `REAX_S1_PRO_WORKERS_FILE`) and
+  `REAX_<MODEL>_WORKERS_MIN_HEALTHY` (else `REAX_WORKERS_MIN_HEALTHY`); `s1-lite` / `s1-cpu` stay on one machine
+  (`REAX_<MODEL>_RUNTIME_URL`). `REAX_WORKERS_FILE` keeps working with a single model.
+* **One endpoint, one lane per model.** The miner routes each signed request by its `model` and `manifest_id` (400 for a
+  model it does not serve). Every model has its own runtime slots (`REAX_MAX_CONCURRENT` per model) and its own
+  per-validator limits (`REAX_PER_CALLER_CONCURRENCY`, `REAX_PER_CALLER_PER_MINUTE` per model, defaults sized by that
+  model's own backends), so a capacity probe of one model never uses up another model's limits and a lost worker of one
+  model shrinks only its own limits. `REAX_MAX_PENDING_PER_IP` / `REAX_MAX_PENDING_TOTAL` are multiplied by the number
+  of models (the probe windows of all models run together). `GET /health` returns `{"models": {model: manifest_id}}`
+  (plus the old `model` / `manifest_id` fields when exactly one model is served). Start-up checks (test decision, pool
+  identity, worker checks) run for every model; the miner does not start if one fails.
+* **The miner publishes the inference element** `reax-s1/1:<model>:<manifest_id>` for one model,
+  `reax-s1m/1:<model>:<id>,<model>:<id>,...` for several (canonical order s1-fast, s1-pro, s1-lite, s1-cpu). Every
+  commitment write replaces all fields, so the miner reads its current fields and writes them with **only its inference
+  element replaced**: a competition entry on the same hotkey is kept. The 10-minute re-publish compares only the
+  inference element, so a competition element you or `reax-commit` wrote never triggers (or loses to) a miner rewrite.
+* **Safety rails.** The miner refuses to start with several models before `MULTIMODEL_START_BLOCK` (or while it is
+  held) and never writes two elements before `DUALROLE_START_BLOCK` (it logs an error naming the competition element it
+  would otherwise drop, and publishes nothing): validators read no role from such a commitment, and a miner must not
+  silently delete your competition entry. `REAX_FORCE_MULTIROLE=1` overrides both (nobody scores the result before the
+  start; it is for tests and localnets). With `REAX_PUBLISH_COMMITMENT=0` the miner writes nothing and does not check.
+* **One competition entry next to inference.** A hotkey can hold one competition entry (use-case/generalist track or
+  engine track) next to its inference element from `DUALROLE_START_BLOCK`; the entry is evaluated on our worker, never on
+  your serving GPU. Write it with the tools, never with a hand-made `btcli` commit (which replaces all fields):
+  * `reax-engine-submit <image>@sha256:<digest>` and `reax-commit set <element>` write `[your inference element, the new
+    element]`, keeping the inference element and replacing a competition element of the same kind.
+  * `reax-commit show` prints the fields on chain and how this release reads them (elements, held/started, per-model
+    manifest match); `reax-commit withdraw competition|inference` removes one element; `--dry-run` prints the fields it
+    would write and writes nothing. The tools use the same wallet variables as `reax-miner`.
+  * Before `DUALROLE_START_BLOCK`, when the other kind exists, both tools refuse with an explanation unless you pass
+    `--replace-all` (write the new element alone, today's behaviour: it drops the other element) or set
+    `REAX_FORCE_MULTIROLE=1`.
+
+```bash
+# three models on one hotkey (three sidecars on loopback ports 8101-8103), after MULTIMODEL_START_BLOCK:
+REAX_MODELS=s1-fast,s1-pro,s1-lite \
+REAX_S1_FAST_RUNTIME_URL=http://127.0.0.1:8101 REAX_S1_PRO_RUNTIME_URL=http://127.0.0.1:8102 \
+REAX_S1_LITE_RUNTIME_URL=http://127.0.0.1:8103 REAX_RUNTIME_TOKEN_FILE=/srv/reax/runtime-token reax-miner
+reax-commit show                      # what is on chain, and how validators read it
+reax-commit set "reax-spec/1:demand_forecasting:acme/df-4b@<40 hex>" --dry-run
+```
+
 ## Several GPUs or machines behind one hotkey
 
 One hotkey can be served by several runtime sidecars of the **same model**. The miner process (one per hotkey, it
@@ -349,7 +408,7 @@ clashes with anything else on :8000, e.g. a second Rune), so keep other local us
 See [CONFIG.md](CONFIG.md). The ones s1 miners usually touch: `REAX_MECHANISM` (default `s1`), `REAX_MODEL`
 (`s1-fast` or `s1-pro`), `REAX_S1_FAST_RUNTIME_URL` / `REAX_S1_PRO_RUNTIME_URL` (loopback sidecar URLs; several backends: `..._RUNTIME_URLS`, see "Several GPUs or machines behind one hotkey"),
 `REAX_RUNTIME_TOKEN_FILE`, `REAX_PUBLISH_COMMITMENT` (default 1), `REAX_EXTERNAL_IP`, `REAX_EXTERNAL_PORT`,
-`REAX_MINER_PORT`. `REAX_MAX_CONCURRENT` (default 8) is the number of requests passed to the runtime at once.
+`REAX_MINER_PORT`, `REAX_MODELS` (several models on one hotkey, see above), `REAX_FORCE_MULTIROLE`. `REAX_MAX_CONCURRENT` (default 8) is the number of requests passed to the runtime at once.
 Capacity probes pay verified throughput linearly up to a cap far above one machine, so one hotkey per machine is the
 best setup: keep `REAX_PER_CALLER_CONCURRENCY` and `REAX_PER_CALLER_PER_MINUTE` at least at their defaults so a probe
 can measure your full speed, and raise `REAX_RUNTIME_INFLIGHT` (default 16) for a batched or multi-GPU runtime.

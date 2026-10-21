@@ -13,7 +13,7 @@ import os
 import shutil
 import sys
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol
+from typing import Any, Callable, Mapping, Protocol
 
 from . import rules as R
 from . import tensors as T
@@ -30,6 +30,14 @@ class FetchError(RuntimeError):
     def __init__(self, kind: str, message: str):
         super().__init__(message)
         self.kind = kind
+
+
+class DiskLow(FetchError):
+    """The download would leave less than the configured free space on this host: infra (the entry waits, no strike), and the
+    evaluator prepares no further download in this cycle."""
+
+    def __init__(self, message: str):
+        super().__init__("infra", message)
 
 
 @dataclass
@@ -120,9 +128,12 @@ def tokenizer_tokens(tok_cfg: Mapping[str, Any] | None, tok_json: Mapping[str, A
     return frozenset(out)
 
 
-def inspect_dir(model_dir: str, *, category: str, hotkey: str | None, rules: R.TrackRules = R.TrackRules(),
-                require_manifest: bool = True) -> Inspected:
-    """Read config, manifest and safetensors headers as data; hash the tensors; apply every rule."""
+def inspect_dir(model_dir: str, *, category: str, hotkey: str | None, rules: R.TrackRules | None = None,
+                require_manifest: bool = True, now_ts: float | None = None) -> Inspected:
+    """Read config, manifest and safetensors headers as data; hash the tensors; apply every rule (``rules`` None = the
+    release rules at this moment, ``rules.rules_at``)."""
+    now_ts = R._wall_clock() if now_ts is None else now_ts
+    rules = R.rules_at(now_ts, category=category) if rules is None else rules
     files = list_dir(model_dir)
     problems: list[str] = [f"{n}: symlink" for n, s in files.items() if s < 0]
     files = {n: s for n, s in files.items() if s >= 0}
@@ -151,6 +162,14 @@ def inspect_dir(model_dir: str, *, category: str, hotkey: str | None, rules: R.T
         params, wbytes = T.param_count(tensors), T.weight_bytes(tensors)
     except T.SafetensorsError as exc:
         problems.append(f"safetensors: {exc}")
+    if category == "generalist" and R.open_class_active(now_ts):
+        from .joint import detect, ARCHITECTURES
+        try:
+            joint = detect(model_dir, category=category, now_ts=now_ts)
+            if config and config.get("architectures") in [[a] for a in ARCHITECTURES] and joint is None:
+                problems.append("invalid joint readout: backbone architecture requires a readout head")
+        except (ValueError, OSError, TypeError) as exc:
+            problems.append(f"joint readout: {exc}")
     facts = R.RepoFacts(files=files, config=config, manifest=manifest, params=params, weight_bytes=wbytes,
                         chat_template_chars=tmpl_chars, problems=problems,
                         tokenizer_tokens=tokenizer_tokens(tok_cfg, load("tokenizer.json")))
@@ -174,7 +193,7 @@ class Fetcher(Protocol):
     async def probe(self, commitment: SpecCommitment) -> None: ...
 
     async def fetch(self, commitment: SpecCommitment, dest: str, *, category: str, hotkey: str,
-                    rules: R.TrackRules) -> Inspected: ...
+                    rules: R.TrackRules | None = None) -> Inspected: ...
 
 
 _DOWNLOAD_SNIPPET = """
@@ -249,8 +268,13 @@ class HfHub:
 class HfFetcher:
     """Hugging Face Hub fetcher of submissions. Needs ``huggingface_hub`` (pulled in by the ``model`` extra)."""
 
-    def __init__(self, timeout_s: float = DOWNLOAD_TIMEOUT_S, hub: Hub | None = None):
+    def __init__(self, timeout_s: float = DOWNLOAD_TIMEOUT_S, hub: Hub | None = None, *, min_free_bytes: int = 0,
+                 free_bytes: Callable[[str], int] | None = None):
+        """``min_free_bytes`` > 0: before a download the listing's downloadable files must fit with that much to spare on
+        ``dest``'s filesystem, but only under rules that allow weights above the pre-switch cap (``DiskLow`` otherwise)."""
         self.hub = hub or HfHub(timeout_s)
+        self.min_free_bytes = min_free_bytes
+        self._free_bytes = free_bytes or (lambda path: shutil.disk_usage(path).free)
 
     @staticmethod
     def _prepare_dir(dest: str) -> None:
@@ -271,15 +295,23 @@ class HfFetcher:
         return listing
 
     async def fetch(self, commitment: SpecCommitment, dest: str, *, category: str, hotkey: str,
-                    rules: R.TrackRules = R.TrackRules()) -> Inspected:
+                    rules: R.TrackRules | None = None) -> Inspected:
+        now_ts = R._wall_clock()
+        rules = R.rules_at(now_ts, category=category) if rules is None else rules
         loop = asyncio.get_running_loop()
         listing = await self._listing(commitment)
         bad = R.check_listing(listing.files, rules)
         if bad:
             raise FetchError("rejected", "; ".join(bad))
+        if self.min_free_bytes and rules.max_weight_bytes > R.MAX_WEIGHT_BYTES:
+            size = sum(s for n, s in listing.files.items() if R._is_downloaded(n))
+            free = self._free_bytes(os.path.dirname(os.path.abspath(dest)))
+            if free - size < self.min_free_bytes:
+                raise DiskLow(f"not enough free disk space for the download ({size / 1e9:.1f} GB, {free / 1e9:.0f} GB free, "
+                              f"{self.min_free_bytes / 1e9:.0f} GB must stay free)")
         await self.hub.download(commitment.repo, commitment.revision, dest)
         await loop.run_in_executor(None, self._prepare_dir, dest)
-        ins = await loop.run_in_executor(None, lambda: inspect_dir(dest, category=category, hotkey=hotkey, rules=rules))
+        ins = await loop.run_in_executor(None, lambda: inspect_dir(dest, category=category, hotkey=hotkey, rules=rules, now_ts=now_ts))
         if ins.violations:
             shutil.rmtree(dest, ignore_errors=True)
             raise FetchError("rejected", "; ".join(ins.violations))

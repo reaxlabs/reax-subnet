@@ -12,7 +12,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Mapping
 
-from ..competition_split import ROTATION_DAYS, TRACK_SCHEDULE
+from .. import competition_split as split
+from ..competition_split import ROTATION_DAYS
 from . import machine, rules, sampling, scoring, vllm
 from .commitment import _valid_repo
 
@@ -42,10 +43,11 @@ class TrackDef:
     track_id: str
     category: str
     start_ts: float
-    days: int = ROTATION_DAYS
+    days: float = ROTATION_DAYS
+    end_ts: float | None = None
 
     def active(self, now: float) -> bool:
-        return self.start_ts <= now < self.start_ts + self.days * 86400
+        return self.start_ts <= now < (self.end_ts if self.end_ts is not None else self.start_ts + self.days * 86400)
 
 
 def _ts(text: str) -> float:
@@ -55,8 +57,9 @@ def _ts(text: str) -> float:
 def _from_schedule() -> tuple[TrackDef, ...]:
     """The release schedule (competition_split.TRACK_SCHEDULE) is the one source of truth; the sealed category of a
     track is its id. REAX_SPEC_TRACKS_FILE (development only) replaces it."""
-    return tuple(TrackDef(t.track_id, t.track_id, t.start.timestamp(), round((t.end - t.start).total_seconds() / 86400))
-                 for t in TRACK_SCHEDULE)
+    return tuple(TrackDef(t.track_id, t.track_id, t.start.timestamp(),
+                          (t.end - t.start).total_seconds() / 86400, t.end.timestamp())
+                 for t in split.release_schedule())
 
 
 DEFAULT_TRACKS = _from_schedule()
@@ -67,8 +70,8 @@ class SpecConfig:
     sealed_dir: str
     work_dir: str
     state_path: str
-    tracks: tuple[TrackDef, ...] = DEFAULT_TRACKS
-    rules: rules.TrackRules = field(default_factory=rules.TrackRules)
+    tracks: tuple[TrackDef, ...] = field(default_factory=_from_schedule)
+    rules: rules.TrackRules | None = None   # None = the release rules at the time of each check (``rules_for``); an explicit object always wins
     sample_size: int = sampling.SAMPLE_SIZE
     max_evals_per_hour: int = MAX_EVALS_PER_HOUR
     confirm_delay_s: float = machine.CONFIRM_DELAY_S
@@ -76,7 +79,8 @@ class SpecConfig:
     v3_decisions: bool = machine.V3_DECISIONS   # decision rule v3 (machine.py); False = the pre-v3 rule, bit for bit
     x_tier_mode: str = sampling.X_TIER_MODE     # cross-author tier: "off" | "shadow" | "scored" | "binding" (sampling.py)
     x_tier_share: float = sampling.X_TIER_SHARE
-    g_med: dict[str, float] = field(default_factory=dict)   # binding mode: frozen median gap per track id (REAX_SPEC_G_MED)
+    g_med: dict[str, float] = field(default_factory=lambda: {"generalist": split.GENERALIST_G_MED}
+                                            if split.GENERALIST_G_MED is not None else {})   # binding mode: frozen median gap per track id (REAX_SPEC_G_MED)
     gap_penalty_cap: float = scoring.GAP_PENALTY_CAP        # binding mode: largest penalty in points (math.inf = no cap)
     nc_r1: bool = False                # near-copy rule R1: twins / weight parents (incumbent included) must also win on competence
     nc_r2: bool = False                # R2: temperature-invariant twin test + relative order tie
@@ -94,8 +98,30 @@ class SpecConfig:
     base_fetch: bool = True            # download a missing declared base into base_dir (spec/bases.py)
     base_retry_cycles: int = BASE_RETRY_CYCLES
     base_budget_bytes: int = BASE_BUDGET_GB * 1024 ** 3
+    generalist_base_budget_bytes: int = 80 * 1024 ** 3
     base_min_free_bytes: int = BASE_MIN_FREE_GB * 1024 ** 3
     base_preseed: tuple[str, ...] = ()  # "<hf id>@<revision>" fetched in the background when the evaluator starts
+    container_mem: str = vllm.CONTAINER_MEM                 # docker --memory / --memory-swap of the candidate container
+    startup_timeout_s: float = vllm.STARTUP_TIMEOUT_S       # how long the candidate's vLLM may take to become healthy
+
+    def base_budget_for(self, now: float) -> int:
+        return self.generalist_base_budget_bytes if split.spec_open_class_active(now) else self.base_budget_bytes
+
+    def rules_for(self, now: float, category: str | None = None) -> rules.TrackRules:
+        """The submission rules for a check at ``now``: the injected ``rules`` object if there is one, else the release rules
+        of that time (``rules.rules_at``: the open class from competition_split.SPEC_OPEN_CLASS_START_UTC)."""
+        return self.rules if self.rules is not None else rules.rules_at(now, category=category)
+
+    def budget_warning(self, now: float) -> str:
+        """Non-empty when the open class is active (or starts within 24 h) and ``gpu_budget_gb`` is too small for its largest
+        accepted submission: weights + 15 % + 2 GiB (``vllm.gpu_memory_utilization``). Never a reason to refuse to start: the
+        box that runs this image before the switch keeps the default budget."""
+        need = rules.OPEN_CLASS_MAX_WEIGHT_BYTES / rules.GIB * 1.15 + 2.0
+        if self.gpu_budget_gb >= need or not rules.open_class_active(now + 86400):
+            return ""
+        return (f"REAX_SPEC_GPU_BUDGET_GB={self.gpu_budget_gb:g} is below the {need:.1f} GB the largest open-class submission needs "
+                f"({rules.OPEN_CLASS_MAX_WEIGHT_BYTES / rules.GIB:.0f} GiB of weights): entries above "
+                f"{(self.gpu_budget_gb - 2.0) / 1.15:.0f} GiB will wait for this host (no strike) until the budget is raised")
 
     def active_tracks(self, now: float) -> list[TrackDef]:
         return [t for t in self.tracks if t.active(now)]
@@ -113,7 +139,7 @@ def from_env(env: Mapping[str, str] = os.environ, state_dir: str = "") -> SpecCo
     if not sealed:
         raise ValueError("REAX_SPEC_SEALED_DIR (host path of the sealed pool, mounted read-only) is required")
     base = state_dir or env.get("REAX_SPEC_STATE_DIR", "") or os.path.expanduser("~/.reax")
-    tracks = load_tracks(env["REAX_SPEC_TRACKS_FILE"]) if env.get("REAX_SPEC_TRACKS_FILE") else DEFAULT_TRACKS
+    tracks = load_tracks(env["REAX_SPEC_TRACKS_FILE"]) if env.get("REAX_SPEC_TRACKS_FILE") else _from_schedule()
     return SpecConfig(
         sealed_dir=sealed,
         work_dir=env.get("REAX_SPEC_WORK_DIR", os.path.join(base, "spec-work")),
@@ -128,11 +154,14 @@ def from_env(env: Mapping[str, str] = os.environ, state_dir: str = "") -> SpecCo
         nc_near_champ=_flag(env, "REAX_SPEC_NC_NEAR_CHAMP", False),
         x_tier_mode=_x_mode(env.get("REAX_SPEC_X_TIER_MODE", sampling.X_TIER_MODE)),
         x_tier_share=float(env.get("REAX_SPEC_X_TIER_SHARE", sampling.X_TIER_SHARE)),
-        g_med=_g_med(env.get("REAX_SPEC_G_MED", "")),
+        g_med={**({"generalist": split.GENERALIST_G_MED} if split.GENERALIST_G_MED is not None else {}),
+               **_g_med(env.get("REAX_SPEC_G_MED", ""))},
         gap_penalty_cap=_penalty_cap(env.get("REAX_SPEC_GAP_PENALTY_CAP", "")),
         gpu_device=env.get("REAX_SPEC_GPU_DEVICE", "0"),
         gpu_total_gb=float(env.get("REAX_SPEC_GPU_TOTAL_GB", 0)),
         gpu_budget_gb=float(env.get("REAX_SPEC_GPU_BUDGET_GB", vllm.GPU_BUDGET_GB)),
+        container_mem=vllm.parse_container_mem(env.get("REAX_SPEC_CONTAINER_MEM", "")),
+        startup_timeout_s=vllm.parse_startup_timeout(env.get("REAX_SPEC_STARTUP_TIMEOUT_S", "")),
         image=env.get("REAX_SPEC_VLLM_IMAGE", vllm.VLLM_IMAGE),
         base_dir=env.get("REAX_SPEC_BASE_DIR", ""),
         user=_user(env.get("REAX_SPEC_UID", vllm.SPEC_USER)),
@@ -142,6 +171,7 @@ def from_env(env: Mapping[str, str] = os.environ, state_dir: str = "") -> SpecCo
         base_fetch=env.get("REAX_SPEC_BASE_FETCH", "1").strip().lower() not in ("0", "false", "no", "off"),
         base_retry_cycles=max(1, int(env.get("REAX_SPEC_BASE_RETRY_CYCLES", BASE_RETRY_CYCLES))),
         base_budget_bytes=int(float(env.get("REAX_SPEC_BASE_BUDGET_GB", BASE_BUDGET_GB)) * 1024 ** 3),
+        generalist_base_budget_bytes=int(float(env.get("REAX_SPEC_BASE_BUDGET_GB", 80)) * 1024 ** 3),
         base_min_free_bytes=int(float(env.get("REAX_SPEC_BASE_MIN_FREE_GB", BASE_MIN_FREE_GB)) * 1024 ** 3),
         base_preseed=tuple(x.strip() for x in env.get("REAX_SPEC_BASE_PRESEED", "").split(",") if x.strip()),
     )

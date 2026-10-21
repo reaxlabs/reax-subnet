@@ -1,12 +1,62 @@
 # Changelog
 
-## 1.2.0rc9.post8 — engine keep-alive for the champion awaiting approval and the last former champion (validator)
+## 1.2.0rc10 — one hotkey, several roles: all inference models + one competition entry (consensus; start block <START_BLOCK>)
 
-`WEIGHTS_VERSION_KEY` is unchanged (1240). With the engine keep-alive on, the small keep-alive that waiting engine entries
-get is also paid, ahead of them, to the champion while its award review is pending and to the last former champion (both
-opening co-champions, when they were the last title holders) for 7 days after it lost the title, while it stays committed
-with a valid result. A keep-alive, not an award; an entry paid anything else gets none; at most 3 such entries on top of
-the 4 waiting entries, all within the existing cap of 5 % of the engine share. Miners need no update.
+Validator + miner release. Both halves count only from release constants `elements.MULTIMODEL_START_BLOCK` /
+`DUALROLE_START_BLOCK` (None = held); before that every commitment is read exactly as today. `WEIGHTS_VERSION_KEY` 1250. Start block: <START_BLOCK>. Design: docs/DESIGN-MULTIROLE.md.
+
+* Commitments: up to two Raw fields, one inference element (`reax-s1/1`, or new `reax-s1m/1` for 2-4 models) and one
+  competition element (`reax-spec/1`, `reax-eng/1`). Strict parser in `elements.py`; one-field commitments unchanged.
+* Validator: one scoring slot per (uid, model) (`uid + 65536 x model index`; s1-fast slot = uid) with the same cap per
+  model as a separate hotkey; all slots probed in the one common window; slot weights summed per uid. Legacy state
+  migrates on load without a reset; `scripts/state_unslot.py` writes it back before a rollback to an older release.
+  The competition code gets the competition element only (`role_views`), so an inference rewrite never re-queues an
+  entry and a new entry never resets the inference score.
+* Pay: keep-alive is a top-up for entrants that also serve (`max(0, each - own serving)`), pure entrants take the 8
+  slots first, keep-alive candidates stay out of the median; provisional keep-alive for pure entrants only. Without a
+  serving entrant the weights are bit-identical to before (golden test).
+* Miner: `REAX_MODELS=s1-fast,s1-pro,s1-lite` serves several models behind one endpoint (per-model slots and
+  per-validator limits); commitment publishing touches only the inference element, keeps any other (also unknown
+  `reax-`) element and writes only after a confirming second read. New `reax-commit show|set|withdraw` (always merges);
+  `reax-engine-submit` merges too.
+* Router: routes a multi-model hotkey for each of its models (score at the slot key).
+* Legacy keep-alive (Florian 21 Oct 07:05Z): for 7 days from the generalist start, the ended demand_forecasting and
+  risk_assessment tracks' champions and owner-approved former champions that still commit to their entry get 0.5 x the
+  median serving weight (pure entrants only, at most 12 uids, together at most 3 % of the miner part, from the inference
+  part; `LEGACY_KA_*`). Read from the frozen DF/RA part of the spec state; no new state key. Off or empty: weights
+  byte-identical (fuzz 3 x 20k). Tests: test_legacyka.
+* Tests: test_elements, test_multimodel, test_dualrole, test_miner_multimodel, test_state_unslot; localnet
+  `scripts/localnet/e2e_multirole.py`.
+
+
+## Registration-sniping protection (part of 1.2.0rc10; spec tracks, all tracks' waiting entries)
+
+Validator/competition-worker change (DF/RA), reg-sniping review 20 Oct 2026. `WEIGHTS_VERSION_KEY` unchanged.
+* Near-duplicate check: withdrawn entries (pruned or replaced) of another coldkey and repo are compared too; a derived
+  entry gets them as its parent (must beat them). Their sketches are renewed like live entries' after a seed change.
+  The author's own withdrawn entries are skipped (re-registration, carry-over).
+* Exact check: an earlier original of another coldkey that is checked after its exact copy was crowned rejects the copy
+  (title cleared, the cycle treats the track as vacant); before, the crowned copy kept the title and the original was
+  refused.
+* Provisional keep-alive: a QUEUED close call waiting for its extra draw (scored, `close_draws`) stays eligible until its
+  verdict (uid 85 on 20 Oct earned nothing between its first draw and its verdict).
+* `IMMUNITY_BLOCKS_ASSUMED` 5000 -> 7200 (the chain's ImmunityPeriod since ~block 9,305,000, 17 Oct): the provisional
+  window opened ~2,200 blocks too early and expired ~2.7 h after the real immunity end; the queue order used the
+  wrong end too.
+
+* Engine keep-alive (s1-fast, `ENGINE_KA_*`, off unless `engine_keepalive`): also covers an unpulled entry whose hotkey is the
+  digest's first committer and the pending challenger between its first and confirming session; the window is per hotkey
+  (first sighting of any of its digests) and starts at the end of the immunity (`CHAIN_IMMUNITY_BLOCKS` 7200 minus the lead).
+* Engine fairness: candidates within the displacement margin of the best score are a tie on merit and the earliest
+  commitment (persisted first sighting) wins, also against a pending later challenger; `pending()` orders by commitment
+  order; the first inconclusive (infra) retry keeps its place, from the second one on the entry goes behind the untried
+  entries, so a few slow or oversized images cannot hold the head of the queue for `max_infra_attempts` cycles. State
+  format unchanged.
+* One clock read per `EngineCompetition.weights` computation (track list, profile and payout agree at the
+  `GENERALIST_START_UTC` switch). `scripts/set_generalist_start.py` keeps seconds and checks `COMMIT_FROM <= START` also
+  when only `COMMIT_FROM` is given.
+* Generalist: the spec-track rules above (copy registry incl. withdrawn entrants, crowned-copy rejection, close-call
+  provisional keep-alive, 7200 immunity) apply to it unchanged; its entry-floor/G_med fail-closed guard still comes first.
 
 ## 1.2.0rc9.post7 — engine opening co-champions (validator)
 
@@ -23,9 +73,7 @@ the normal rule applies again. Miners need no update.
 per miner in the tier above (as before 1.2.0rc7.post4); the excess moves up to the tier above, never to a lower tier and
 never burned. Tier budgets are unchanged. Miners need no update.
 
-## Unreleased
-
-### Several machines behind one inference hotkey (miner-only, `REAX_FEATURE_MULTINODE`, default off)
+## Unreleased — several machines behind one inference hotkey (miner-only, `REAX_FEATURE_MULTINODE`, default off)
 
 Validators, scoring, weights and `WEIGHTS_VERSION_KEY` are unchanged; with the flag unset the miner behaves as in
 1.2.0rc9.post5 (one fix below applies to `REAX_<MODEL>_RUNTIME_URLS` lists too). Design: docs/DESIGN-MULTINODE.md.
@@ -46,7 +94,52 @@ Validators, scoring, weights and `WEIGHTS_VERSION_KEY` are unchanged; with the f
 * Docs: MINER.md "Several machines in different places behind one hotkey", CONFIG.md, FEATURE-FLAGS.md,
   THREAT-MODEL.md S15. Tests: `tests/test_multinode.py`; localnet `scripts/localnet/e2e_multinode.py`.
 
-### Specialist queue
+## Generalist release preparation (not deployed)
+
+* Merge the live rc9p5-final engine/validator, FLA publication and queue-retry fixes, plus required host UDS creation.
+* Replace DF/RA with one generalist slot at `GENERALIST_START_UTC` (target 30 Oct 12:00 UTC, movable earlier).
+  Cancel the 6 Nov extension and DF/RA open class; larger models belong to generalist only.
+* Add 300-item category/type/tier draws, immutable category bindings, and diagnostic category scores pooled per entry.
+  Scoring and decision formulas are unchanged. Generalist waits for release calibration; both images must be updated.
+* See `docs/GENERALIST-RELEASE.md` for the required settings, defaults and remaining release gates.
+
+## Specialist open class (labelled 1.2.0rc9.post6 on the generalist branch; part of 1.2.0rc10) from 22 Oct 18:00 UTC (bigger bases), first track pair runs to 6 Nov
+
+`WEIGHTS_VERSION_KEY` is set by the release (1250 in rc10). **Operator note:** the open-class box needs `REAX_SPEC_GPU_BUDGET_GB` >= 81,
+`REAX_SPEC_MIN_FREE_GB` >= 150, `REAX_SPEC_BASE_BUDGET_GB` 80, `REAX_SPEC_CONTAINER_MEM` about `72g` and
+`REAX_SPEC_STARTUP_TIMEOUT_S` 1800, and **validators must run this release too** (keep-alive base floor and the schedule to 6 Nov are
+computed by the validator). Before `SPEC_OPEN_CLASS_START_UTC` (22 Oct 2026, 18:00 UTC, `competition_split.py`) the
+specialist caps, architecture allowlist, base caps, serving flags and keep-alive are those of 1.2.0rc9.post5.
+
+* **Caps from the switch.** Up to 36 B parameters, 68 GiB of weights, 72 GiB in total (before: 9 B, 20 GiB, 22 GiB). A declared
+  base has the same explicit caps (before: twice a submission's). `spec.rules.rules_at(now)` returns the rules in force; the
+  evaluator uses its clock, the base fetcher and the miner CLI the wall clock. `SpecConfig.rules` is now `None` by default
+  (the release rules at the time of the check); an explicit `TrackRules` still wins.
+* **Architectures from the switch.** `Gemma4ForConditionalGeneration`, `Gemma4ForCausalLM`,
+  `Gemma4UnifiedForConditionalGeneration` (new fixed template `gemma4.jinja`, derived from the s1-pro Gemma 4 template with
+  thinking off, a fixed `<bos>` instead of the tokenizer's `bos_token`; the tokenizer must define `<bos>`, `<|turn>`, `<turn|>`,
+  `<|channel>`, `<channel|>`) and
+  `Qwen3_5MoeForConditionalGeneration`, `Qwen3_5MoeForCausalLM` (`qwen.jinja`). Multimodal checkpoints of these new
+  architectures are served text-only (`--limit-mm-per-prompt '{"image":0}'`). An architecture allowed before (e.g.
+  `Qwen3_5ForConditionalGeneration`) keeps exactly its old command line up to 20 GiB of weights and is served text-only above that.
+* **Serving resources.** `REAX_SPEC_CONTAINER_MEM` (default `48g`, `<int>g`, 8..512) sets the container's `--memory` and
+  `--memory-swap`; `REAX_SPEC_STARTUP_TIMEOUT_S` (default 900, 60..1800) the start-up deadline. A bad value stops the worker
+  at start-up.
+* **Keep-alive base floor.** From the switch an entry above 10 B parameters gets a keep-alive only if
+  `KEEPALIVE_BASE_FLOOR` (base tensor hash -> floor per track) has its declared base and its qualifying score is above the
+  floor + 1.5; a fetched entry above 10 B gets no provisional keep-alive either. The table ships empty, so for now no entry above 10 B gets either. The parameter
+  count (`Submission.params`, new) is recorded at the fetch; an entry without one (fetched by an earlier release under the 9 B
+  cap, or not fetched yet) counts as small, and a larger entry without a recorded base hash gets nothing. Entries of 10 B or
+  less are unchanged.
+* **Host misfits are never the miner's.** Weights above 20 GiB that do not fit `REAX_SPEC_GPU_BUDGET_GB` raise a host outcome
+  (the entry waits, no strike, no rejection) instead of a model start-up failure; up to 20 GiB (25 GB needed, the default budget)
+  the classification is unchanged. A warning is logged once per cycle from 24 h before the switch while the budget is below
+  80.2 GB. Before a submission is downloaded in the open class, its listed size must leave `REAX_SPEC_MIN_FREE_GB` free, otherwise
+  it waits for this host (no strike) and no further download starts that cycle. Before a base is refused for disk, cached bases
+  that no live submission declares (and that are not preseeded) are removed, oldest first, when that makes room.
+* **Schedule.** The first track pair (`demand_forecasting`, `risk_assessment`) now ends **6 Nov 2026, 12:00 UTC** (was 30 Oct).
+
+## Unreleased — specialist queue
 
 * Specialist queue: check waiting repositories with metadata-only probes each cycle (up to 32 per track, oldest
   commitment first). Public revisions return to their original queue priority; unavailable repos stay skipped without

@@ -21,6 +21,7 @@ from aiohttp import web
 from reax_subnet import s1validator, tiers
 from reax_subnet.chain import Neuron
 from reax_subnet.config import ConfigError, load_common, load_validator
+from reax_subnet.elements import slot_key
 from reax_subnet.manifest import commitment_text, load_manifest
 from reax_subnet.miner import S1Miner
 from reax_subnet.s1backends import S1HashBackend
@@ -342,7 +343,7 @@ async def tiered_arena(tmp_path, make_wallet, fake_chain_cls, monkeypatch):
         man = load_manifest(model)
         neurons.append(Neuron(uid, w.hotkey.ss58_address, f"c{uid}", False, 0.0, "127.0.0.1", port,
                               commitment=commitment_text(model, man.manifest_id)))
-        roles[uid] = role
+        roles[slot_key(uid, model)] = role  # the scoring slot (docs/DESIGN-MULTIROLE.md): the uid for s1-fast
 
     await add("gpu", 2, "s1-fast", OnMachine("s1-fast", Machine(400.0)))
     await add("lite_big", 3, "s1-lite", OnMachine("s1-lite", Machine(40.0)))

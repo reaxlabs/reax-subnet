@@ -67,7 +67,7 @@ async def test_inactive_track_is_ignored(env):
     env.add(1, "a/m1", 0.9)
     assert await env.cycle({1: "a/m1"}) == {}
     assert env.hub.fetches == []
-    env.clock.t = C.DEFAULT_TRACKS[0].start_ts + 14 * 86400 + 1
+    env.clock.t = C.DEFAULT_TRACKS[0].start_ts + 21 * 86400 + 1       # the first pair runs 21 days (1.2.0rc9.post6)
     assert await env.cycle({1: "a/m1"}) == {}
 
 

@@ -74,8 +74,9 @@ class AwaitingReview(RuntimeError):
 
 RELEASE_RUNTIME = "runsc"
 # What the daemon's ``runsc`` entry must carry (daemon.json "runtimes"): the binary is gVisor's runsc, its sandbox has no
-# network stack of its own and it has the NVIDIA proxy for the GPU (a runtime merely *named* runsc proves neither).
-RELEASE_RUNTIME_ARGS = ("--network=none", "--nvproxy=true", "--nvproxy-allowed-driver-capabilities=compute,utility")
+# network stack of its own, it has the NVIDIA proxy for the GPU and it can create the engine socket in its host mount.
+RELEASE_RUNTIME_ARGS = ("--network=none", "--nvproxy=true", "--nvproxy-allowed-driver-capabilities=compute,utility",
+                        "--host-uds=create")
 ENGINE_GPU_MIB = 12_500  # one s1-fast engine (Plumb-4B, 12.3 GB measured on the validator card)
 MAX_IMAGE_COMPRESSED_BYTES = 15 * 10 ** 9  # refused before the pull (a decompression bomb is small compressed, but this caps the download)
 
@@ -380,6 +381,19 @@ class DockerRunner:
         if nets and nets[-1] != "--network=none":
             raise ReferenceSelfCheckFailed(f"the docker daemon's {RELEASE_RUNTIME} runtime ends with {clean(nets[-1])!r}, "
                                            "not --network=none")
+
+        # Reject every wider UDS mode, even if a later flag would override it, and the deprecated alias. runsc parses Go
+        # flags: one or two leading dashes, and "--host-uds all" as two arguments, all mean the same flag.
+        for arg in args:
+            if not isinstance(arg, str):
+                continue
+            name = "--" + arg.lstrip("-")
+            if (name == "--host-uds" or name.startswith("--host-uds=")) and name != "--host-uds=create":
+                raise ReferenceSelfCheckFailed(f"the docker daemon's {RELEASE_RUNTIME} runtime has {clean(arg)!r}, "
+                                               "not --host-uds=create")
+            if name == "--fsgofer-host-uds" or name.startswith("--fsgofer-host-uds="):
+                raise ReferenceSelfCheckFailed(f"the docker daemon's {RELEASE_RUNTIME} runtime has deprecated "
+                                               f"{clean(arg)!r}; use --host-uds=create")
 
     async def preflight(self) -> None:
         """Both engines (reference + candidate) are loaded at once. On a shared 96 GB GPU the serving runtimes stay

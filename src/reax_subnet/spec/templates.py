@@ -13,14 +13,21 @@ from typing import Mapping
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
 
-# architecture (config.json) -> template file
+# architecture (config.json) -> template file. The open-class architectures (``rules.OPEN_CLASS_ARCHS``) have a template here
+# too, but only the rules of the open class (``rules.rules_at``, from 1.2.0rc9.post6) allow them.
 TEMPLATE_FOR_ARCH: Mapping[str, str] = {
+    "Qwen3_5Model": "qwen.jinja",
     "Qwen3ForCausalLM": "qwen.jinja",
     "Qwen3MoeForCausalLM": "qwen.jinja",
     "Qwen3_5ForCausalLM": "qwen.jinja",
     "Qwen3_5ForConditionalGeneration": "qwen.jinja",
+    "Qwen3_5MoeForCausalLM": "qwen.jinja",
+    "Qwen3_5MoeForConditionalGeneration": "qwen.jinja",
     "Gemma3ForCausalLM": "gemma3.jinja",
     "Gemma3ForConditionalGeneration": "gemma3.jinja",
+    "Gemma4ForCausalLM": "gemma4.jinja",
+    "Gemma4ForConditionalGeneration": "gemma4.jinja",
+    "Gemma4UnifiedForConditionalGeneration": "gemma4.jinja",
     "LlamaForCausalLM": "llama3.jinja",
 }
 
@@ -29,6 +36,7 @@ TEMPLATE_FOR_ARCH: Mapping[str, str] = {
 TEMPLATE_MARKERS: Mapping[str, tuple[str, ...]] = {
     "qwen.jinja": ("<|im_start|>", "<|im_end|>"),
     "gemma3.jinja": ("<start_of_turn>", "<end_of_turn>"),
+    "gemma4.jinja": ("<bos>", "<|turn>", "<turn|>", "<|channel>", "<channel|>"),
     "llama3.jinja": ("<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>"),
 }
 

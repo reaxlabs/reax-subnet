@@ -12,6 +12,9 @@ so its licence is not restricted.
   the submission stays pending verification and the fetch is tried again after ``retry_cycles`` cycles.
 * Per cycle at most ``budget_bytes`` are downloaded, and a download must leave ``min_free_bytes`` free on the base
   directory's filesystem; otherwise the base is deferred to a later cycle (no attempt is counted).
+* Before a base is deferred for lack of disk, cached bases that no live (not rejected, not withdrawn) submission declares and
+  that are not in ``preseed`` are removed, oldest first, if that makes room (``in_use`` is set by the evaluator; without it
+  nothing is ever removed). A removed base is fetched again, identical, when a submission declares it.
 * ``preseed`` fetches the operator's list in the background (not counted against the cycle budget).
 """
 
@@ -60,7 +63,7 @@ def inspect_base(path: str, rules: R.TrackRules) -> list[str]:
 
 
 class BaseFetcher:
-    def __init__(self, base_dir: str, hub: F.Hub | None = None, *, rules: R.TrackRules = R.TrackRules(),
+    def __init__(self, base_dir: str, hub: F.Hub | None = None, *, rules: R.TrackRules | None = None,
                  retry_cycles: int = C.BASE_RETRY_CYCLES, budget_bytes: int = C.BASE_BUDGET_GB * 1024 ** 3,
                  min_free_bytes: int = C.BASE_MIN_FREE_GB * 1024 ** 3,
                  free_bytes: Callable[[str], int] | None = None, clock: Callable[[], float] = time.time):
@@ -69,9 +72,11 @@ class BaseFetcher:
         self.rules = rules
         self.retry_cycles = max(1, retry_cycles)
         self.budget_bytes = budget_bytes
+        self.budget_for: Callable[[float], int] | None = None
         self.min_free_bytes = min_free_bytes
         self._free_bytes = free_bytes or (lambda path: shutil.disk_usage(path).free)
         self.clock = clock
+        self.in_use: Callable[[], set[str]] | None = None   # "<hf id>@<revision>" of every base that must stay (evaluator)
         self.provider = C.dir_base_provider(base_dir)
         self.cycle = 0
         self.spent = 0                                   # bytes downloaded this cycle
@@ -85,8 +90,10 @@ class BaseFetcher:
 
     @classmethod
     def from_config(cls, cfg: C.SpecConfig, hub: F.Hub | None = None, **kw) -> "BaseFetcher":
-        return cls(cfg.base_dir, hub, rules=cfg.rules, retry_cycles=cfg.base_retry_cycles, budget_bytes=cfg.base_budget_bytes,
-                   min_free_bytes=cfg.base_min_free_bytes, **kw)
+        fetcher = cls(cfg.base_dir, hub, rules=cfg.rules, retry_cycles=cfg.base_retry_cycles, budget_bytes=cfg.base_budget_bytes,
+                      min_free_bytes=cfg.base_min_free_bytes, **kw)
+        fetcher.budget_for = cfg.base_budget_for
+        return fetcher
 
     # ------------------------------------------------------------------ public
 
@@ -157,15 +164,23 @@ class BaseFetcher:
             return self._fail(base_model, "the hub revision of the base does not match the declared revision")
         if listing.gated or listing.private:
             return self._fail(base_model, "the base repo is gated or private: an operator must place it under REAX_SPEC_BASE_DIR")
-        bad = R.check_base_listing(listing.files, self.rules)
+        rules = self.rules if self.rules is not None else R.rules_at()     # an injected rules object wins
+        bad = R.check_base_listing(listing.files, rules)
         if bad:
             return self._fail(base_model, ("base refused: " + "; ".join(bad))[:300])
         size = sum(s for n, s in listing.files.items() if R._is_downloaded(n))
-        if budgeted and self.spent + size > self.budget_bytes:
+        budget = self.budget_for(self.clock()) if self.budget_for is not None else self.budget_bytes
+        if budgeted and self.spent + size > budget:
             log.info("base model %s (%.1f GB) deferred: the base download budget of this cycle is used (%.1f of %.1f GB)",
-                     base_model, size / 1e9, self.spent / 1e9, self.budget_bytes / 1e9)
+                     base_model, size / 1e9, self.spent / 1e9, budget / 1e9)
             return self._miss(base_model, "deferred to a later cycle (base download budget of this cycle used)", host=True)
         free = self._free_bytes(self.base_dir)
+        if free - size < self.min_free_bytes:
+            victims, freed = self._evictable(size + self.min_free_bytes - free)
+            for v in victims:
+                log.warning("base model cache: removing %s (declared by no live submission) to make room for %s", v, base_model)
+                await loop.run_in_executor(None, shutil.rmtree, os.path.join(self.base_dir, v), True)
+            free += freed
         if free - size < self.min_free_bytes:
             log.warning("base model %s (%.1f GB) skipped: %.0f GB free on the base directory's filesystem, %.0f GB must stay free",
                         base_model, size / 1e9, free / 1e9, self.min_free_bytes / 1e9)
@@ -175,7 +190,7 @@ class BaseFetcher:
         tmp = os.path.join(self.base_dir, f"{TMP_PREFIX}{name}-{uuid.uuid4().hex[:12]}")
         try:
             await self.hub.download(repo, rev, tmp)
-            violations = await loop.run_in_executor(None, inspect_base, tmp, self.rules)
+            violations = await loop.run_in_executor(None, inspect_base, tmp, rules)
             if violations:
                 return self._fail(base_model, ("base refused: " + "; ".join(violations))[:300])
             final = os.path.join(self.base_dir, name)
@@ -195,6 +210,29 @@ class BaseFetcher:
         self._host_waits.discard(base_model)
         log.info("base model %s fetched (%.1f GB)", base_model, size / 1e9)
         return final
+
+    def _evictable(self, need: int) -> tuple[list[str], int]:
+        """Cached bases that no live submission declares (oldest first) whose removal frees at least ``need`` bytes; nothing
+        at all when they do not suffice, or when ``in_use`` is not set."""
+        if self.in_use is None or need <= 0:
+            return [], 0
+        keep = {n for b in self.in_use() if (n := C.base_dir_name(b))}
+        found = []
+        for n in os.listdir(self.base_dir):
+            p = os.path.join(self.base_dir, n)
+            if n.startswith(".") or n in keep or not os.path.isdir(p):
+                continue
+            try:
+                found.append((os.path.getmtime(p), n, sum(max(sz, 0) for sz in F.list_dir(p).values())))
+            except OSError:
+                continue
+        out, freed = [], 0
+        for _mtime, n, size in sorted(found):
+            if freed >= need:
+                break
+            out.append(n)
+            freed += size
+        return (out, freed) if freed >= need else ([], 0)
 
     async def _run_preseed(self, bases: list[str]) -> None:
         for b in bases:

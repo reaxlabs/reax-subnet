@@ -55,6 +55,7 @@ class Submission:
     reason: str = ""
     attempts: int = 0                  # model failures in the last START_FAIL_WINDOW scheduled rounds
     serve_log: list[list[Any]] = field(default_factory=list)  # [timestamp, ok/model/infra], newest last, at most 12
+    joint_infra_outcomes: int = 0       # consecutive joint infra rounds, including those converted to model strikes
     serve_retry_pending: bool = False  # champion must be re-measured next cycle, even without challengers
     unavailable_fetches: int = 0       # miner-side refetch failures, independent of start-up strikes
     last_serve_ok_ts: float | None = None
@@ -62,7 +63,9 @@ class Submission:
     pay_suspended_since_ts: float | None = None  # requires validator payment-gate support; crown is retained
     hash_named: str = ""
     hash_unnamed: str = ""
+    hash_backbone: str = ""
     base_model: str = ""
+    params: int | None = None             # parameter count of the fetched model (None = not recorded: before 1.2.0rc9.post6, or never fetched)
     derived_from: str = ""                # key of the earlier submission this one is a near-duplicate of
     derived_how: str = ""                 # "weights" (delta sketch) or "behaviour" (same answers on a shared draw)
     delta_checked: bool = False           # True: compared with the earlier submissions on the same base (near-duplicates)
@@ -71,6 +74,9 @@ class Submission:
     score: float | None = None            # latest score on a shared draw
     nonproc: float | None = None          # the same draw's score on its non-proc items only (None = before 1.2.0rc6)
     by_tier: dict[str, float] = field(default_factory=dict)   # the same draw's score per tier (monitoring)
+    generalist_budget_checked: bool = False  # deferred admission at generalist opening
+    category_draws: dict[str, dict[str, Any]] = field(default_factory=dict)  # diagnostic summaries by draw id
+    category_pooled: dict[str, dict[str, Any]] = field(default_factory=dict)  # pooled sufficient statistics, diagnostics only
     delta: float | None = None            # margin the first pass required
     first_gain: float | None = None
     draw1: str = ""                       # draw id of the first pass
@@ -104,6 +110,8 @@ class Draw:
     seed: int
     item_ids: list[str]
     fresh: bool = True
+    item_categories: dict[str, str] = field(default_factory=dict)
+    x_shortfall: dict[str, int] = field(default_factory=dict)  # missing X quota per category, diagnostic only
 
 
 @dataclass
@@ -114,6 +122,7 @@ class TrackState:
     hashes: dict[str, str] = field(default_factory=dict)       # tensor hash (named or unnamed) -> owning submission key
     used: dict[str, int] = field(default_factory=dict)         # sealed item id -> times drawn
     draws: dict[str, Draw] = field(default_factory=dict)
+    item_categories: dict[str, str] = field(default_factory=dict)  # immutable category binding per loaded item
     playoff_aborts: int = 0                                    # cohort playoffs abandoned in a row for a host reason (1.2.0rc7)
     events: list[str] = field(default_factory=list)            # short audit lines, newest last (capped)
 
@@ -155,7 +164,8 @@ def _from_json(raw: dict[str, Any]) -> SpecState:
     st = SpecState(eval_times=[float(x) for x in raw.get("eval_times", [])])
     for tid, t in raw["tracks"].items():
         ts = TrackState(track_id=tid, champion=str(t.get("champion", "")), hashes=dict(t.get("hashes", {})),
-                        used={k: int(v) for k, v in t.get("used", {}).items()}, events=list(t.get("events", [])),
+                        used={k: int(v) for k, v in t.get("used", {}).items()},
+                        item_categories=dict(t.get("item_categories", {})), events=list(t.get("events", [])),
                         playoff_aborts=int(t.get("playoff_aborts", 0)))
         ts.submissions = {k: _build(Submission, s) for k, s in t.get("submissions", {}).items()}
         for sub in ts.submissions.values():

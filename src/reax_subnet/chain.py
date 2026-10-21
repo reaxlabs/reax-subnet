@@ -30,6 +30,9 @@ class Neuron:
     commitment: str = ""
     commitment_block: int = 0  # block of that commitment (0 = unknown)
     registered_block: int = 0  # block this hotkey registered on the subnet (metagraph block_at_registration; 0 = unknown)
+    # The commitment's Raw fields, one element each (elements.py, docs/DESIGN-MULTIROLE.md); () = not read separately
+    # (then ``commitment`` is the only field). A field that is not plain UTF-8 Raw data reads as INVALID_FIELD.
+    commitment_fields: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -64,6 +67,8 @@ class Chain(Protocol):
     def serve_axon(self, ip: str, port: int) -> None: ...
 
     def set_commitment(self, text: str) -> None: ...
+
+    def set_commitment_fields(self, texts: Sequence[str]) -> None: ...
 
     # Optional (callers use getattr): ``def block_hash(self, block: int) -> Optional[str]`` - the hash of a block,
     # None when it does not exist yet or cannot be read.
@@ -123,6 +128,7 @@ class SdkChain:
                     port=port,
                     commitment=_commitment_text(getattr(n, "commitment", None)),
                     commitment_block=_commitment_block(getattr(n, "commitment", None)),
+                    commitment_fields=_commitment_fields(getattr(n, "commitment", None)),
                     registered_block=_int_or_zero(getattr(n, "block_at_registration", 0)),
                 )
             )
@@ -145,12 +151,16 @@ class SdkChain:
             raise RuntimeError(f"set_weights failed: {result.message}")
 
     def set_commitment(self, text: str) -> None:
+        self.set_commitment_fields([text])
+
+    def set_commitment_fields(self, texts: Sequence[str]) -> None:
+        """Replace the whole commitment with these fields (one element each; at most 3, 1..128 bytes each)."""
         from bittensor._generated import calls
 
-        data = text.encode("utf-8")
-        if not 0 < len(data) <= 128:
-            raise ValueError("commitment must be 1..128 bytes")
-        info = {"fields": [[{f"Raw{len(data)}": data}]]}
+        datas = [t.encode("utf-8") for t in texts]
+        if not 1 <= len(datas) <= 3 or not all(0 < len(d) <= 128 for d in datas):
+            raise ValueError("a commitment is 1..3 fields of 1..128 bytes")
+        info = {"fields": [[{f"Raw{len(d)}": d} for d in datas]]}
         result = self.subtensor.submit_call(
             calls.Commitments.set_commitment(netuid=self.netuid, info=info), self.wallet, signer="hotkey"
         )
@@ -200,6 +210,32 @@ FINNEY_GENESIS = "0x2f0555cc76fc2840a25a6ea3b9637146806f1f44b090c175ffde2a7e5ab3
 def _commitment_block(c: Any) -> int:
     value = getattr(c, "block", 0) if c is not None else 0
     return value if isinstance(value, int) and value > 0 else 0
+
+
+# Stands for a field that is not plain UTF-8 Raw data (a hash or timelock variant, bad UTF-8): no element parses it, so it
+# voids a commitment that contains it.
+INVALID_FIELD = "\x00"
+
+
+def _commitment_fields(c: Any) -> tuple[str, ...]:
+    """The commitment's fields as text, one per field (SDK ``NeuronCommitment.fields``: [{variant: 0x-hex}, ...])."""
+    fields = getattr(c, "fields", None) if c is not None else None
+    if not isinstance(fields, (list, tuple)):
+        return ()
+    out = []
+    for entry in fields[:8]:
+        if not isinstance(entry, dict) or len(entry) != 1:
+            out.append(INVALID_FIELD)
+            continue
+        (variant, value), = entry.items()
+        if not (isinstance(variant, str) and variant.startswith("Raw") and isinstance(value, str)):
+            out.append(INVALID_FIELD)
+            continue
+        try:
+            out.append(bytes.fromhex(value.removeprefix("0x")).decode("utf-8"))
+        except ValueError:
+            out.append(INVALID_FIELD)
+    return tuple(out)
 
 
 def _commitment_text(c: Any) -> str:

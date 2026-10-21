@@ -188,9 +188,34 @@ async def test_runsc_must_be_the_runsc_binary_with_its_required_flags(tmp_path, 
 
 
 async def test_a_correct_runsc_entry_passes(tmp_path, monkeypatch):
-    for args in (list(ER.RELEASE_RUNTIME_ARGS), ["--debug", "--nvproxy=true", "--network=host", "--nvproxy-allowed-driver-capabilities=compute,utility", "--network=none"], ["--nvproxy", "--nvproxy-allowed-driver-capabilities=compute,utility", "--network=none"]):
+    for args in (list(ER.RELEASE_RUNTIME_ARGS), ["--host-uds=create", "--debug", "--nvproxy=true", "--network=host", "--nvproxy-allowed-driver-capabilities=compute,utility", "--network=none"], ["--host-uds=create", "--nvproxy", "--nvproxy-allowed-driver-capabilities=compute,utility", "--network=none"]):
         monkeypatch.setattr(ER, "_run", Docker(runtimes={"runsc": {"path": "/usr/bin/runsc", "runtimeArgs": args}}))
         await DockerRunner(str(tmp_path / "w"), str(tmp_path), docker_runtime="runsc", release_mode=True).require_runtime()
+
+
+@pytest.mark.parametrize("uds_args", [
+    [],
+    ["--host-uds=open"],
+    ["--host-uds=all"],
+    ["--host-uds=create", "--host-uds=open"],
+    ["--host-uds=create", "--host-uds=all"],
+    ["--host-uds=all", "--host-uds=create"],
+    ["--host-uds=create", "--host-uds="],
+    ["--host-uds=create", "--fsgofer-host-uds"],
+    ["--host-uds=create", "--fsgofer-host-uds=true"],
+    ["--host-uds=create", "--fsgofer-host-uds=false"],
+    ["--host-uds=create", "-host-uds=all"],
+    ["--host-uds=create", "--host-uds", "all"],
+    ["--host-uds=create", "-fsgofer-host-uds"],
+])
+async def test_runsc_requires_create_only_host_uds(tmp_path, monkeypatch, uds_args):
+    # Keep the other required flags valid so each refusal exercises the UDS policy alone.
+    args = [arg for arg in ER.RELEASE_RUNTIME_ARGS if not arg.startswith("--host-uds=")]
+    args.extend(uds_args)
+    monkeypatch.setattr(ER, "_run", Docker(runtimes={"runsc": {"path": "/usr/bin/runsc", "runtimeArgs": args}}))
+    runner = DockerRunner(str(tmp_path / "w"), str(tmp_path), docker_runtime="runsc", release_mode=True)
+    with pytest.raises(ReferenceSelfCheckFailed, match="host-uds"):
+        await runner.require_runtime()
 
 
 # ------------------------------------------------------------------------------------------------ 9

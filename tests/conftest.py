@@ -86,6 +86,24 @@ def rc5_entry_floors(monkeypatch):
         monkeypatch.setitem(cs.TRACK_ENTRY_FLOOR, k, v)
 
 
+# The specialist rules depend on the wall clock (``spec.rules.rules_at``: the open class starts on
+# competition_split.SPEC_OPEN_CLASS_START_UTC). Tests that were written for the rules before it pin the clock to a time
+# before the switch, so that they do not change on 22 Oct 2026; tests/test_open_class.py sets its own clock.
+# Only the wall clock of the rules is pinned. The evaluator and the remote reader take a ``clock=`` argument, and every test that
+# decides something with it passes a fake one (test_spec_evaluator.Env: Clock(T0); the remote tests: NOW0). The few that keep
+# the real ``time.time`` only read leaders (test_remote_competitions: ``SpecEvaluator(cfg)``) or evaluate entries of at most 9 B,
+# which the open class does not change (``_big_ok``: small or unknown size). Checked by running the spec, keep-alive, provisional,
+# competition and remote test files with ``time.time`` shifted six days ahead (after the switch): no failure came from the switch
+# (the ones left were file mtimes / signed approvals dated "in the future" and the known DevRunner flakes).
+PRE_OPEN_CLASS_TS = 1792454400.0   # 2026-10-20T00:00:00Z
+
+
+@pytest.fixture(autouse=True)
+def _wall_clock_before_the_open_class(monkeypatch):
+    from reax_subnet.spec import rules as R
+    monkeypatch.setattr(R, "_wall_clock", lambda: PRE_OPEN_CLASS_TS)
+
+
 @pytest.fixture(autouse=True)
 def _no_fla_checksum_on_fake_docker(request, monkeypatch):
     """Runner tests drive fake docker/nvidia-smi without the published config files on disk; tests marked

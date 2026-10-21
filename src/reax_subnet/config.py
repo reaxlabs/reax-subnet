@@ -177,6 +177,19 @@ class CommonConfig:
 
 
 @dataclass(frozen=True)
+class MinerModel:
+    """One served model of a miner: its backends and the limits of its own lane (docs/DESIGN-MULTIROLE.md section 4)."""
+
+    model: str
+    max_concurrent: int
+    per_caller_concurrency: int
+    per_caller_per_minute: int
+    workers_file: str = ""
+    workers: tuple = ()
+    workers_min_healthy: int = 1
+
+
+@dataclass(frozen=True)
 class MinerConfig:
     common: CommonConfig
     host: str
@@ -199,6 +212,17 @@ class MinerConfig:
     workers_file: str = ""
     workers: tuple = ()
     workers_min_healthy: int = 1
+    # REAX_MODELS: every served model with its own limits and workers (the first is ``common.model``; the scalar fields
+    # above are the first model's). () = built by hand (tests): the first model alone.
+    models: tuple[MinerModel, ...] = ()
+    # REAX_FORCE_MULTIROLE=1: publish a multi-model / two-element commitment before its start block (nobody scores it).
+    force_multirole: bool = False
+
+    @property
+    def served(self) -> tuple[MinerModel, ...]:
+        return self.models or (MinerModel(self.common.model, self.max_concurrent, self.per_caller_concurrency,
+                                          self.per_caller_per_minute, self.workers_file, self.workers,
+                                          self.workers_min_healthy),)
 
 
 @dataclass(frozen=True)
@@ -342,6 +366,21 @@ def _readable_token(path: str) -> bool:
         return False
 
 
+def parse_models(env: Mapping[str, str]) -> tuple[str, ...]:
+    """REAX_MODELS (miner): comma-separated s1 models served behind one hotkey, each at most once; () = not set."""
+    raw = _env(env, "REAX_MODELS", "") or ""
+    if not raw.strip():
+        return ()
+    models = tuple(m.strip() for m in raw.split(","))
+    bad = [m for m in models if m not in S1_MODELS]
+    if bad:
+        raise ConfigError(f"REAX_MODELS lists unknown model(s) {', '.join(repr(m) for m in bad)}; "
+                          f"known: {', '.join(S1_MODELS)}")
+    if len(set(models)) != len(models):
+        raise ConfigError("REAX_MODELS lists a model twice")
+    return models
+
+
 def load_common(env: Mapping[str, str] = os.environ) -> CommonConfig:
     check_disabled_features(env)
     mechanism = _choice(env, "REAX_MECHANISM", "s1", MECHANISMS)
@@ -360,7 +399,15 @@ def load_common(env: Mapping[str, str] = os.environ) -> CommonConfig:
     if log_level not in {"DEBUG", "INFO", "WARNING", "ERROR"}:
         raise ConfigError("REAX_LOG_LEVEL must be DEBUG, INFO, WARNING or ERROR")
     default_model = "s1-fast" if mechanism == "s1" else "qwen3-4b-instruct-2507"
+    models = parse_models(env)
+    if models:
+        if mechanism != "s1":
+            raise ConfigError("REAX_MODELS needs REAX_MECHANISM=s1")
+        default_model = models[0]
     model = _env(env, "REAX_MODEL", default_model) or default_model
+    if models and model not in models:
+        raise ConfigError(f"REAX_MODEL={model} is not in REAX_MODELS ({', '.join(models)}); leave REAX_MODEL unset "
+                          "(the first listed model is the primary one) or list it")
     if mechanism == "s1" and model not in S1_MODELS:
         raise ConfigError(f"REAX_MODEL must be one of {', '.join(S1_MODELS)} with REAX_MECHANISM=s1")
     urls = tuple(
@@ -433,41 +480,81 @@ def default_max_pending_per_ip(per_caller_concurrency: int) -> int:
 MULTINODE_MODELS = ("s1-fast", "s1-pro")  # s1-lite / s1-cpu keep one machine per hotkey (their caps stay low)
 
 
-def _multinode(env: Mapping[str, str], common: CommonConfig) -> tuple[str, tuple, int]:
-    """REAX_FEATURE_MULTINODE=1: the workers file, its parsed workers and REAX_WORKERS_MIN_HEALTHY."""
+def _multinode(env: Mapping[str, str], common: CommonConfig, model: Optional[str] = None,
+               several: bool = False) -> tuple[str, tuple, int]:
+    """REAX_FEATURE_MULTINODE=1: the workers file, its parsed workers and the minimum healthy count of one model.
+
+    The file is ``REAX_<MODEL>_WORKERS_FILE``; a miner with a single model may also use ``REAX_WORKERS_FILE``."""
     from .multinode import load_workers_file
 
-    if common.mechanism != "s1" or common.model not in MULTINODE_MODELS:
+    model = model or common.model
+    if common.mechanism != "s1" or model not in MULTINODE_MODELS:
         raise ConfigError("REAX_FEATURE_MULTINODE=1 needs REAX_MECHANISM=s1 and REAX_MODEL s1-fast or s1-pro "
                           "(s1-lite and s1-cpu keep one machine per hotkey)")
-    var = f"REAX_{common.model.upper().replace('-', '_')}_RUNTIME_URL"
+    tag = f"REAX_{model.upper().replace('-', '_')}"
+    var = f"{tag}_RUNTIME_URL"
     if _env(env, var, "") or _env(env, var + "S", ""):
-        raise ConfigError(f"REAX_FEATURE_MULTINODE=1 takes its workers from REAX_WORKERS_FILE; unset {var} / {var}S")
-    path = os.path.expanduser(_env(env, "REAX_WORKERS_FILE", "") or "")
+        raise ConfigError(f"REAX_FEATURE_MULTINODE=1 takes its workers from the workers file; unset {var} / {var}S")
+    path = os.path.expanduser(_env(env, f"{tag}_WORKERS_FILE", "") or "")
+    if not path and not several:
+        path = os.path.expanduser(_env(env, "REAX_WORKERS_FILE", "") or "")
     if not path:
-        raise ConfigError("REAX_FEATURE_MULTINODE=1 needs REAX_WORKERS_FILE (the JSON list of worker machines)")
+        raise ConfigError("REAX_FEATURE_MULTINODE=1 needs "
+                          + (f"{tag}_WORKERS_FILE" if several else f"REAX_WORKERS_FILE (or {tag}_WORKERS_FILE)")
+                          + " (the JSON list of worker machines)")
     try:
-        workers = tuple(load_workers_file(path, common.model))
+        workers = tuple(load_workers_file(path, model))
     except ValueError as exc:
         raise ConfigError(str(exc)) from None
     live = sum(1 for w in workers if not w.evict)
-    min_healthy = _int(env, "REAX_WORKERS_MIN_HEALTHY", 1, 1, live)
+    raw = _env(env, f"{tag}_WORKERS_MIN_HEALTHY")
+    min_healthy = _int(env, f"{tag}_WORKERS_MIN_HEALTHY" if raw is not None else "REAX_WORKERS_MIN_HEALTHY", 1, 1, live)
     return os.path.abspath(path), workers, min_healthy
 
 
 def load_miner(env: Mapping[str, str] = os.environ) -> MinerConfig:
     common = load_common(env)
-    n_backends = max(1, len(common.endpoints(common.model))) if common.mechanism == "s1" else 1
+    s1 = common.mechanism == "s1"
+    names = (parse_models(env) or (common.model,)) if s1 else (common.model,)
+    if names[0] != common.model:  # REAX_MODEL names the primary model; the others follow in list order
+        names = (common.model, *(m for m in names if m != common.model))
+    several = len(names) > 1
     multinode = _bool(env, "REAX_FEATURE_MULTINODE", False)
-    workers_file, workers, min_healthy = "", (), 1
-    if multinode:
-        workers_file, workers, min_healthy = _multinode(env, common)
-        n_backends = sum(1 for w in workers if not w.evict)
+    if multinode and not any(m in MULTINODE_MODELS for m in names):
+        _multinode(env, common)  # raises the usual explanation
     port = _int(env, "REAX_MINER_PORT", 8091, 1, 65535)
-    # Integration of the two v2 changes: each default is the larger of what one probe at the pool cap needs (capx4) and
-    # the old per-backend default times the number of runtime backends (minerfanout); x1 with one backend = 8 / 16 / 240.
-    per_caller_concurrency = _int(env, "REAX_PER_CALLER_CONCURRENCY",
-                                  min(128, max(DEFAULT_PER_CALLER_CONCURRENCY, 16 * n_backends)), 1, 128)
+    models = []
+    for m in names:
+        workers_file, workers, min_healthy = "", (), 1
+        if multinode and m in MULTINODE_MODELS:
+            workers_file, workers, min_healthy = _multinode(env, common, m, several)
+            n_backends = sum(1 for w in workers if not w.evict)
+        else:
+            n_backends = max(1, len(common.endpoints(m))) if s1 else 1
+        # Integration of the two v2 changes: each default is the larger of what one probe at the pool cap needs (capx4)
+        # and the old per-backend default times the number of runtime backends (minerfanout); x1 with one backend =
+        # 8 / 16 / 240. Every model of a hotkey has its own lane with its own limits, sized by its own backends.
+        per_caller_concurrency = _int(env, "REAX_PER_CALLER_CONCURRENCY",
+                                      min(128, max(DEFAULT_PER_CALLER_CONCURRENCY, 16 * n_backends)), 1, 128)
+        models.append(MinerModel(
+            model=m,
+            # Capacity probes offer up to PROBE_LANES_AT_CAP concurrent requests per validator and, at the pool cap,
+            # about PROBE_REQUESTS_AT_CAP requests in a few seconds (tiers.CAPACITY): the defaults let one hotkey be
+            # measured at the full speed of a big machine (docs/DESIGN-POOLS.md section 4.1, docs/MINER.md). With
+            # several runtime backends the defaults also grow with their number (docs/MINER.md, "Several GPUs or
+            # machines").
+            max_concurrent=_int(env, "REAX_MAX_CONCURRENT",
+                                min(256, max(DEFAULT_MAX_CONCURRENT, 8 * n_backends)), 1, 256),
+            per_caller_concurrency=per_caller_concurrency,
+            per_caller_per_minute=_int(env, "REAX_PER_CALLER_PER_MINUTE",
+                                       min(6000, max(DEFAULT_PER_CALLER_PER_MINUTE, 240 * n_backends)), 1, 6000),
+            workers_file=workers_file, workers=workers, workers_min_healthy=min_healthy,
+        ))
+    if several and not multinode:
+        urls = [u for m in names for u, _t in common.endpoints(m)]
+        if len(set(urls)) != len(urls):
+            raise ConfigError("REAX_MODELS: two models share a runtime URL; every model needs its own sidecar")
+    first = models[0]
     return MinerConfig(
         common=common,
         host=_env(env, "REAX_MINER_HOST", "0.0.0.0") or "0.0.0.0",
@@ -477,22 +564,20 @@ def load_miner(env: Mapping[str, str] = os.environ) -> MinerConfig:
         serve_axon=_bool(env, "REAX_SERVE_AXON", True),
         min_validator_stake=_float(env, "REAX_MIN_VALIDATOR_STAKE", 1000.0, 0.0, 1e12),
         metagraph_refresh_s=_int(env, "REAX_METAGRAPH_REFRESH_S", 300, 10, 3600),
-        # Capacity probes offer up to PROBE_LANES_AT_CAP concurrent requests per validator and, at the pool cap, about
-        # PROBE_REQUESTS_AT_CAP requests in a few seconds (tiers.CAPACITY): the defaults let one hotkey be measured at
-        # the full speed of a big machine (docs/DESIGN-POOLS.md section 4.1, docs/MINER.md).
-        # With several runtime backends the defaults also grow with their number (docs/MINER.md, "Several GPUs or machines").
-        max_concurrent=_int(env, "REAX_MAX_CONCURRENT", min(256, max(DEFAULT_MAX_CONCURRENT, 8 * n_backends)), 1, 256),
-        per_caller_concurrency=per_caller_concurrency,
-        per_caller_per_minute=_int(env, "REAX_PER_CALLER_PER_MINUTE",
-                                   min(6000, max(DEFAULT_PER_CALLER_PER_MINUTE, 240 * n_backends)), 1, 6000),
+        max_concurrent=first.max_concurrent,
+        per_caller_concurrency=first.per_caller_concurrency,
+        per_caller_per_minute=first.per_caller_per_minute,
         body_timeout_s=_float(env, "REAX_BODY_TIMEOUT_S", 5.0, 0.5, 60.0),
-        max_pending_per_ip=_int(env, "REAX_MAX_PENDING_PER_IP", default_max_pending_per_ip(per_caller_concurrency), 1, 1024),
+        max_pending_per_ip=_int(env, "REAX_MAX_PENDING_PER_IP",
+                                default_max_pending_per_ip(first.per_caller_concurrency), 1, 1024),
         max_pending_total=_int(env, "REAX_MAX_PENDING_TOTAL", 4096, 16, 100_000),
         publish_commitment=_bool(env, "REAX_PUBLISH_COMMITMENT", True),
         multinode=multinode,
-        workers_file=workers_file,
-        workers=workers,
-        workers_min_healthy=min_healthy,
+        workers_file=first.workers_file,
+        workers=first.workers,
+        workers_min_healthy=first.workers_min_healthy,
+        models=tuple(models),
+        force_multirole=_bool(env, "REAX_FORCE_MULTIROLE", False),
     )
 
 

@@ -10,8 +10,8 @@ import pytest
 
 from reax_subnet.chain import Neuron, Snapshot
 from reax_subnet.competition_split import (
-    COMPETITIONS_START_UTC, PROFILES, SPLIT_PROFILE, TRACK_SCHEDULE, NoSpecialistEvaluator, RankedLeaders, active_tracks,
-    combine_weights, engine_decay_fraction, track_payout,
+    COMPETITIONS_START_UTC, GENERALIST_START_UTC, PROFILES, SPLIT_PROFILE, TRACK_SCHEDULE, NoSpecialistEvaluator, RankedLeaders,
+    active_tracks, combine_weights, engine_decay_fraction, track_payout,
 )
 from reax_subnet.engcomp import Champion, EvalResult, RewardParams, TrackState
 from reax_subnet.engvalidator import EngineCompetition
@@ -164,8 +164,11 @@ def test_active_tracks_follow_the_schedule_and_profile():
     assert active_tracks(start) == ["demand_forecasting", "risk_assessment"]  # 50/50 (active): two tracks
     assert active_tracks(start, "80/20") == ["demand_forecasting"]  # 80/20 (inactive): one track
     assert active_tracks(start, "50/50") == ["demand_forecasting", "risk_assessment"]
-    assert active_tracks(start + timedelta(days=14) - timedelta(seconds=1), "80/20") == ["demand_forecasting"]
-    assert active_tracks(start + timedelta(days=14)) == []  # window over: no active track until the next rotation
+    opening = GENERALIST_START_UTC  # the first pair ends at the generalist opening (release constant)
+    assert active_tracks(opening - timedelta(seconds=1), "80/20") == ["demand_forecasting"]
+    assert active_tracks(opening - timedelta(seconds=1)) == ["demand_forecasting", "risk_assessment"]
+    assert active_tracks(opening) == ["generalist"]
+    assert active_tracks(opening + timedelta(days=7)) == ["generalist"]
 
 
 # ------------------------------------------------------------------------------------------------ EngineCompetition
@@ -269,7 +272,7 @@ async def test_cycle_is_skipped_when_the_shared_gpu_is_too_full(tmp_path):
 from reax_subnet import competition_split as CS  # noqa: E402
 
 TRACK_ID = "demand_forecasting"
-T_NOW = 1_800_000_000.0
+T_NOW = (CS.GENERALIST_START_UTC - timedelta(days=4)).timestamp()
 
 
 def _gate(approved):

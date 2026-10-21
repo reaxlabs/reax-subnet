@@ -95,15 +95,18 @@ def shard_count(lanes_total: int, uids: int, env: Optional[dict] = None) -> int:
 
 def sibling_groups(targets: Sequence[Any]) -> list[list[Any]]:
     """Targets of one coldkey, in target order. Axon IPs are not used: they are declared on chain by anyone, so a
-    sybil UID declaring a competitor's IP could pull that competitor into its group (review H1)."""
+    sybil UID declaring a competitor's IP could pull that competitor into its group (review H1). The scoring slots of
+    one hotkey (several models behind one endpoint, docs/DESIGN-MULTIROLE.md section 4) are separate targets with the
+    hotkey and coldkey of their UID, so they land in one group; without a coldkey, by hotkey."""
     groups: dict[str, list[Any]] = {}
     out: list[list[Any]] = []
     for n in targets:
-        if n.coldkey:
-            if n.coldkey not in groups:
-                groups[n.coldkey] = []
-                out.append(groups[n.coldkey])
-            groups[n.coldkey].append(n)
+        key = n.coldkey or (f"\0{n.hotkey}" if getattr(n, "hotkey", "") else "")
+        if key:
+            if key not in groups:
+                groups[key] = []
+                out.append(groups[key])
+            groups[key].append(n)
         else:
             out.append([n])
     return out

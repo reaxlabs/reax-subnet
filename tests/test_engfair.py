@@ -202,7 +202,9 @@ def test_waiting_uids_guards():
     st.results[DA] = _res(DA)
     assert EC.waiting_uids(st, [w1, w2], 2000, {}) == [5]                               # measured: no longer waiting
     st.owners.pop(DB)
-    assert EC.waiting_uids(st, [w1, w2], 2000, {}) == []                                # image not pulled/bound yet
+    assert EC.waiting_uids(st, [w1, w2], 2000, {}) == [5]                               # not pulled yet: first committer (reg-sniping 20 Oct)
+    st.owners[DB] = "someone-else"
+    assert EC.waiting_uids(st, [w1, w2], 2000, {}) == []                                # image bound to another hotkey
     st2 = _waiting_state(block=2000 - int(CS.ENGINE_KA_MAX_HOURS * 300) - 1)
     assert EC.waiting_uids(st2, [w1], 2000, {}) == []                                   # window over
     many = [_sub(10 + i, f"h{i}", hashlib.sha256(bytes([i])).hexdigest(), 1990) for i in range(9)]
@@ -358,3 +360,19 @@ def test_worker_uses_the_same_hash_sync(opening):
     EC.set_start_block_hash(None)
     _run(EC.sync_start_block_hash(C(), START + EC.START_HASH_CONFIRM_BLOCKS, 5.0))
     assert EC.start_block_hash() == BH
+
+
+def test_tie_order_follows_the_first_sighting_not_a_later_rewrite(opening):
+    """Critic round 3 NEW-4: a pre-opening entrant whose commitment is rewritten after the opening (e.g. the inference
+    element of a dual-role hotkey) keeps its opening tie hash: the chain block of the rewrite does not change the order."""
+    early, late = _sub(7, "hk7", DA, block=5), _sub(3, "hk3", DB, block=900)
+    st = TrackState(results={DA: _res(DA, 1.6), DB: _res(DB, 1.6)})
+    EC.observe(st, [early, late], 2000)
+    p1 = EC.TrackParams("s1-fast", pool="s1-fast", temperature=2.07, confirmations=1)
+    want = min((early, late), key=lambda s: EC.tie_key(s.block, s.hotkey, s.digest))
+    rewritten = [_sub(s.uid, s.hotkey, s.digest, block=2500 if s is want else s.block) for s in (early, late)]
+    elig = EC.observe(st, rewritten, 2600)
+    EC.update_champion(st, elig, p1, 2600)
+    assert st.champion is not None and st.champion.digest == want.digest
+    assert [s.uid for s in EC.pending(TrackState(first_seen=dict(st.first_seen)), rewritten, 5)] == \
+        [s.uid for s in sorted(rewritten, key=lambda s: EC.tie_key(st.first_seen[s.digest][0], s.hotkey, s.digest))]

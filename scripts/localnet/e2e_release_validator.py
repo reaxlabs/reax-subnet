@@ -7,7 +7,7 @@ Runs the real ``reax_subnet.cli.validator_main`` with exactly two test substitut
   (``{"track": [[uid, score], ...]}``; a missing file = no results yet). Everything after the evaluator is real:
   SpecialistAdapter, CompetitionDriver, EngineCompetition.weights -> combine_weights;
 * the competition clock runs at 2026-10-16T13:00Z + the process run time, so that the two use-case tracks of
-  competition_split.TRACK_SCHEDULE (16 Oct 12:00Z - 30 Oct) are active on a development network today. The engine
+  competition_split.TRACK_SCHEDULE (16 Oct 12:00Z - 6 Nov) are active on a development network today. The engine
   competition itself is active at once on a development network (no start time).
 """
 

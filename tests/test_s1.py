@@ -19,6 +19,7 @@ from aiohttp import web
 from reax_subnet import auth
 from reax_subnet.chain import Neuron
 from reax_subnet.config import load_validator
+from reax_subnet.elements import slot_key, slot_uid
 from reax_subnet.manifest import commitment_text, load_manifest, parse_commitment
 from reax_subnet.miner import S1Miner
 from reax_subnet.protocol import ProtocolError
@@ -308,6 +309,7 @@ async def s1arena(tmp_path, make_wallet, fake_chain_cls):
         Neuron(1, vk, "c1", True, 5000.0, None, None),
     ]
     roles: dict[int, str] = {}
+    slots: dict[int, int] = {}  # uid -> its scoring slot (docs/DESIGN-MULTIROLE.md: the s1-pro slot is not the uid)
     ports: dict[str, int] = {}
 
     async def add(role, uid, model, app_factory=None, backend=None, commitment=None, port=None):
@@ -326,6 +328,7 @@ async def s1arena(tmp_path, make_wallet, fake_chain_cls):
         neurons.append(Neuron(uid, w.hotkey.ss58_address, f"c{uid}", False, 0.0, "127.0.0.1",
                               port if port is not None else ports.get(role), commitment=c))
         roles[uid] = role
+        slots[uid] = slot_key(uid, model)
 
     ref_fast = S1HashBackend("s1-fast", salt="reference")
     await add("honest_fast_a", 2, "s1-fast", backend=S1HashBackend("s1-fast", salt="reference"))
@@ -368,7 +371,8 @@ async def s1arena(tmp_path, make_wallet, fake_chain_cls):
     refs = {"s1-fast": ref_fast, "s1-pro": S1HashBackend("s1-pro", salt="reference")}
     val = S1Validator(cfg, vwallet, chain, refs, pools=pools, shares=SHARES_BOTH)
     session = aiohttp.ClientSession(trust_env=False)
-    yield {"val": val, "chain": chain, "session": session, "roles": roles, "refs": refs, "neurons": neurons}
+    yield {"val": val, "chain": chain, "session": session, "roles": roles, "slots": slots, "refs": refs,
+           "neurons": neurons}
     await session.close()
     for r in runners:
         await r.cleanup()
@@ -379,16 +383,17 @@ async def test_s1_only_honest_miners_earn(s1arena):
     for _ in range(6):
         summary = await val.run_round(s1arena["session"])
     assert summary is not None
+    slots = s1arena["slots"]
     for uid, role in roles.items():
-        s = summary["scores"].get(uid)
+        s = summary["scores"].get(slots[uid])
         if role.startswith("honest"):
             assert s["passed"] == s["verified"] and s["score"] > 0.8 and not s["strike"], (role, s)
         elif s is not None and role != "pro_cheats_on_half":
             assert s["score"] == 0.0, (role, s)
     for role in ("uncommitted", "wrong_manifest"):
         uid = next(u for u, r in roles.items() if r == role)
-        assert uid not in summary["scores"] and val.state.miners[uid].ema == 0.0
-    errors = {roles[u]: s["error"] for u, s in summary["scores"].items() if s["error"]}
+        assert slots[uid] not in summary["scores"] and val.state.miners[slots[uid]].ema == 0.0
+    errors = {roles[slot_uid(u)]: s["error"] for u, s in summary["scores"].items() if s["error"]}
     assert errors["slow"] == "timeout"
     assert errors["inconsistent_fields"].startswith("protocol")
     assert errors["role_mismatch"] == "http 400"
@@ -396,7 +401,7 @@ async def test_s1_only_honest_miners_earn(s1arena):
     # Strikes: the wrong/quantised/sharpened models are caught by the logit distance.
     for role in ("wrong_model", "sharpened"):
         uid = next(u for u, r in roles.items() if r == role)
-        assert summary["scores"][uid]["strike"], role
+        assert summary["scores"][slots[uid]]["strike"], role
     q = next(u for u, r in roles.items() if r == "quantised")
     assert summary["scores"][q]["score"] == 0.0 and val.state.miners[q].ema < 0.3
     uids, weights, _ = chain.set_calls[-1]
@@ -410,9 +415,9 @@ async def test_s1_only_honest_miners_earn(s1arena):
 
 async def test_spot_check_catches_partial_cheater(s1arena):
     val, roles = s1arena["val"], s1arena["roles"]
-    uid = next(u for u, r in roles.items() if r == "pro_cheats_on_half")
+    uid = s1arena["slots"][next(u for u, r in roles.items() if r == "pro_cheats_on_half")]
     strikes = answered = 0
-    honest_pro = next(u for u, r in roles.items() if r == "honest_pro")
+    honest_pro = s1arena["slots"][next(u for u, r in roles.items() if r == "honest_pro")]
     cheat_ema, honest_ema = [], []
     for _ in range(12):
         s = await val.run_round(s1arena["session"])
@@ -452,8 +457,9 @@ async def test_role_change_resets_score(s1arena):
     assert val.state.miners[2].role.startswith("s1-fast:") and val.state.miners[2].ema == ema_before
     await val.run_round(s1arena["session"])
     # confirmed: the miner still serves s1-fast, refuses the s1-pro request and starts from zero
-    assert val.state.miners[2].role.startswith("s1-pro:")
-    assert val.state.miners[2].ema == 0.0
+    pro = slot_key(2, "s1-pro")
+    assert val.state.miners[pro].role.startswith("s1-pro:") and val.state.miners[pro].ema == 0.0
+    assert val.state.miners[2].role == "" and val.state.miners[2].ema == 0.0  # the s1-fast slot is gone
 
 
 # ------------------------------------------------------- burn and owner-UID edge cases
@@ -609,7 +615,8 @@ async def test_hung_reference_runtime_skips_the_round_quickly(s1arena, monkeypat
     assert summary is not None
     roles = s1arena["roles"]
     assert summary["scores"][2]["error"] == "reference unavailable"
-    assert summary["scores"][4]["score"] is not None and summary["scores"][4]["score"] > 0.8, roles[4]
+    pro = s1arena["slots"][4]
+    assert summary["scores"][pro]["score"] is not None and summary["scores"][pro]["score"] > 0.8, roles[4]
     # Every pool's reference hung: the round is skipped without scoring anyone.
     val.backends["s1-pro"] = HungReference("s1-pro")
     assert await val.run_round(s1arena["session"]) is None

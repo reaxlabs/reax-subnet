@@ -5,7 +5,8 @@ without any chain access. Competitors use it before submitting; validators use i
 
     reax-engine-eval --reference <image>@sha256:<d> --candidate <image>@sha256:<d> --weights /path/to/model [--gpu 0]
 
-``reax-engine-submit``: publish ``reax-eng/1:<track>:<image>@sha256:<digest>`` as the hotkey's commitment. While the
+``reax-engine-submit``: publish ``reax-eng/1:<track>:<image>@sha256:<digest>`` as the hotkey's engine element, next to
+its inference element if it has one (docs/DESIGN-MULTIROLE.md; see ``reax-commit`` for the rules). While the
 competition runs on finney (from COMPETITIONS_START_UTC, docs/COMPETITIONS.md); on other networks it needs
 REAX_FEATURE_ENGINE_COMPETITION=1. While the engine track is held on finney (competition_split.ENGINE_TRACK_START_UTC is
 None) it publishes nothing.
@@ -82,6 +83,8 @@ def submit_main(argv=None) -> None:
     ap.add_argument("image", help="<image>@sha256:<digest>")
     ap.add_argument("--track", default="s1-fast", choices=sorted(TRACKS))
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--replace-all", action="store_true",
+                    help="write the engine element alone (drops an inference element on the same hotkey)")
     args = ap.parse_args(argv)
     network = os.environ.get("REAX_NETWORK", "finney") or "finney"
     if network not in MAINNET_NAMES and os.environ.get("REAX_FEATURE_ENGINE_COMPETITION") != "1":
@@ -105,7 +108,22 @@ def submit_main(argv=None) -> None:
     except ConfigError as exc:
         sys.exit(f"configuration error: {exc}")
     from .chain import SdkChain
+    from .commitcli import Refused, force_multirole, same_elements, write_plan
+    from .elements import fields_of
 
-    chain = SdkChain(common.network, common.netuid, wallet)
-    chain.set_commitment(text)
-    print(f"published {text} for {hotkey}")
+    # Every write replaces all fields: keep the hotkey's inference element next to the new engine element.
+    chain = SdkChain(common.network, common.netuid, wallet, commitments=True)
+    snap = chain.snapshot()
+    mine = next((n for n in snap.neurons if n.hotkey == hotkey), None)
+    if mine is None:
+        sys.exit(f"hotkey {hotkey} is not registered on subnet {common.netuid}")
+    current = fields_of(mine)
+    try:
+        fields = write_plan(current, text, snap.block, replace_all=args.replace_all, force=force_multirole())
+    except Refused as exc:
+        sys.exit(f"reax-engine-submit: {exc}")
+    if same_elements(current, fields):
+        print(f"{hotkey} already has exactly these elements on chain; nothing written")
+        return
+    chain.set_commitment_fields(fields)
+    print(f"published {' + '.join(fields)} for {hotkey}")

@@ -51,7 +51,7 @@ def test_refuses_more_than_nine_billion_params(tmp_path):
 
 def test_refuses_oversized_weights_by_listing():
     big = {"a.safetensors": 21 * R.GIB, "LICENSE": 1, R.MANIFEST_NAME: 1}
-    assert any("GiB" in v for v in R.check_listing(big))
+    assert any("GiB" in v for v in R.check_listing(big, R.rules_at(0)))      # the cap before the open class (tests/test_open_class.py)
 
 
 def test_refuses_pickle_and_missing_safetensors():

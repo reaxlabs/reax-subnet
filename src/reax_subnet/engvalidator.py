@@ -26,7 +26,7 @@ from .chain import Snapshot
 from . import competition_split as _csplit
 from .competition_split import (
     COMPETITIONS_START_UTC, SPLIT_PROFILE, NoSpecialistEvaluator, SpecialistEvaluator, active_tracks, combine_weights,
-    ENGINE_RESTORE_PREVIOUS, engine_keepalive_enabled, keep_share_enabled,
+    ENGINE_RESTORE_PREVIOUS, engine_keepalive_enabled, keep_share_enabled, legacy_ka_tracks, legacy_ka_uids,
 )
 from .engcomp import (
     Champion, EvalResult, RewardParams, Submission, TrackParams, TrackState, _valid, champion_fraction, competition_weights,
@@ -467,7 +467,8 @@ class EngineCompetition:
                         and (bind or st.first_seen.get(s.digest, (0, s.hotkey))[1] == s.hotkey)
                         and (not bind or st.owners.get(s.digest, s.hotkey) == s.hotkey)]
             if self.engine_keepalive and track == "s1-fast":
-                waiting = waiting_uids(st, eligible, snap.block, {n.uid: n.coldkey for n in snap.neurons})
+                waiting = waiting_uids(st, eligible, snap.block, {n.uid: n.coldkey for n in snap.neurons},
+                                       {n.uid: n.registered_block for n in snap.neurons})
             ch = st.champion
             live = next((s for s in eligible if ch is not None and s.digest == ch.digest and s.hotkey == ch.hotkey),
                         None)
@@ -506,21 +507,32 @@ class EngineCompetition:
                             champion, frac = prev
                     continue
                 champion, frac = ch.uid, comp[ch.uid]
-        ids = active_tracks(self._utcnow(), self.profile)
-        results = self.specialist.track_results(ids, self._utcnow()) if ids else {}
+        now = self._utcnow()  # one instant for the track list, the profile and the payout (GENERALIST_START_UTC switch)
+        ids = active_tracks(now, self.profile)
+        results = self.specialist.track_results(ids, now) if ids else {}
         scores = {t: results[t] for t in ids if results.get(t)}
         ka = getattr(self.specialist, "keepalive", None)
-        alive = ka(ids, self._utcnow()) if ka is not None and ids else {}
+        alive = ka(ids, now) if ka is not None and ids else {}
         alive = {t: alive[t] for t in ids if alive.get(t)}
         pv = getattr(self.specialist, "provisional", None)
-        prov = pv(ids, self._utcnow()) if pv is not None and ids else {}
+        prov = pv(ids, now) if pv is not None and ids else {}
         prov = {t: prov[t] for t in ids if prov.get(t)}
-        if champion is None and not cochamps and not scores and not alive and not prov and not waiting:
+        legacy: list[int] = []
+        lg = getattr(self.specialist, "legacy", None)
+        lids = legacy_ka_tracks(now, self.profile) if lg is not None else ()
+        if lids:
+            # legacy keep-alive (LEGACY_KA_*): ended DF/RA champion always, former champions only with approval
+            try:
+                legacy = legacy_ka_uids(lg(lids, now), lids, self._spec_award_ok(snap))
+            except Exception as exc:  # noqa: BLE001 - fail closed: no legacy keep-alive, everything else unchanged
+                log.warning("legacy keep-alive: could not compute the entries (%r); none paid", exc)
+                legacy = []
+        if champion is None and not cochamps and not scores and not alive and not prov and not waiting and not legacy:
             return dict(base)  # nothing to pay: exactly the 1.1 weights
         return combine_weights(base, champion, frac, scores, self.profile, owner_uid=snap.owner_uid,
                                burn_fraction=burn_fraction, award_ok=self._spec_award_ok(snap), keepalive=alive,
-                               provisional=prov, engine_waiting=waiting, keep_share=self.keep_share, now=self._utcnow().timestamp(),
-                               engine_cochampions=cochamps or None)
+                               provisional=prov, engine_waiting=waiting, keep_share=self.keep_share, now=now.timestamp(),
+                               engine_cochampions=cochamps or None, legacy_keepalive=legacy or None)
 
     def _previous_approved(self, track: str, st: TrackState, eligible: list[Submission],
                            block: int) -> Optional[tuple[int, float]]:

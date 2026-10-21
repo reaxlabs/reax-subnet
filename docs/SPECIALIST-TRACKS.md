@@ -10,10 +10,15 @@ contract (choice, noul, score) as the reference models. They are not Jev models.
 
 ## Schedule
 
-* The first two tracks run together: **demand forecasting** and **risk assessment**, open for commitments and scored from
-  **16 Oct 2026, 12:00 UTC** to 30 Oct 2026, 12:00 UTC (the schedule is a release constant in `competition_split.py`).
-* A track runs for **14 days**, then the next track starts (the rotation). Tracks and dates are announced before they
-  open; a commitment for a track that is not active is ignored.
+* **Demand forecasting** and **risk assessment** retain their small-class rules until the earlier of their published
+  end (30 Oct 2026, 12:00 UTC) and `GENERALIST_START_UTC`.
+* At `GENERALIST_START_UTC` the **generalist** track replaces them with one 0.30 slot. The default target is
+  30 Oct 2026, 12:00 UTC; the actual opening remains a release decision and may move earlier.
+* The 6 Nov extension and the DF/RA open class are cancelled. Generalist accepts commitments from
+  `GENERALIST_COMMIT_FROM_UTC` (the dated rules notice); every commitment first seen before opening joins the
+  opening cohort and the existing first-champion playoff. The notice constant defaults to disabled until the rules notice
+  is set. One commitment per hotkey remains unchanged.
+* See [GENERALIST-RELEASE.md](GENERALIST-RELEASE.md) for release gates and operator settings.
 
 ## What you submit
 
@@ -23,8 +28,8 @@ A Hugging Face model repository, pinned to one revision, containing **weights on
 |---|---|
 | Weights | `*.safetensors` only. No pickle, `.bin`, `.pt`, GGUF or ONNX file may be in the repo. |
 | Code | None is ever run. `trust_remote_code` is never enabled; a `config.json` with `auto_map` is refused. |
-| Size | At most **9 billion parameters** (counted from the safetensors headers) and at most 20 GiB of weights. |
-| Architecture | One of the architectures the pinned vLLM image serves **and** that has a fixed chat template in this release: Qwen3 (dense and MoE), Qwen3.5, Gemma 3, Llama. (Gemma 4 is not accepted in this release: it has no fixed template.) |
+| Size | DF/RA: at most **9 billion parameters** (counted from the safetensors headers) and at most 20 GiB of weights. Generalist from its opening: at most **36 billion parameters** and at most 68 GiB of weights (72 GiB in total to download). |
+| Architecture | One of the architectures the pinned vLLM image serves **and** that has a fixed chat template in this release: Qwen3 (dense and MoE), Qwen3.5, Gemma 3, Llama. Generalist also permits Gemma 4 (`Gemma4ForConditionalGeneration`, `Gemma4ForCausalLM`, `Gemma4UnifiedForConditionalGeneration`) and Qwen3.5 MoE (`Qwen3_5MoeForConditionalGeneration`, `Qwen3_5MoeForCausalLM`). DF/RA refuse these additional architectures. |
 | Licence | Apache-2.0, MIT, BSD-2-Clause or BSD-3-Clause (other licences only if the subnet owner has approved them in writing), plus a `LICENSE` file, so that the model can be hosted and served. |
 | Tokenizer | `tokenizer_config.json` and `tokenizer.json` (or `tokenizer.model`). Your **chat template is never used**: the validator renders the decision prompt with a fixed template per architecture family (below). A `chat_template.jinja`, a `chat_template` in `tokenizer_config.json` and any `*.jinja` are ignored (not even downloaded); `tokenizer.model` / `*.tiktoken` are ignored when `tokenizer.json` exists. |
 | Manifest | `reax-specialist.json` in the repo root (below). |
@@ -46,16 +51,51 @@ reax-spec/1:<track_id>:<hf_repo>@<40-hex revision>
 for example `reax-spec/1:demand_forecasting:acme/df-4b@0123456789abcdef0123456789abcdef01234567`. The revision must
 be the full 40-character commit hash, in lower case, never a branch name. The whole text must fit 128 bytes.
 
+Use the tool instead of a hand-made `btcli` commit: `reax-commit set "reax-spec/1:<track_id>:<hf_repo>@<40-hex revision>"`
+(`--dry-run` shows the fields it would write, `reax-commit show` how this release reads your hotkey, `reax-commit
+withdraw competition` removes the entry). Every commitment write replaces all fields; the tool keeps the hotkey's
+inference element next to your entry once a hotkey may hold both (`DUALROLE_START_BLOCK`, [DESIGN-MULTIROLE.md](DESIGN-MULTIROLE.md))
+and, before that, refuses to drop it unless you pass `--replace-all`. Hotkeys that hold only the entry are written exactly
+as before.
+
 * **Make the repo public within 7,200 blocks (about 24 hours) of the commitment** and keep it public. A repo that is
-  still not downloadable after that is dropped.
-* Limits per coldkey: at most 2 open submissions per track and 4 new submissions per 7 days.
+  still not downloadable after that is dropped. For generalist commitments first seen before opening, this deadline
+  instead runs for 24 hours from opening (wall clock); nothing is fetched before opening.
+* Limits per coldkey: at most 2 open submissions per track and 4 new submissions per 7 days. Generalist pre-commitments
+  are admitted against these limits at opening, counting only generalist entries; their weekly window starts at opening.
+  Pre-opening sync never rejects them for this budget, and they do not consume the DF/RA weekly budget.
 * A new commitment from the same hotkey replaces the old one; the old model no longer counts.
+
+### Open class (generalist only)
+
+From `GENERALIST_START_UTC` generalist entries may be larger. DF/RA retain the small-class rules through their end.
+The rules in force are the ones at the time a check runs, for that submission category.
+
+* **Size:** up to 36 billion parameters, 68 GiB of weights and 72 GiB to download.
+* **Architectures:** Gemma 4 and Qwen3.5 MoE are allowed too (list in the table above). Gemma 4 gets its own fixed template,
+  `gemma4.jinja`, which writes a fixed `<bos>` (never the tokenizer's own `bos_token`) and the Gemma 4 turn tokens
+  `<|turn>`, `<turn|>`, `<|channel>` and `<channel|>`, thinking off; the tokenizer must define all five. Multimodal
+  checkpoints (`...ForConditionalGeneration`) of the new architectures are served text-only (no images). An architecture that
+  was allowed before (e.g. `Qwen3_5ForConditionalGeneration`, `Gemma3ForConditionalGeneration`) is served exactly as before up
+  to 20 GiB of weights and text-only above that.
+* **Declared base:** the base you name in the manifest may be as large as a submission (36 B, 68 GiB, 72 GiB). Before, it
+  could be twice the size of a submission.
+* **Keep-alive:** an entry with **more than 10 billion parameters** qualifies for the keep-alive only if its declared base
+  has a floor in `KEEPALIVE_BASE_FLOOR` (a release constant) and the entry's score is above that floor + 1.5 points. The
+  table is empty in this release, so for now an entry above 10 B parameters gets no keep-alive and no provisional
+  keep-alive. Entries with at most 10 B parameters are not affected.
+
+**Operator note (open-class box).** From the switch the box that serves the open class needs `REAX_SPEC_GPU_BUDGET_GB` >= 81,
+`REAX_SPEC_MIN_FREE_GB` >= 150, `REAX_SPEC_BASE_BUDGET_GB` 80, `REAX_SPEC_CONTAINER_MEM` about `72g` and
+`REAX_SPEC_STARTUP_TIMEOUT_S` 1800 (see "Operator notes"). Both worker and validator must run the generalist release:
+the validator computes the keep-alive base floor and schedule itself. The base download budget defaults to 80 GiB
+from opening (40 GiB before); an explicit `REAX_SPEC_BASE_BUDGET_GB` overrides both.
 
 ### Chat templates
 
 A chat template is code (Jinja) that the validator would otherwise parse inside the vLLM container that holds the GPU, so
 a submission's template is never rendered. Each allowed architecture family maps to one template shipped in the package
-(`src/reax_subnet/spec/templates/`: `qwen.jinja` for Qwen3, Qwen3-MoE and Qwen3.5, `gemma3.jinja`, `llama3.jinja`),
+(`src/reax_subnet/spec/templates/`: `qwen.jinja` for Qwen3, Qwen3-MoE and Qwen3.5 (also the Qwen3.5 MoE models of the open class), `gemma3.jinja`, `gemma4.jinja` (open class), `llama3.jinja`),
 passed to vLLM with `--chat-template` and `--chat-template-content-format string`. The decision prompt is one system and
 one user message, so what a model sees is the family's standard turn layout around the fixed prompt (Qwen: ChatML, with the
 empty think block). `reax-spec-eval` uses the same templates, so your local number matches. Fine-tune with that layout.
@@ -104,7 +144,7 @@ empty think block). `reax-spec-eval` uses the same templates, so your local numb
 * The incumbent is measured again every time a group is evaluated. The validator runs at most a fixed number of model
   evaluations per hour (8 by default since 1.2.0rc8, 6 before; including the incumbent; the competition worker polls every 30 minutes, so a track can run two groups per hour), so a long queue waits; the queue is ordered by
   commitment block, except that (mechanism v2) a first evaluation goes by immunity: entries whose hotkey is already past
-  its immunity period (registration block + `IMMUNITY_BLOCKS_ASSUMED` = 5000 blocks, about 16.7 hours) come first, in
+  its immunity period (registration block + `IMMUNITY_BLOCKS_ASSUMED` = 7200 blocks, about 24 hours, the chain's ImmunityPeriod since 17 Oct 2026) come first, in
   commitment order, then the entries whose immunity ends soonest. An unknown registration block goes last. Confirmation
   groups, the cohort playoff and the alternation between tracks are not affected. This queue order protects entries
   only while the first-pass queue is shorter than immunity allows (about 120 entries at 8 evaluations per hour); a larger
@@ -382,6 +422,14 @@ to the inference part.
   committed while the original was pruned is refused as a copy. Each withdrawn entry can carry its first draw once. Earlier prunes
   since tracks opened on 16 Oct 12:00 UTC have until 20 Oct 18:25 UTC. A changed commitment or expired
   window needs a fresh first draw if the copy checks allow recommitting; a failed first draw has nothing to carry.
+* **Pruning never hands an entrant's work to someone else (reg-sniping review, 20 Oct).** A withdrawn entry (pruned or
+  replaced) stays in the copy registry with its exact tensor hashes and its delta sketch. A later entry of another coldkey
+  and another repo that is derived from it (the near-duplicate rule above) is linked to it as its parent and must beat
+  it like any derived entry; an exact copy is refused. If an earlier original of another coldkey is checked only after
+  an exact copy of it was crowned (e.g. queued behind the copy), the copy is refused and loses the title. The author's
+  own recommit (same coldkey or repo) is not a copy of their withdrawn entry.
+* **Close calls keep the provisional keep-alive until the verdict.** An entry in a close call that waits for its extra
+  first-stage draw is still undecided: it keeps (or gets) the provisional slot below until that draw decides it.
   The new commitment counts toward submission limits, joins its new first-seen-block
   cohort, and does not restart the model's keep-alive window. Registration fees are not refunded.
 
@@ -414,6 +462,10 @@ keep-alive, not an award: it does **not** need the owner's approval and it does 
   on the procedural items and guesses uniformly elsewhere reaches at most 49.8 / 31.8, so these floors, with a margin,
   need real skill on the other tiers. All other conditions are the same.
   Once the award is approved, the champion is paid by its rank only and no longer holds a keep-alive slot.
+* **Generalist above 10 B parameters (from opening).** An entry with more than 10 billion parameters (counted when
+  it is fetched) qualifies only if `KEEPALIVE_BASE_FLOOR` (release constant: base tensor hash
+  to a floor per track) has its declared base and the score that qualified it is above that floor + 1.5 points. The
+  table is empty in this release: no entry above 10 B parameters gets a keep-alive or a provisional keep-alive yet.
 * **Who does not.** Queued or not yet evaluated entries, entries at or below the floor or the non-proc floor, decided entries (former
   champions, entries that did not beat the incumbent, rejected or withdrawn entries), exact copies, near copies that
   did not beat their parent and entries pending verification. Registering many hotkeys with weak or copied models
@@ -434,7 +486,7 @@ keep-alive, not an award: it does **not** need the owner's approval and it does 
   Each of them gets `min(median, cap / n_paid)`. The others get no keep-alive (the validator logs them); they are paid
   again as soon as they are among the top 8. Champion and rank payouts are unchanged.
 * **Provisional keep-alive for the first evaluation (mechanism v2).** An entry that is still waiting for its **first**
-  evaluation has no score, so it cannot qualify above, and once its immunity (5000 blocks, about 16.7 h) is over it is the
+  evaluation has no score, so it cannot qualify above, and once its immunity (7200 blocks, about 24 h) is over it is the
   lowest-emission UID and the chain prunes it before it was ever scored. While all of these hold, the entry therefore
   gets a **provisional** slot (release constants in `competition_split.py`, `PROVISIONAL_KA = True`):
   * it is queued, or waits for this validator's infrastructure (base download, disk), and has no score yet; its hotkey's
@@ -471,9 +523,21 @@ keep-alive, not an award: it does **not** need the owner's approval and it does 
   floors ends the slot.
 * The keep-alive keeps a waiting entry above the lowest-emission UIDs; it does not reserve a UID or guarantee that a
   hotkey is never deregistered.
-* **Timing advice.** Register the hotkey shortly before you commit. The immunity period (about 16.7 hours) starts at
+* **Timing advice.** Register the hotkey shortly before you commit. The immunity period (7200 blocks, about 24 hours) starts at
   registration, and the first weight after your first pass takes up to about 1-2 hours to count on chain; a hotkey
   registered long before its commitment can lose its immunity before the keep-alive reaches it.
+* **After demand_forecasting and risk_assessment end (1.2.0rc10).** From the generalist start (`GENERALIST_START_UTC`)
+  these two tracks hold no slot and pay no rank. For `LEGACY_KA_DAYS` = 7 days from that instant, each of them still
+  pays a legacy keep-alive to its champion (always, as for every keep-alive this is not an award) and to its former
+  champions that have the owner's approval, so they are not deregistered before the dual role lets one hotkey serve
+  inference and compete. The validator reads them from the frozen DF/RA part of the same spec state, with the same
+  checks as the ranks: a hotkey that is deregistered or now commits to anything else (another track, another repo or
+  revision) gets nothing from then on. A uid gets it once even if it led both tracks, and only as a pure entrant: a uid
+  with serving weight or any other competition pay (generalist rank or keep-alive, engine) gets none. Each gets
+  `LEGACY_KA_FRACTION` = 0.5 x the median positive serving weight; all of them together at most `LEGACY_KA_MAX_SHARE` =
+  3 % of the miner part (then split evenly), for at most `LEGACY_KA_MAX_ENTRIES` = 12 uids (DF first, then RA, in rank
+  order; every approved former champion counts, not only the three ranked ones). It comes out of the inference part,
+  never from the engine share or the generalist share.
 
 ## Try it locally
 
@@ -504,15 +568,17 @@ subset; `--no-manifest-check` skips the manifest before you have written it.
 | `REAX_SPEC_BASE_FETCH` | `1` | `0` turns the automatic base download off (then the operator places every base) |
 | `REAX_SPEC_BASE_PRESEED` | none | `<hf id>@<revision>,...` downloaded in the background when the evaluator starts (not counted against the cycle budget) |
 | `REAX_SPEC_BASE_BUDGET_GB` | `40` | base downloads per cycle; a base that does not fit is deferred to the next cycle |
-| `REAX_SPEC_BASE_MIN_FREE_GB` | `50` | free space that must remain on the filesystem of `REAX_SPEC_BASE_DIR` after a base download; otherwise the base is skipped this cycle (log line `must stay free`) |
+| `REAX_SPEC_BASE_MIN_FREE_GB` | `50` | free space that must remain on the filesystem of `REAX_SPEC_BASE_DIR` after a base download; otherwise the base is skipped this cycle (log line `must stay free`). Before that, cached bases that no live (not rejected, not withdrawn) submission declares and that are not in `REAX_SPEC_BASE_PRESEED` are removed, oldest first, if that makes room |
 | `REAX_SPEC_BASE_RETRY_CYCLES` | `6` | a base that could not be fetched (gated, private, not found, refused) is tried again after this many cycles |
-| `REAX_SPEC_GPU_DEVICE` / `REAX_SPEC_GPU_TOTAL_GB` / `REAX_SPEC_GPU_BUDGET_GB` | `0` / card size from nvidia-smi / `25` | GPU for the candidate container and its memory budget |
+| `REAX_SPEC_GPU_DEVICE` / `REAX_SPEC_GPU_TOTAL_GB` / `REAX_SPEC_GPU_BUDGET_GB` | `0` / card size from nvidia-smi / `25` | GPU for the candidate container and its memory budget. The weights need `weights x 1.15 + 2 GiB` of it (a 68 GiB entry: 80.2), so the open class needs **at least 81**. When the weights do not fit, an entry above 20 GiB waits for this host (no strike, no rejection); a log warning (`REAX_SPEC_GPU_BUDGET_GB=... is below`) appears once per cycle from 24 hours before the switch |
 | `REAX_VLLM_DISABLE_UVA` | unset | `1` on confidential-compute GPUs: the candidate container gets a read-only mount of `reax_subnet/spec/ccfix/sitecustomize.py` (via `PYTHONPATH`) that turns vLLM's UVA buffers off, otherwise inputs go stale |
 | `REAX_SPEC_UID` | `10003:10003` | uid:gid of the vLLM container: never root, and not the uid of the validator/worker or of the engine containers (10002). The model directory is made world-readable after the download; if the socket (mode 0666 from uvicorn) cannot be connected to, set this to the worker's own `uid:gid` |
 | `REAX_SPEC_DOCKER_RUNTIME` | none | `docker run --runtime`, e.g. `runsc` (gVisor), like `REAX_ENGINE_DOCKER_RUNTIME` |
-| `REAX_SPEC_CPUS` | `8` | `--cpus` of the vLLM container (memory and swap are 48g, nofile 4096, logs 2 x 10 MB) |
+| `REAX_SPEC_CPUS` | `8` | `--cpus` of the vLLM container (nofile 4096, logs 2 x 10 MB) |
+| `REAX_SPEC_CONTAINER_MEM` | `48g` | `--memory` and `--memory-swap` of the vLLM container: `<int>g`, 8 to 512; anything else stops the worker at start-up. Raise it for the open class (a 36 B model) |
+| `REAX_SPEC_STARTUP_TIMEOUT_S` | `900` | seconds the candidate's vLLM may take to become healthy: whole seconds, 60 to 1800; anything else stops the worker at start-up. Larger models load more slowly. A start-up that never gets healthy is a host outcome (no strike) and costs the GPU every cycle, hence the cap |
 | `REAX_SPEC_SKETCH_SEED` | none (a random seed created once in `REAX_SPEC_WORK_DIR/sketch-seed`, mode 0600) | secret seed of the near-duplicate sample positions. Keep it for the life of the validator and never publish it; when it changes, the stored sketches of earlier submissions are recomputed (their weights are downloaded again) |
-| `REAX_SPEC_MIN_FREE_GB` | `60` | free space required on the filesystem of `REAX_SPEC_WORK_DIR` before a submission is downloaded; below it the cycle is skipped and nothing is recorded against any submission |
+| `REAX_SPEC_MIN_FREE_GB` | `60` | free space required on the filesystem of `REAX_SPEC_WORK_DIR` before a submission is downloaded; below it the cycle is skipped and nothing is recorded against any submission. In the open class a download is also held back (waiting for this host, no strike) when its listed size would leave less than this free; the evaluator then downloads nothing more that cycle |
 | `REAX_SPEC_SAMPLE_SIZE` | `600` | items per draw |
 | `REAX_SPEC_MAX_EVALS_PER_HOUR` | `8` | model evaluations per hour, all tracks together |
 | `REAX_SPEC_V3_DECISIONS` | `0` | (`1`/`true`/`yes`/`on` or `0`/`false`/`no`/`off`; empty means the default, off; any other value stops the worker at start-up) decision rule v3 (variance-aware, see "Decision rule v3"); `0` restores the old margin rule bit for bit, no state migration needed in either direction |
