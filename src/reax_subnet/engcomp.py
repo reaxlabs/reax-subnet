@@ -635,6 +635,34 @@ def waiting_uids(state: TrackState, eligible: Sequence[Submission], block: int,
     return out[: _cs.ENGINE_KA_MAX_ENTRIES]
 
 
+def protected_uids(state: TrackState, eligible: Sequence[Submission], params: TrackParams, block: int,
+                   champion_approved: bool) -> list[int]:
+    """Engine keep-alive ahead of the waiting entries (competition_split.ENGINE_KA_PROTECTED_MAX). Pure.
+
+    (a) the live current champion while ``champion_approved`` is False (it awaits the owner's award decision); (b) the
+    live members with a valid last result of the newest former champion - every listed pair when it belongs to the
+    opening co-champion set (``co_champion_set``) - for ENGINE_FORMER_KA_BLOCKS after the current champion's crowning block.
+    Order: champion, then the former members in listed order; at most ENGINE_KA_PROTECTED_MAX uids."""
+    ch = state.champion
+    if ch is None:
+        return []
+    by_pair = {(s.digest, s.hotkey): s for s in eligible}
+    out: list[int] = []
+    live = by_pair.get((ch.digest, ch.hotkey))
+    if live is not None and not champion_approved:
+        out.append(live.uid)
+    formers = former_champions(state)
+    if formers and isinstance(ch.crowned_block, int) and 0 <= block - ch.crowned_block <= _cs.ENGINE_FORMER_KA_BLOCKS:
+        f = formers[0]
+        co = co_champion_set(Champion(f["digest"], f["hotkey"], -1, 0.0, f["block"]))
+        pairs = co[1] if co is not None else ((f["digest"], f["hotkey"]),)
+        for digest, hotkey in pairs:
+            sub = by_pair.get((digest, hotkey))
+            if sub is not None and sub.uid not in out and _valid(state.results.get(digest), params):
+                out.append(sub.uid)
+    return out[: _cs.ENGINE_KA_PROTECTED_MAX]
+
+
 def competition_weights(state: TrackState, eligible: Sequence[Submission], params: TrackParams,
                         reward: RewardParams, block: int) -> dict[int, float]:
     """Split of the competition share inside the track (sums to 1, or empty when there is no champion)."""

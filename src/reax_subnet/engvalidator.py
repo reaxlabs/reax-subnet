@@ -30,8 +30,8 @@ from .competition_split import (
 )
 from .engcomp import (
     Champion, EvalResult, RewardParams, Submission, TrackParams, TrackState, _valid, champion_fraction, competition_weights,
-    co_champion_set, confirmation_due, former_champions, needs_remeasurement, observe, parse_engine_commitment, pending, track_thresholds,
-    update_champion, waiting_uids,
+    co_champion_set, confirmation_due, former_champions, needs_remeasurement, observe, parse_engine_commitment, pending, protected_uids,
+    track_thresholds, update_champion, waiting_uids,
 )
 from .spec.commitment import parse_commitment as parse_spec_commitment
 from .engthresholds import FROZEN_SHA256, thresholds_sha256
@@ -474,6 +474,11 @@ class EngineCompetition:
             if ch is None or live is None:
                 continue  # champion withdrew since the last cycle: no competition weight until re-evaluated
             ch.uid = live.uid  # UIDs can be renumbered; the title belongs to the hotkey
+            if self.engine_keepalive and track == "s1-fast" and self.award_gate is not None:
+                # protected entries first (ENGINE_KA_PROTECTED_MAX): champion awaiting approval, newest former champion(s)
+                approved = self.award_gate.approved(track, ch.hotkey, engine_submission_id(ch.digest))
+                prot = protected_uids(st, eligible, self.tracks[track], snap.block, approved)
+                waiting = prot + [u for u in waiting if u not in prot]
             comp = competition_weights(st, eligible, self.tracks[track], self.reward, snap.block)
             if track == "s1-fast" and ch.uid in comp:
                 co = co_champion_set(ch)

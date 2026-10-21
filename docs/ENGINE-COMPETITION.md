@@ -133,6 +133,12 @@ The split between serving and the competitions is defined once in [COMPETITIONS.
   award review, and only while it stays committed by the same hotkey with a valid result. An unpaid half goes back to
   serving, never to the other co-champion. A challenger must beat 2.823 by the margin (2.908). Once a challenger takes the
   title, the normal rule applies again and the co-champions are not paid as former champions.
+- **Keep-alive for the champion and the last former champion (1.2.0rc9.post8).** With the engine keep-alive on, the
+  small keep-alive that waiting entries get (half the median serving weight each, together at most 5 % of the engine
+  share) is also paid, ahead of the waiting entries, to (a) the champion while its award review is pending and (b) the
+  last former champion (both opening co-champions, when they were the last title holders) for 7 days (50,400 blocks)
+  after it lost the title, while it stays committed with a valid result. This is a keep-alive, not an award: it needs
+  no approval, and an entry paid anything else gets none. At most 3 such entries on top of the 4 waiting entries.
 - The share is taken from the miner part only; the owner's burn fraction is unchanged. If a validator sets nothing (full
   burn without an owner UID), it still sets nothing.
 

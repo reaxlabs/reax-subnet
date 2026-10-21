@@ -82,6 +82,13 @@ ENGINE_KA_FRACTION = 0.5
 ENGINE_KA_MAX_HOURS = 12.0
 ENGINE_KA_MAX_ENTRIES = 4
 ENGINE_KA_MAX_SHARE = 0.05
+# Protected engine entries (Florian 21 Oct 05:25Z/05:30Z, rc9.post8): the engine keep-alive above also pays, ahead of the
+# waiting entries, (a) the current champion while it awaits the owner's award approval and (b) the members of the newest former
+# champion (the whole co-champion set when that is the opening co-champion set) for ENGINE_FORMER_KA_BLOCKS after they were
+# dethroned (= the current champion's crowning block), if still committed with a valid result. A keep-alive is not an award;
+# a uid paid anything else gets none. At most ENGINE_KA_PROTECTED_MAX such uids on top of ENGINE_KA_MAX_ENTRIES.
+ENGINE_KA_PROTECTED_MAX = 3
+ENGINE_FORMER_KA_BLOCKS = 7 * 7200   # 7 days of 12 s blocks
 ENGINE_DECAY_DAYS = 14  # the champion's share falls linearly from full to ENGINE_DECAY_FLOOR over this time
 ENGINE_DECAY_FLOOR = 0.5
 TRACK_RANK_SPLIT = (0.75, 0.17, 0.08)  # winner-take-most inside a use-case track, ranks 1-3
@@ -460,7 +467,7 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
         for track_id in tracks:
             taken.update(track_payout(tracks[track_id], floors.get(track_id)))
         for uid in engine_waiting:
-            if uid != owner_uid and uid not in taken and uid not in ewait and len(ewait) < ENGINE_KA_MAX_ENTRIES:
+            if uid != owner_uid and uid not in taken and uid not in ewait and len(ewait) < ENGINE_KA_MAX_ENTRIES + ENGINE_KA_PROTECTED_MAX:
                 ewait.append(uid)
     per_entry = math.inf
     if alive or prov or ewait:

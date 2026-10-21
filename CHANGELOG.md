@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0rc9.post8 — engine keep-alive for the champion awaiting approval and the last former champion (validator)
+
+`WEIGHTS_VERSION_KEY` is unchanged (1240). With the engine keep-alive on, the small keep-alive that waiting engine entries
+get is also paid, ahead of them, to the champion while its award review is pending and to the last former champion (both
+opening co-champions, when they were the last title holders) for 7 days after it lost the title, while it stays committed
+with a valid result. A keep-alive, not an award; an entry paid anything else gets none; at most 3 such entries on top of
+the 4 waiting entries, all within the existing cap of 5 % of the engine share. Miners need no update.
+
 ## 1.2.0rc9.post7 — engine opening co-champions (validator)
 
 `WEIGHTS_VERSION_KEY` is unchanged (1240). One-time exception for the engine opening round (owner decision 20 Oct 2026):
