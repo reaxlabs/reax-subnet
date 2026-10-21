@@ -132,13 +132,22 @@ The split between serving and the competitions is defined once in [COMPETITIONS.
   (decaying from the opening crowning, block 9,326,968) is split 50/50. Each half is paid only after that entry's own
   award review, and only while it stays committed by the same hotkey with a valid result. An unpaid half goes back to
   serving, never to the other co-champion. A challenger must beat 2.823 by the margin (2.908). Once a challenger takes the
-  title, the normal rule applies again and the co-champions are not paid as former champions.
-- **Keep-alive for the champion and the last former champion (1.2.0rc9.post8).** With the engine keep-alive on, the
-  small keep-alive that waiting entries get (half the median serving weight each, together at most 5 % of the engine
-  share) is also paid, ahead of the waiting entries, to (a) the champion while its award review is pending and (b) the
-  last former champion (both opening co-champions, when they were the last title holders) for 7 days (50,400 blocks)
-  after it lost the title, while it stays committed with a valid result. This is a keep-alive, not an award: it needs
-  no approval, and an entry paid anything else gets none. At most 3 such entries on top of the 4 waiting entries.
+  title, the normal rule applies again. From 1.2.0rc10.post1 the pair counts as one former champion: each of them is
+  paid half of whatever a former champion gets, each half only after that entry's own award review.
+- **Former champions (1.2.0rc10.post1).** Of the champion's part (after the decay above), the previous champion gets
+  17 % and the one before it 8 %; the champion keeps the rest (75 %, or 83 % when only one former champion holds a slot,
+  100 % when none does). A former champion's slot ends 7 days (50,400 blocks) after it lost the title, or earlier when two
+  newer champions push it out. It is paid only after its own award review and only while it stays committed by the same
+  hotkey with a valid result; an unpaid slot goes back to serving. While a new champion waits for its award review, the
+  most recently crowned approved former champion is paid the champion's part (decaying from its own crowning) instead of
+  its slot: the whole part when no other former champion holds a slot, otherwise the part minus the other slot.
+- **Keep-alive for the champion and the former champions (1.2.0rc9.post8, extended in 1.2.0rc10.post1).** With the
+  engine keep-alive on, the small keep-alive that waiting entries get (half the median serving weight each, together at
+  most 5 % of the engine share) is also paid, ahead of the waiting entries, to (a) the champion while its award review is
+  pending and (b) every former champion that holds a slot (both opening co-champions when the pair holds it), until 7 days
+  (50,400 blocks) after it lost the title, while it stays committed with a valid result. This is a keep-alive, not an
+  award: it needs no approval, and an entry paid anything else (including its slot) gets none. At most 4 such entries on
+  top of the 4 waiting entries. The engine keep-alive is taken from all paid engine shares in proportion.
 - The share is taken from the miner part only; the owner's burn fraction is unchanged. If a validator sets nothing (full
   burn without an owner UID), it still sets nothing.
 

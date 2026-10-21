@@ -162,11 +162,19 @@ def test_unapproved_new_champion_restores_the_previous_approved_one(tmp_path):
     w = comp.weights(BASE, _snap(SUBS), set())
     assert 3 not in w and w[2] > 0.15  # about the engine share (0.20), decayed a little from block 100
     age_frac = EC.champion_fraction(comp.reward, 2000 - 100)
-    assert w[2] == pytest.approx(CS.profile_for().engine * age_frac, rel=0.05)
+    # rc10.post1: "old" holds the rank-2 slot (dethroned at 1500); it takes rank 1's whole share (its own slot is not
+    # held against it), the same as after its slot ended
+    assert w[2] == pytest.approx(CS.profile_for().engine * age_frac, rel=1e-9)
+    comp.states["s1-fast"].history[1]["block"] = 2000 - CS.ENGINE_FORMER_SLOT_BLOCKS  # slot over: the same share
+    w = comp.weights(BASE, _snap(SUBS), set())
+    assert w[2] == pytest.approx(CS.profile_for().engine * age_frac, rel=1e-9)
 
 
 def test_approved_new_champion_keeps_the_share(tmp_path):
     comp = _comp(tmp_path, Gate(_ok(("old", DA), ("new", DB))), SUBS)
+    w = comp.weights(BASE, _snap(SUBS), set())
+    assert w[3] > 0.15 and w[2] == pytest.approx(w[3] * CS.ENGINE_RANK_SPLIT[1] / (1 - CS.ENGINE_RANK_SPLIT[1]))
+    comp.award_gate = Gate(_ok(("new", DB)))  # rc10.post1: the former champion's slot needs its own approval
     w = comp.weights(BASE, _snap(SUBS), set())
     assert w[3] > 0.15 and 2 not in w
 
@@ -186,7 +194,12 @@ def test_previous_withdrawn_or_invalid_is_not_restored(tmp_path):
 def test_restore_flag_off_is_the_old_behaviour(tmp_path, monkeypatch):
     monkeypatch.setattr(EV, "ENGINE_RESTORE_PREVIOUS", False)
     comp = _comp(tmp_path, Gate(_ok(("old", DA))), SUBS)
+    comp.states["s1-fast"].history[1]["block"] = 2000 - CS.ENGINE_FORMER_SLOT_BLOCKS  # rc10.post1: no former slot
     assert comp.weights(BASE, _snap(SUBS), set()) == BASE
+    comp.states["s1-fast"].history[1]["block"] = 1500  # in its slot: only the slot (17 % of rank 1's decayed part)
+    w = comp.weights(BASE, _snap(SUBS), set())
+    assert 3 not in w and w[2] == pytest.approx(CS.profile_for().engine * CS.ENGINE_RANK_SPLIT[1]
+                                                * EC.champion_fraction(comp.reward, 500), rel=1e-9)
 
 
 # ------------------------------------------------------------------------------------------------ B: engine keep-alive

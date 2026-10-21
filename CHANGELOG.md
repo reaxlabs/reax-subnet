@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0rc10.post1 — engine former champions: 75/17/8 with 7-day slots, co-champions as one former champion (validator)
+
+`WEIGHTS_VERSION_KEY` is unchanged (1250). Owner decisions 21 Oct 2026. Of the engine champion's part (after the decay),
+the previous champion gets 17 % and the one before 8 % while their slot runs (7 days = 50,400 blocks from the block they
+lost the title, or until two newer champions push them out); the champion keeps the rest (no former champion in a slot =
+exactly the rule before). Each former champion needs its own owner approval, must still be committed by its hotkey and
+hold a valid result; an unpaid slot goes to the inference part. While a new champion waits for its approval, the most
+recently crowned approved former champion takes the champion's part (its own decay; its own slot is not paid on top and
+not held against it, so with no other slot held it gets the whole part). The opening co-champions (uid 4, uid 198) count
+as one former champion, each half with its own approval. The protected engine keep-alive of 1.2.0rc9.post8
+(`REAX_ENGINE_KEEPALIVE`) now covers the champion awaiting approval and every former champion in its slot (at most 4,
+each until 7 days after it lost the title); a uid paid anything gets none. Validator-only: miners need no update.
+
 ## 1.2.0rc10 — one hotkey, several roles: all inference models + one competition entry (consensus; start block <START_BLOCK>)
 
 Validator + miner release. Both halves count only from release constants `elements.MULTIMODEL_START_BLOCK` /

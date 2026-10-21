@@ -62,7 +62,8 @@ ENGINE_TRACK_START_BLOCK: Optional[int] = 9326382
 
 # Engine champion fallback (miner report 21901). While the current champion has no owner approval (award pending or
 # rejected), the engine share is paid to the most recently crowned FORMER champion that is approved, still committed and
-# still valid (its decay keeps running from its own crowning). False = the engine share goes to the inference part.
+# still valid (its decay keeps running from its own crowning); with former-champion slots held it takes rank 1's share
+# (ENGINE_RANK_SPLIT). False = rank 1's share goes to the inference part.
 ENGINE_RESTORE_PREVIOUS = True
 
 # Engine co-champions (1.2.0rc9.post7; Florian 20 Oct 2026 21:33Z, board #22468): one-time exception for the opening
@@ -73,7 +74,10 @@ ENGINE_RESTORE_PREVIOUS = True
 # co-champion, never to a former champion). The challenger bar is max(champion score, ENGINE_CO_CHAMPION_BAR) x
 # (1 + margin) while they hold the title (engcomp.update_champion). The decay runs from ENGINE_CO_CHAMPION_CROWNED (also
 # when a co-champion is crowned again later, e.g. after the other withdrew). Once a challenger takes the title, the normal
-# rule applies again, and a co-champion is never paid as a former champion. Empty = off.
+# rule applies again and the set is ONE former champion (1.2.0rc10.post1, Florian 21 Oct 2026 05:25Z; see
+# ENGINE_RANK_SPLIT): as the restored champion while the new one waits for its approval (ENGINE_RESTORE_PREVIOUS) and in
+# its former-champion slot, with the same per-entry split, approvals and decay; a single co-champion is never paid the
+# whole share. Empty = off.
 ENGINE_CO_CHAMPIONS: dict[str, tuple[tuple[str, str], ...]] = {
     "s1-fast": (
         ("576fea84b347fc85160f788d737db616be4b5ca4cde19268e0ce1d1f5cdfe12f",  # uid 198
@@ -96,12 +100,12 @@ ENGINE_KA_MAX_HOURS = 12.0
 ENGINE_KA_MAX_ENTRIES = 4
 ENGINE_KA_MAX_SHARE = 0.05
 # Protected engine entries (Florian 21 Oct 05:25Z/05:30Z, rc10): the engine keep-alive above also pays, ahead of the waiting
-# entries, (a) the current champion while it awaits the owner's award approval and (b) the members of the newest former
-# champion (the whole co-champion set when that is the opening co-champion set) for ENGINE_FORMER_KA_BLOCKS after they were
-# dethroned (= the current champion's crowning block), if still committed with a valid result. A keep-alive is not an award;
-# a uid paid anything else gets none. At most ENGINE_KA_PROTECTED_MAX such uids on top of ENGINE_KA_MAX_ENTRIES.
-ENGINE_KA_PROTECTED_MAX = 3
-ENGINE_FORMER_KA_BLOCKS = 7 * 7200   # 7 days of 12 s blocks
+# entries, (a) the current champion while it awaits the owner's award approval and (b) every former champion that holds a
+# slot (ENGINE_RANK_SPLIT, ENGINE_FORMER_SLOT_BLOCKS from its own dethroning; all members of the opening co-champion set),
+# in rank order, if still committed with a valid result (engcomp.protected_uids). A keep-alive is not an award; a uid paid
+# anything else (incl. its slot share) gets none. At most ENGINE_KA_PROTECTED_MAX such uids on top of ENGINE_KA_MAX_ENTRIES
+# (4 = the champion, a two-member co set and the other slot holder).
+ENGINE_KA_PROTECTED_MAX = 4
 # Reg-sniping review (20 Oct 2026, Florian 18:55Z "protect waiting entries on all tracks"): the engine keep-alive also covers
 # (a) an entry whose image was not pulled yet if its hotkey is the digest's first committer and no other hotkey is bound to
 # the image (an entry waiting for the review or the queue earned 0 and was pruned), and (b) the pending challenger between
@@ -128,6 +132,21 @@ CHAIN_IMMUNITY_BLOCKS = 7200   # the subnet's ImmunityPeriod since ~block 9,305,
 ENGINE_DECAY_DAYS = 14  # the champion's share falls linearly from full to ENGINE_DECAY_FLOOR over this time
 ENGINE_DECAY_FLOOR = 0.5
 TRACK_RANK_SPLIT = (0.75, 0.17, 0.08)  # winner-take-most inside a use-case track, ranks 1-3
+# Engine former-champion ranks (1.2.0rc10.post1; Florian 21 Oct 2026 05:30Z, decision "B"). Of the title holder's part of
+# the engine share (decaying from ITS crowning, engcomp.champion_fraction; the decayed part goes to the inference part as
+# before), the previous champion gets ENGINE_RANK_SPLIT[1] and the one before ENGINE_RANK_SPLIT[2] while their slot runs;
+# rank 1 gets the rest (0.75 with both slots held, 0.83 with one, everything with none = the rule before). A slot ends
+# when a newer crowning pushes the entry below rank 3, or ENGINE_FORMER_SLOT_BLOCKS after the block at which the entry
+# was dethroned (the next champion's crowning block, engcomp.dethroned_blocks), whichever comes first. A former champion
+# is paid only with its own approval (award gate), still committed by its hotkey and with a valid last result; the opening
+# co-champion set is ONE former champion, each member 1/n of the slot with its own approval. An unpaid slot (no approval,
+# withdrawn, invalid) goes to the inference part, never to another rank. While rank 1 waits for its approval
+# (ENGINE_RESTORE_PREVIOUS), the most recently crowned approved former champion takes rank 1's share (its own decay) and
+# its own slot is not paid on top: it gets 1 - (the other held slots), i.e. the whole share when no other slot is held
+# (decision 1). The engine keep-alive is deducted from all paid engine shares in proportion; a former champion that holds
+# a slot but is not paid gets the protected engine keep-alive (ENGINE_KA_PROTECTED_MAX, REAX_ENGINE_KEEPALIVE).
+ENGINE_RANK_SPLIT = TRACK_RANK_SPLIT
+ENGINE_FORMER_SLOT_BLOCKS = 7 * 7200  # 7 days at 12 s per block
 ROTATION_DAYS = 14
 
 
@@ -504,9 +523,10 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     keep-alive it keeps an unmeasured entry from being pruned, so only pure entrants (no serving weight) get it
     (docs/DESIGN-MULTIROLE.md section 5); every engine-waiting uid is left out of the median.
 
-    ``engine_cochampions``: ``{uid: part}`` of the engine share for approved co-champions (``ENGINE_CO_CHAMPIONS``), paid
-    like ``engine_champion`` (usually with ``engine_champion`` None); the engine keep-alive is deducted from all engine
-    payees in proportion to their payment. None or empty = exactly the weights without it.
+    ``engine_cochampions``: ``{uid: part}`` of the engine share for approved co-champions (``ENGINE_CO_CHAMPIONS``) and
+    approved former champions in their slots (``ENGINE_RANK_SPLIT``), paid like ``engine_champion``; the engine
+    keep-alive is deducted from all engine payees in proportion to their payment. None or empty = exactly the weights
+    without it.
 
     ``legacy_keepalive``: uids of the ended DF/RA tracks' leaders (``legacy_ka_uids``, ``LEGACY_KA_*``). Paid like the
     engine keep-alive (pure entrants only: no serving weight, not the owner, nothing else paid), at most

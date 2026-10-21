@@ -640,3 +640,33 @@ def test_probe_shards_keep_all_slots_of_a_hotkey_together_even_without_a_coldkey
                n(7, "c", "")]
     groups = [[t.uid for t in g] for g in probeshard.sibling_groups(targets)]
     assert groups == [[2, slot_key(2, "s1-pro")], [5, slot_key(5, "s1-pro")], [7]]
+
+
+def test_rc10_upgrade_keeps_paying_lite_pro_cpu_from_their_slots(make_wallet, fake_chain_cls, tmp_path):
+    """Regression (21 Oct 08:51Z miner report): after the rc10 upgrade a miner that serves only s1-lite / s1-pro / s1-cpu
+    keeps a plain UID row with role "" and ema 0 (the rounds of that row score 0), while its EMA, role and capacity move to
+    its slot. The weights must come from the slot: every such UID is paid exactly what it was paid before the upgrade."""
+    path = tmp_path / "legacy-post8.json"   # not the validator's own REAX_STATE_PATH
+    legacy = {"2": _legacy("hk2", role("s1-fast"), 0.9, tiers.CAPACITY["s1-fast"].target_dps),
+              "3": _legacy("hk3", role("s1-pro"), 0.8, tiers.CAPACITY["s1-pro"].target_dps * 2),
+              "4": _legacy("hk4", role("s1-lite"), 0.7, tiers.CAPACITY["s1-lite"].target_dps),
+              "5": _legacy("hk5", role("s1-cpu"), 0.6, tiers.CAPACITY["s1-cpu"].target_dps)}
+    _write_state(path, legacy)
+    val = _validator(tmp_path, make_wallet("//Validator"), fake_chain_cls)
+    st = load(str(path), 9, "vk")
+    val.state.miners.clear()
+    val.state.miners.update(st.miners)
+    snap = Snapshot(100, tuple(Neuron(u, f"hk{u}", f"ck{u}", False, 0.0, "127.0.0.1", 9000 + u) for u in (0, 1, 2, 3, 4, 5)), "hk0")
+    w = val.compute_weights(snap)
+    assert all(w.get(u, 0.0) > 0 for u in (2, 3, 4, 5)), w
+    for u, model in ((3, "s1-pro"), (4, "s1-lite"), (5, "s1-cpu")):
+        assert val.state.miners[u].role == "" and val.state.miners[slot_key(u, model)].role == role(model)
+        # as live after the upgrade: the plain row keeps scoring 0 (role "", ema 0) - it must not change any weight
+        val.state.miners[u] = replace(val.state.miners[u], ema=0.0, last_score=0.0, rounds=14)
+    assert val.compute_weights(snap) == w
+    # the same numbers as plain single-model UIDs (the pre-upgrade layout) give the same weights
+    val.state.miners.clear()
+    for k, v in legacy.items():
+        val.state.miners[slot_key(int(k), v["role"].split(":")[0])] = MinerState(hotkey=v["hotkey"], ema=v["ema"], role=v["role"],
+                                                                                 capacity=v.get("capacity"))
+    assert val.compute_weights(snap) == pytest.approx(w, rel=1e-12)

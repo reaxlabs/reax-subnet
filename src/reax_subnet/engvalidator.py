@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import tempfile
 import time
@@ -29,9 +30,9 @@ from .competition_split import (
     ENGINE_RESTORE_PREVIOUS, engine_keepalive_enabled, keep_share_enabled, legacy_ka_tracks, legacy_ka_uids,
 )
 from .engcomp import (
-    Champion, EvalResult, RewardParams, Submission, TrackParams, TrackState, _valid, champion_fraction, competition_weights,
-    co_champion_set, confirmation_due, former_champions, needs_remeasurement, observe, parse_engine_commitment, pending, protected_uids,
-    track_thresholds, update_champion, waiting_uids,
+    EvalResult, RewardParams, Submission, TrackParams, TrackState, _valid, champion_fraction, competition_weights,
+    co_champion_set, confirmation_due, former_ranks, needs_remeasurement, observe, parse_engine_commitment, pending,
+    protected_uids, track_thresholds, update_champion, waiting_uids,
 )
 from .spec.commitment import parse_commitment as parse_spec_commitment
 from .engthresholds import FROZEN_SHA256, thresholds_sha256
@@ -466,47 +467,56 @@ class EngineCompetition:
             eligible = [s for s in subs[track] if f"{s.digest}:{s.hotkey}" not in st.not_owner
                         and (bind or st.first_seen.get(s.digest, (0, s.hotkey))[1] == s.hotkey)
                         and (not bind or st.owners.get(s.digest, s.hotkey) == s.hotkey)]
+            ch = st.champion
+            ranks = former_ranks(st, track, snap.block) if track == "s1-fast" else []
             if self.engine_keepalive and track == "s1-fast":
                 waiting = waiting_uids(st, eligible, snap.block, {n.uid: n.coldkey for n in snap.neurons},
                                        {n.uid: n.registered_block for n in snap.neurons})
-            ch = st.champion
             live = next((s for s in eligible if ch is not None and s.digest == ch.digest and s.hotkey == ch.hotkey),
                         None)
             if ch is None or live is None:
                 continue  # champion withdrew since the last cycle: no competition weight until re-evaluated
             ch.uid = live.uid  # UIDs can be renumbered; the title belongs to the hotkey
             if self.engine_keepalive and track == "s1-fast" and self.award_gate is not None:
-                # protected entries first (ENGINE_KA_PROTECTED_MAX): champion awaiting approval, newest former champion(s)
+                # protected entries first (ENGINE_KA_PROTECTED_MAX): champion awaiting approval, former champions in a slot
                 approved = self.award_gate.approved(track, ch.hotkey, engine_submission_id(ch.digest))
-                prot = protected_uids(st, eligible, self.tracks[track], snap.block, approved)
+                prot = protected_uids(st, eligible, self.tracks[track], snap.block, approved, track)
                 waiting = prot + [u for u in waiting if u not in prot]
             comp = competition_weights(st, eligible, self.tracks[track], self.reward, snap.block)
             if track == "s1-fast" and ch.uid in comp:
+                # former-champion ranks (rc10.post1): rank 1 keeps what the held former slots do not take
+                top = 1.0 - math.fsum(g["share"] for g in ranks)
+                slots = [g for g in ranks if g["share"] > 0]
+                pot = comp[ch.uid]  # the title holder's (decayed) part of the engine share
                 co = co_champion_set(ch)
                 if co is not None and co[0] == track:
                     # opening co-champions (ENGINE_CO_CHAMPIONS): each listed entry gets 1/n of the champion's part,
-                    # only with its own approval; an unpaid part goes to the inference part (no former-champion fallback)
+                    # only with its own approval; an unpaid part goes to the inference part
                     since = min(ch.crowned_block, _csplit.ENGINE_CO_CHAMPION_CROWNED.get(track, ch.crowned_block))
-                    part = champion_fraction(self.reward, snap.block - since) / len(co[1])
-                    for digest, hotkey in co[1]:
-                        sub = next((s for s in eligible if s.digest == digest and s.hotkey == hotkey), None)
-                        if sub is None or (digest != ch.digest and not _valid(st.results.get(digest), self.tracks[track])):
-                            continue
-                        if self.award_gate is not None and not self.award_gate.approved(track, hotkey,
-                                                                                        engine_submission_id(digest)):
-                            continue
-                        cochamps[sub.uid] = cochamps.get(sub.uid, 0.0) + part
-                    continue
-                if self.award_gate is not None and not self.award_gate.approved(track, ch.hotkey,
-                                                                                engine_submission_id(ch.digest)):
+                    pot = champion_fraction(self.reward, snap.block - since)
+                    self._add(cochamps, self._parts(track, st, eligible, co[1], pot * top, champion_digest=ch.digest))
+                elif self.award_gate is not None and not self.award_gate.approved(track, ch.hotkey,
+                                                                                  engine_submission_id(ch.digest)):
                     # awaiting owner approval or rejected: the previous approved champion keeps the champion share
                     # (ENGINE_RESTORE_PREVIOUS); without one the engine share goes to the inference part
                     if ENGINE_RESTORE_PREVIOUS:
-                        prev = self._previous_approved(track, st, eligible, snap.block)
+                        prev = self._previous_approved(track, st, eligible, snap.block, ranks)
                         if prev is not None:
-                            champion, frac = prev
-                    continue
-                champion, frac = ch.uid, comp[ch.uid]
+                            g, parts = prev
+                            # it takes rank 1's share; its own slot is not paid on top and not held against rank 1
+                            # (decision 1: the restored payee gets the full champion share of its pot, less other slots)
+                            slots = [s for s in slots if s is not g]
+                            top = 1.0 - math.fsum(s["share"] for s in slots)
+                            parts = {uid: part * top for uid, part in parts.items()}
+                            if g["co"] or slots:
+                                self._add(cochamps, parts)
+                            else:  # exactly the rule before the former-champion ranks
+                                champion, frac = next(iter(parts.items()))
+                else:
+                    champion, frac = ch.uid, pot * top
+                for g in slots:  # ranks 2 and 3: their share of the title holder's (decayed) part
+                    self._add(cochamps, self._parts(track, st, eligible, g["pairs"], pot * g["share"],
+                                                    gated=True))
         now = self._utcnow()  # one instant for the track list, the profile and the payout (GENERALIST_START_UTC switch)
         ids = active_tracks(now, self.profile)
         results = self.specialist.track_results(ids, now) if ids else {}
@@ -534,23 +544,49 @@ class EngineCompetition:
                                provisional=prov, engine_waiting=waiting, keep_share=self.keep_share, now=now.timestamp(),
                                engine_cochampions=cochamps or None, legacy_keepalive=legacy or None)
 
-    def _previous_approved(self, track: str, st: TrackState, eligible: list[Submission],
-                           block: int) -> Optional[tuple[int, float]]:
-        """(uid, champion fraction) of the most recently crowned former champion of ``track`` that is approved by the
-        owner, still committed (and bound to its hotkey) and whose last result is still valid; None if there is none.
-        Its decay runs on from its own crowning block."""
+    def _previous_approved(self, track: str, st: TrackState, eligible: list[Submission], block: int,
+                           ranks: list[dict[str, Any]]) -> Optional[tuple[dict[str, Any], dict[int, float]]]:
+        """(rank entry, {uid: champion fraction}) of the most recently crowned former champion of ``track`` (``ranks``,
+        no time limit) that is approved by the owner, still committed (and bound to its hotkey) and whose last result is
+        still valid; None if there is none. Its decay runs on from its own crowning block.
+
+        The opening co-champion set counts as ONE former champion (rc10.post1, Florian 21 Oct 2026 05:25Z): each listed
+        entry that qualifies on its own gets 1/n (decay from the earlier of its crowning and ENGINE_CO_CHAMPION_CROWNED,
+        so it never restarts); a single member is never paid the full share. When no member qualifies, the walk goes on to
+        older former champions, as for a single former champion."""
         if self.award_gate is None:
             return None
-        for f in former_champions(st):
-            sub = next((s for s in eligible if s.digest == f["digest"] and s.hotkey == f["hotkey"]), None)
-            r = st.results.get(f["digest"])
-            if sub is None or not _valid(r, self.tracks[track]) or not isinstance(f["block"], int):
-                continue
-            if co_champion_set(Champion(f["digest"], f["hotkey"], sub.uid, 0.0, f["block"])) is not None:
-                continue  # opening co-champions are never paid as a former champion (their share goes to inference)
-            if self.award_gate.approved(track, sub.hotkey, engine_submission_id(sub.digest)):
-                return sub.uid, champion_fraction(self.reward, block - f["block"])
+        for g in ranks:
+            since = min(g["block"], _csplit.ENGINE_CO_CHAMPION_CROWNED.get(track, g["block"])) if g["co"] else g["block"]
+            parts = self._parts(track, st, eligible, g["pairs"], champion_fraction(self.reward, block - since),
+                                gated=True)
+            if parts:
+                return g, parts
         return None
+
+    def _parts(self, track: str, st: TrackState, eligible: list[Submission], pairs: tuple[tuple[str, str], ...],
+               frac: float, champion_digest: Optional[str] = None, gated: bool = False) -> dict[int, float]:
+        """{uid: frac / n} for each of the n listed ``pairs`` that is still committed by its hotkey, holds a valid
+        result (the current champion ``champion_digest`` needs none) and has its own approval (``gated``: no award gate =
+        nobody is approved); the rest is not paid (it goes to the inference part)."""
+        part = frac / len(pairs)
+        out: dict[int, float] = {}
+        for digest, hotkey in pairs:
+            sub = next((s for s in eligible if s.digest == digest and s.hotkey == hotkey), None)
+            if sub is None or (digest != champion_digest and not _valid(st.results.get(digest), self.tracks[track])):
+                continue
+            if self.award_gate is None:
+                if gated:
+                    continue
+            elif not self.award_gate.approved(track, hotkey, engine_submission_id(digest)):
+                continue
+            out[sub.uid] = out.get(sub.uid, 0.0) + part
+        return out
+
+    @staticmethod
+    def _add(acc: dict[int, float], parts: Mapping[int, float]) -> None:
+        for uid, part in parts.items():
+            acc[uid] = acc.get(uid, 0.0) + part
 
     def _spec_award_ok(self, snap: Snapshot) -> Optional[Callable[[str, int], bool]]:
         """The gate for a specialist rank: the uid's hotkey and the model it commits to now must be approved."""

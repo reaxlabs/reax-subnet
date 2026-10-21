@@ -630,6 +630,28 @@ def former_champions(state: TrackState) -> list[dict[str, Any]]:
     return [f for f in reversed(out) if ch is None or (f["digest"], f["hotkey"]) != (ch.digest, ch.hotkey)]
 
 
+def dethroned_blocks(state: TrackState) -> dict[tuple[str, str], Any]:
+    """(digest, hotkey) -> the block at which that champion lost the title to the next ``crowned`` event (its latest
+    reign), from ``history``. A champion that is crowned again loses the entry until it is dethroned again; a vacated
+    title and everything before a context change dethrone nobody. Used for the former-champion slot time
+    (competition_split.ENGINE_FORMER_SLOT_BLOCKS)."""
+    out: dict[tuple[str, str], Any] = {}
+    holder: Optional[tuple[str, str]] = None
+    for e in state.history:
+        kind = e.get("event")
+        if kind == "context_changed":
+            out, holder = {}, None
+        elif kind == "crowned":
+            key = (e.get("digest"), e.get("hotkey"))
+            if holder is not None and holder != key:
+                out[holder] = e.get("block")
+            out.pop(key, None)
+            holder = key
+        elif kind == "vacated":
+            holder = None
+    return out
+
+
 def waiting_uids(state: TrackState, eligible: Sequence[Submission], block: int,
                  coldkeys: Mapping[int, str], registered: Optional[Mapping[int, int]] = None) -> list[int]:
     """Engine keep-alive candidates (competition_split.ENGINE_KA_*): eligible submissions that wait for a decision,
@@ -681,14 +703,42 @@ def waiting_uids(state: TrackState, eligible: Sequence[Submission], block: int,
     return out[: _cs.ENGINE_KA_MAX_ENTRIES]
 
 
+def former_ranks(state: TrackState, track: str, block: int) -> list[dict[str, Any]]:
+    """The former champions of ``track`` as ranks below the title holder, most recently crowned first (1.2.0rc10.post1,
+    Florian 21 Oct 2026 05:30Z "B"): ``{"pairs", "block", "co", "share"}``. Pure.
+
+    The opening co-champion set (ENGINE_CO_CHAMPIONS) is ONE former champion, ranked by its newest member's crowning; it
+    is left out while it holds the title. ``share`` is ENGINE_RANK_SPLIT[1] / [2] for the first two entries while their
+    slot runs (ENGINE_FORMER_SLOT_BLOCKS from the block at which they were dethroned, ``dethroned_blocks``), else 0.
+    Entries with a malformed crowning block are left out."""
+    co_seen = co_champion_set(state.champion) is not None
+    deth = dethroned_blocks(state)
+    out: list[dict[str, Any]] = []
+    for f in former_champions(state):
+        if not isinstance(f["block"], int):
+            continue
+        co = co_champion_set(Champion(f["digest"], f["hotkey"], -1, 0.0, f["block"]))
+        if co is not None and (co_seen or co[0] != track):
+            continue
+        co_seen = co_seen or co is not None
+        d = deth.get((f["digest"], f["hotkey"]))
+        rank = len(out) + 1
+        held = (rank < len(_cs.ENGINE_RANK_SPLIT) and isinstance(d, int)
+                and 0 <= block - d < _cs.ENGINE_FORMER_SLOT_BLOCKS)
+        out.append({"pairs": co[1] if co is not None else ((f["digest"], f["hotkey"]),), "block": f["block"],
+                    "co": co is not None, "share": _cs.ENGINE_RANK_SPLIT[rank] if held else 0.0})
+    return out
+
+
 def protected_uids(state: TrackState, eligible: Sequence[Submission], params: TrackParams, block: int,
-                   champion_approved: bool) -> list[int]:
+                   champion_approved: bool, track: str = "s1-fast") -> list[int]:
     """Engine keep-alive ahead of the waiting entries (competition_split.ENGINE_KA_PROTECTED_MAX). Pure.
 
-    (a) the live current champion while ``champion_approved`` is False (it awaits the owner's award decision); (b) the
-    live members with a valid last result of the newest former champion - every listed pair when it belongs to the
-    opening co-champion set (``co_champion_set``) - for ENGINE_FORMER_KA_BLOCKS after the current champion's crowning block.
-    Order: champion, then the former members in listed order; at most ENGINE_KA_PROTECTED_MAX uids."""
+    (a) The live current champion while ``champion_approved`` is False (it awaits the owner's award decision).
+    (b) Every former champion that holds a slot (``former_ranks``: rank 2 / 3, within ENGINE_FORMER_SLOT_BLOCKS of its
+    own dethroning), in rank order: each listed pair (all members of the opening co-champion set) that is still committed
+    by its hotkey and has a valid last result. At most ENGINE_KA_PROTECTED_MAX uids. A uid that is paid anything else
+    (its slot share, the champion share) gets no keep-alive: combine_weights leaves it out."""
     ch = state.champion
     if ch is None:
         return []
@@ -697,12 +747,10 @@ def protected_uids(state: TrackState, eligible: Sequence[Submission], params: Tr
     live = by_pair.get((ch.digest, ch.hotkey))
     if live is not None and not champion_approved:
         out.append(live.uid)
-    formers = former_champions(state)
-    if formers and isinstance(ch.crowned_block, int) and 0 <= block - ch.crowned_block <= _cs.ENGINE_FORMER_KA_BLOCKS:
-        f = formers[0]
-        co = co_champion_set(Champion(f["digest"], f["hotkey"], -1, 0.0, f["block"]))
-        pairs = co[1] if co is not None else ((f["digest"], f["hotkey"]),)
-        for digest, hotkey in pairs:
+    for g in former_ranks(state, track, block):
+        if g["share"] <= 0:
+            continue
+        for digest, hotkey in g["pairs"]:
             sub = by_pair.get((digest, hotkey))
             if sub is not None and sub.uid not in out and _valid(state.results.get(digest), params):
                 out.append(sub.uid)

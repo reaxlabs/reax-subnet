@@ -57,7 +57,9 @@ def test_champion_outside_the_set_is_the_normal_rule(tmp_path, monkeypatch):
     monkeypatch.setattr(CS, "ENGINE_CO_CHAMPIONS", {"s1-fast": ((DC, "x"), (DA, "old"))})
     comp = _comp(tmp_path, Gate(_ok(("old", DA), ("new", DB))), SUBS)
     w = comp.weights(BASE, _snap(SUBS), set())
-    assert 2 not in w and w[3] == pytest.approx(_full(comp), rel=1e-9)
+    # rc10.post1: uid 2 (DA, crowned 100) is a former champion in its rank-2 slot: 17 % of the part, its half of the set's
+    assert w[3] == pytest.approx(_full(comp) * (1 - CS.ENGINE_RANK_SPLIT[1]), rel=1e-9)
+    assert w[2] == pytest.approx(_full(comp) * CS.ENGINE_RANK_SPLIT[1] / 2, rel=1e-9)
 
 
 def test_hotkey_must_match(tmp_path, co):
@@ -116,7 +118,7 @@ def test_decay_runs_from_the_opening_crowning_after_a_recrowning(tmp_path, co, m
     assert w[2] == pytest.approx(_full(comp) / 2, rel=1e-9) and w[3] == pytest.approx(w[2])
 
 
-def test_co_champion_is_never_paid_as_former_champion(tmp_path, co):
+def test_co_champion_is_never_paid_the_full_share_as_former_champion(tmp_path, co):
     subs = SUBS + [_sub(5, "x", DC, 1800)]
     comp = _comp(tmp_path, Gate(_ok(("old", DA), ("new", DB))), subs)
     st = comp.states["s1-fast"]
@@ -124,7 +126,12 @@ def test_co_champion_is_never_paid_as_former_champion(tmp_path, co):
     st.first_seen[DC] = (1800, "x")
     st.champion = Champion(DC, "x", 5, 2.5, 1800)  # an unapproved challenger took the title
     st.history.append({"block": 1800, "event": "crowned", "digest": DC, "hotkey": "x", "score": 2.5})
-    assert comp.weights(BASE, _snap(subs), set()) == BASE  # no fallback to 198/4: the share goes to inference
+    # rc10.post1: the set is the former champion, each member its own half of rank 1's share (its own 17 % slot is not
+    # paid on top; tests/test_engcofallback.py), never more
+    w = comp.weights(BASE, _snap(subs), set())
+    half = CS.profile_for().engine * EC.champion_fraction(comp.reward, 2000 - 1500) / 2
+    assert 5 not in w and w[2] == pytest.approx(half, rel=1e-9) and w[3] == pytest.approx(half, rel=1e-9)
+    assert comp.weights(BASE, _snap(SUBS[1:] + subs[2:]), set())[3] == pytest.approx(half, rel=1e-9)  # uid 2 gone
 
 
 def test_without_cochampions_the_keepalive_rule_is_exactly_the_old_one():

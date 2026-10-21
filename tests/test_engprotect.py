@@ -1,6 +1,7 @@
 """Protected engine keep-alive (rc9.post8 / rc10, Florian 21 Oct 05:25Z/05:30Z): the bounded engine keep-alive also pays the
-champion that awaits its award approval and the newest former champion (the whole opening co-champion set) for
-ENGINE_FORMER_KA_BLOCKS after they were dethroned. A keep-alive, not an award: a uid paid anything else gets none."""
+champion that awaits its award approval and every former champion that holds a slot (rank 2 / 3, the whole opening
+co-champion set) for ENGINE_FORMER_SLOT_BLOCKS after it was dethroned (rc10.post1: one mechanism with the slots). A
+keep-alive, not an award: a uid paid anything else (incl. its slot share) gets none."""
 
 import math
 
@@ -42,10 +43,10 @@ def test_protected_uids_champion_and_newest_former(tmp_path):
 
 def test_protected_uids_window_withdrawn_invalid(tmp_path):
     st = _st(_comp3(tmp_path, None))
-    end = 1500 + CS.ENGINE_FORMER_KA_BLOCKS
-    assert EC.protected_uids(st, SUBS3, P, end, champion_approved=True) == [2]
-    assert EC.protected_uids(st, SUBS3, P, end + 1, champion_approved=True) == []          # 7 days after dethroning
-    assert EC.protected_uids(st, SUBS3, P, end + 1, champion_approved=False) == [3]
+    end = 1500 + CS.ENGINE_FORMER_SLOT_BLOCKS  # rc10.post1: the slot end (first block without the slot)
+    assert EC.protected_uids(st, SUBS3, P, end - 1, champion_approved=True) == [2]
+    assert EC.protected_uids(st, SUBS3, P, end, champion_approved=True) == []              # 7 days after dethroning
+    assert EC.protected_uids(st, SUBS3, P, end, champion_approved=False) == [3]
     assert EC.protected_uids(st, SUBS3[1:], P, 2000, champion_approved=True) == []         # former withdrew
     st.results[DA] = EvalResult(DA, "s1-fast", False, score=0.0, block=100)
     assert EC.protected_uids(st, SUBS3, P, 2000, champion_approved=True) == []             # former's result invalid
@@ -82,7 +83,8 @@ def test_flag_off_is_unchanged(tmp_path, monkeypatch):
 def test_approved_champion_is_paid_and_former_gets_keepalive(tmp_path, ka):
     comp = _comp3(tmp_path, Gate(_ok(("new", DB))))
     w = comp.weights(SERVE, _snap(SUBS3), set())
-    plain_frac = CS.profile_for().engine * EC.champion_fraction(comp.reward, 2000 - 1500)
+    # rc10.post1: the unapproved former's 17 % slot goes to inference; it gets the keep-alive instead
+    plain_frac = CS.profile_for().engine * EC.champion_fraction(comp.reward, 2000 - 1500) * (1 - CS.ENGINE_RANK_SPLIT[1])
     cap = CS.ENGINE_KA_MAX_SHARE * CS.profile_for().engine
     assert 0 < w[2] <= cap * (1 + 1e-9) and w[3] > w[2]
     assert math.isclose(w[3] + w[2], plain_frac, rel_tol=1e-6)      # the champion pays the former's keep-alive
@@ -110,5 +112,9 @@ def test_protected_go_first_then_waiting_and_total_cap(tmp_path, monkeypatch, ka
     w = comp.weights(SERVE, _snap(subs), set())
     paid_ka = [u for u in w if u not in SERVE]
     assert {2, 3, 4} <= set(paid_ka)
-    assert len(paid_ka) == CS.ENGINE_KA_MAX_ENTRIES + CS.ENGINE_KA_PROTECTED_MAX
+    assert len(paid_ka) == 3 + CS.ENGINE_KA_MAX_ENTRIES       # 3 protected + the 4 waiting entries (waiting_uids cap)
     assert sum(w[u] for u in paid_ka) <= CS.ENGINE_KA_MAX_SHARE * CS.profile_for().engine * 1.01
+    monkeypatch.setattr(CS, "ENGINE_KA_PROTECTED_MAX", 2)    # total cap: ENGINE_KA_MAX_ENTRIES + ENGINE_KA_PROTECTED_MAX
+    w = comp.weights(SERVE, _snap(subs), set())
+    paid_ka = [u for u in w if u not in SERVE]
+    assert {2, 3} <= set(paid_ka) and len(paid_ka) == CS.ENGINE_KA_MAX_ENTRIES + 2
