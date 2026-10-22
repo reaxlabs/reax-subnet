@@ -31,12 +31,13 @@ import subprocess
 import tempfile
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Optional, Protocol, Sequence
 
 from .engconfigs import (FLA_CONFIG_ROOT, GPU_CONFIG_DIRS, PUBLISHED_GPU_CLASSES, ConfigVerificationError,
                          host_config_root, verify_published_configs)
 from . import engreview
-from .engcomp import EvalResult, TrackParams, check_correctness, max_distance, median, speed_score
+from .engcomp import EvalResult, TrackParams, check_correctness, copyline_active, max_distance, median, speed_score
 from .s1backends import SidecarBackend
 from .s1contract import Decision, parse_decision
 from .s1items import S1Item, generate_s1_items
@@ -156,6 +157,16 @@ def _tree_bytes(path: str) -> int:
     except OSError:
         pass
     return total
+
+
+# Docker messages that mean "this image does not exist" (locally or in the registry), as opposed to a daemon error or a
+# timeout. Only these let the copy-line re-check count an image as "no parents declared" (critic H1, fail closed).
+_GONE_MARKERS = ("no such image", "no such object", "no such manifest", "manifest unknown")
+
+
+def _image_gone(message: str) -> bool:
+    m = message.lower()
+    return any(k in m for k in _GONE_MARKERS)
 
 
 async def _run(argv: Sequence[str], timeout_s: float, watch: Optional[tuple[str, int]] = None) -> tuple[int, str, str]:
@@ -467,7 +478,8 @@ class DockerRunner:
         if not digest:
             raise EngineError("engine images are run by digest only")
         rec = engreview.load_record(self.review_dir, digest)
-        if rec is None:
+        if rec is None or (copyline_active(datetime.now(timezone.utc)) and not rec.get("copyline")):
+            # (a record written before the copy-line start has no label fields: checked again once)
             rec = await self._static_check(ref, digest)
             engreview.write_record(self.review_dir, digest, rec)
             log.info("engine submission check %s: %s%s", digest[:12], rec["status"],
@@ -486,7 +498,7 @@ class DockerRunner:
         rec = engreview.load_record(self.review_dir, digest)
         return bool(rec) and not rec.get("violations") and not engreview.is_reviewed(self.review_dir, digest)
 
-    async def _static_check(self, ref: str, digest: str) -> dict[str, Any]:
+    async def _inspect(self, ref: str) -> dict[str, Any]:
         code, out, err = await _run(["docker", "image", "inspect", "--format", "{{json .}}", ref], 60)
         if code != 0:
             raise InfraError(f"docker inspect failed: {clean(err)}")
@@ -498,13 +510,54 @@ class DockerRunner:
             info = info[0] if info else {}
         if not isinstance(info, dict):
             raise InfraError("unreadable docker inspect output")
+        return info
+
+    async def recheck_copyline(self, ref: str) -> None:
+        """Copy line, once per already-measured digest: a review record written before the start has no ``copyline`` mark.
+        Read the labels from ``docker image inspect`` as ``review`` does and add them to the record (the files list and the
+        verdict of the earlier check stay). Only an image that is gone (docker: no such image / manifest
+        unknown, after a digest-pinned pull attempt when pulls are on) counts as "no parents declared": the record is marked
+        read without labels (undeclared reuse is still caught by a COPY marker). Any other docker error is raised, so the
+        digest stays not crownable and is retried next cycle. No-op when the record is missing (the digest then stays
+        not crownable: in release mode every measured digest has a record) or already marked."""
+        digest = engreview.digest_of(ref)
+        rec = engreview.load_record(self.review_dir, digest) if self.review_dir and digest else None
+        if rec is None or rec.get("copyline"):
+            return
+        try:
+            info = await self._inspect(ref)
+        except InfraError as exc:
+            if not _image_gone(str(exc)):
+                raise   # daemon down, timeout, unreadable output: retried next cycle, not crownable meanwhile (critic H1)
+            info = None
+            if getattr(self, "pull", False):
+                try:   # a digest-pinned pull: its labels are the authentic ones of the measured image
+                    await self._ensure_image(ref)
+                    info = await self._inspect(ref)
+                except InfraError as exc2:
+                    if not _image_gone(str(exc2)):
+                        raise
+        if info is None:
+            log.warning("engine copy line: %s is gone (not on the host, not pullable); counted as no parents declared",
+                        digest[:12])
+        else:
+            rec.update(engreview.copyline_fields(info))
+        rec["copyline"] = 1
+        engreview.write_record(self.review_dir, digest, rec)
+
+    async def _static_check(self, ref: str, digest: str) -> dict[str, Any]:
+        info = await self._inspect(ref)
         violations, warnings, summary = engreview.check_image_config(info)
         if violations:  # already rejected: do not copy anything out of an image that cannot run
             return engreview.new_record(ref, digest, violations, warnings, summary, {})
         files = await self.image_files(ref, summary.get("workdir", ""))
         expected = dict(await self._expected_files())
         v2, w2 = engreview.compare_files(files, expected)
-        return engreview.new_record(ref, digest, violations + v2, warnings + w2, summary, files)
+        rec = engreview.new_record(ref, digest, violations + v2, warnings + w2, summary, files)
+        if copyline_active(datetime.now(timezone.utc)):  # ENGINE_COPYLINE_START_UTC; records stay as before while off
+            rec.update(engreview.copyline_fields(info))  # parents / ownership labels, only when the image has them
+            rec["copyline"] = 1  # this record was written with the copy-line fields (the validator reads only these)
+        return rec
 
     async def _expected_files(self) -> dict[str, str]:
         """Tokenizer/config files the candidate must match: the reference image's copy at the same path, else the pinned

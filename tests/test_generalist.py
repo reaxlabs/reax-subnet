@@ -537,3 +537,139 @@ def test_release_defaults_and_invalid_notice_fail_closed():
     assert n == 1
     with pytest.raises(AssertionError):
         exec(compile(invalid, CS.__file__, "exec"), {})
+
+
+def test_opening_cohort_goes_before_post_opening_entries_on_vacant_track():
+    # rc10.post3 (#23162): immunity order put post-opening hotkeys past immunity before still-immune cohort members
+    switch = CS.GENERALIST_START_UTC.timestamp()
+    ts = ST.TrackState(track_id="generalist")
+
+    def sub(uid, seen_ts, block):
+        s = ST.Submission(key=f"k{uid}", uid=uid, hotkey=f"hk{uid}", coldkey=f"c{uid}", track_id="generalist", repo="m/m",
+                          revision="a" * 40, first_seen_block=block, first_seen_ts=seen_ts, status=ST.QUEUED)
+        ts.submissions[s.key] = s
+        return s
+
+    post_a, cohort_a, post_b, cohort_b = (sub(17, switch + 60, 300), sub(250, switch - 3600, 100),
+                                          sub(91, switch + 120, 301), sub(65, switch - 60, 150))
+    order = [post_a, cohort_a, post_b, cohort_b]                       # as the immunity order returned it
+    assert [s.uid for s in E.SpecEvaluator._opening_cohort_first(ts, order)] == [250, 65, 17, 91]
+    ts.champion = cohort_a.key                                         # crowned: the plain queue order again
+    assert [s.uid for s in E.SpecEvaluator._opening_cohort_first(ts, order)] == [17, 250, 91, 65]
+    df = ST.TrackState(track_id="demand_forecasting")
+    assert E.SpecEvaluator._opening_cohort_first(df, order) == order
+
+
+def _reentry_ts():
+    # rc10.post4 (#23203/#23204/#23211): pruned opening-cohort entry 167 + live entries, as on 21 Oct
+    switch = CS.GENERALIST_START_UTC.timestamp()
+    ts = ST.TrackState(track_id="generalist")
+
+    def sub(key, uid, hotkey, coldkey, seen_ts, block, rev="a" * 40, repo="d/pplx-s3v", **kw):
+        s = ST.Submission(key=key, uid=uid, hotkey=hotkey, coldkey=coldkey, track_id="generalist", repo=repo,
+                          revision=rev, first_seen_block=block, first_seen_ts=seen_ts, **kw)
+        ts.submissions[s.key] = s
+        return s
+
+    old = sub("hk167|c", 167, "hk167", "ck1", switch - 60, 100, status=ST.WITHDRAWN, withdrawn_status=ST.PENDING_CONFIRM,
+              withdrawn_kind="pruned", withdrawn_ts=switch + 3 * 3600, confirm_after_ts=switch + 3600, draw1="d1",
+              first_gain=1.0, score=76.4, hash_named="h1")
+    return switch, ts, sub, old
+
+
+@pytest.mark.parametrize("hotkey,coldkey,rev,repo,late,match", [
+    ("hk167", "other", "a" * 40, "d/pplx-s3v", 0, True),     # same hotkey re-registered
+    ("hkX", "ck1", "a" * 40, "d/pplx-s3v", 0, True),         # another hotkey of the same coldkey
+    ("hkX", "other", "a" * 40, "d/pplx-s3v", 0, False),      # a reused uid / foreign keys prove nothing
+    ("hk167", "ck1", "b" * 40, "d/pplx-s3v", 0, False),      # another revision (CharlieBT uid 91 case)
+    ("hk167", "ck1", "a" * 40, "d/other", 0, False),         # another repo
+    ("hk167", "ck1", "a" * 8, "d/pplx-s3v", 0, False),       # not a full revision
+    ("hk167", "ck1", "a" * 40, "d/pplx-s3v", 1, False),      # first seen after 22 Oct 07:30:00Z
+])
+def test_reentry_match_terms(hotkey, coldkey, rev, repo, late, match):
+    _, ts, sub, old = _reentry_ts()
+    new = sub("new", 91, hotkey, coldkey, E.REENTRY_DEADLINE_TS + late, 900, rev=rev, repo=repo, status=ST.QUEUED)
+    assert E.reentry_match(old, new) is match
+    assert E.SpecEvaluator._reentrant(ts, new) is match
+
+
+def test_reentry_holds_opening_playoff_until_deadline_and_goes_first():
+    switch, ts, sub, old = _reentry_ts()
+    ev = E.SpecEvaluator.__new__(E.SpecEvaluator)
+    ready = sub("r113", 113, "hk113", "ck113", switch - 900, 90, status=ST.PENDING_CONFIRM, confirm_draw="c1",
+                confirm_score=75.0, draw1="d0")
+    post = sub("p17", 17, "hk17", "ck17", switch + 60, 300, repo="x/y", status=ST.QUEUED)
+    ev.clock = lambda: E.REENTRY_DEADLINE_TS - 1
+    r, open_ = ev._cohort(ts, 0)
+    assert r == [ready] and open_ == [old]                       # the playoff waits for the pruned entry
+    ev.clock = lambda: E.REENTRY_DEADLINE_TS
+    assert ev._cohort(ts, 0)[1] == []                            # deadline passed: no further wait
+    back = sub("hk167|c2", 205, "hk167", "ck1", E.REENTRY_DEADLINE_TS - 10, 950, status=ST.QUEUED)
+    assert ev._cohort(ts, 0)[1] == [back]                         # a re-entry seen by then still holds while it is open
+    assert [s.uid for s in E.SpecEvaluator._opening_cohort_first(ts, [post, back])] == [205, 17]
+    back.reason = "waiting for the repo: 404"
+    assert ev._cohort(ts, 0)[1] == []                             # an unavailable repo never blocks the cohort
+
+
+def test_reentry_carryover_keeps_opening_cohort_place():
+    switch, ts, sub, old = _reentry_ts()
+    ev = E.SpecEvaluator.__new__(E.SpecEvaluator)
+    new = sub("hk167|c2", 205, "hk167", "ck1", switch + 6 * 3600, 950, status=ST.QUEUED, hash_named="h1")
+    snap = type("Snap", (), {"neurons": [type("N", (), {"hotkey": "hk167", "registered_block": 940})()]})()
+    ev._carryover(ts, new, snap, switch + 7 * 3600)
+    assert new.carried_from == old.key and new.status == ST.PENDING_CONFIRM and new.score == old.score
+    assert E.SpecEvaluator._cohort_block(new) == 0 and new.first_seen_block == 950
+    assert not E.SpecEvaluator._reentry_waiting(old)
+    # same tensors under another repo (rule 17 Oct carry-over): the draw travels, the opening place does not
+    _, ts2, sub2, old2 = _reentry_ts()
+    other2 = sub2("hk9|c", 9, "hk9", "ck1", switch + 6 * 3600, 951, repo="d/renamed", status=ST.QUEUED,
+                  hash_named="h1")
+    ev._carryover(ts2, other2, snap, switch + 7 * 3600)
+    assert other2.carried_from == old2.key and E.SpecEvaluator._cohort_block(other2) == 951
+
+
+def test_reentry_window_and_playoff_cap_follow_the_deadline():
+    # critic r1 F1/F2: the 72 h carry-over window and the 12 h cohort cap never cut a re-entry before 07:30Z
+    from types import SimpleNamespace
+    switch, ts, sub, old = _reentry_ts()
+    old.withdrawn_ts = None                                       # legacy record: 72 h window already over
+    new = sub("hk167|c2", 205, "hk167", "ck1", E.REENTRY_DEADLINE_TS - 60, 950, status=ST.QUEUED, hash_named="h1")
+    assert E.carryover_eligible(old, new, set(), new.first_seen_ts)
+    foreign = sub("hkF|c", 206, "hkF", "ckF", E.REENTRY_DEADLINE_TS - 60, 951, status=ST.QUEUED, hash_named="h1")
+    assert not E.carryover_eligible(old, foreign, set(), foreign.first_seen_ts)
+    del ts.submissions[new.key], ts.submissions[foreign.key]
+    ev = E.SpecEvaluator.__new__(E.SpecEvaluator)
+    ev._crown = lambda *a, **k: None
+    ts.draws["c1"] = SimpleNamespace(ts=switch + 3600)
+    for uid in (113, 199):
+        sub(f"r{uid}", uid, f"hk{uid}", f"ck{uid}", switch - 900, 90, status=ST.PENDING_CONFIRM, confirm_draw="c1",
+            confirm_score=75.0 - uid / 1000, draw1="d0")
+    ev.clock = lambda: E.REENTRY_DEADLINE_TS - 1                  # far past the 12 h cap, before the deadline
+    assert ev._cohort_step(ts, E.REENTRY_DEADLINE_TS - 1) == []
+    ev.clock = lambda: E.REENTRY_DEADLINE_TS
+    assert [s.uid for s in ev._cohort_step(ts, E.REENTRY_DEADLINE_TS)] == [113, 199]
+    old.withdrawn_kind = "changed"                                # critic r1 F4: only pruned records wait
+    assert not E.SpecEvaluator._reentry_waiting(old)
+
+
+def test_reentry_is_not_a_new_weekly_submission_and_takes_its_own_original():
+    switch, ts, sub, old = _reentry_ts()
+    ev = E.SpecEvaluator.__new__(E.SpecEvaluator)
+    ev.state = ST.SpecState()
+    ev.state.tracks["generalist"] = ts
+    now = switch + 6 * 3600
+    for i in range(3):
+        sub(f"w{i}", 300 + i, f"hkw{i}", "ck1", switch + i, 400 + i, repo=f"d/w{i}", status=ST.NOT_BETTER,
+            generalist_budget_checked=True)
+    old.generalist_budget_checked = True
+    new = sub("hk167|c2", 205, "hk167", "ck1", now, 950, status=ST.QUEUED, hash_named="h1")
+    assert ev._budget_violation(new, now) == ""                  # 3 + the re-entry; the original is not counted twice
+    other = sub("hkO|c", 207, "hkO", "ck1", now, 951, repo="d/new", status=ST.QUEUED)
+    assert "submissions in 7 days" in ev._budget_violation(other, now)
+    # an earlier eligible record of the same tensors (another coldkey, same repo) does not take the re-entry's place
+    early = sub("hkE|c", 50, "hkE", "ckE", switch - 7200, 10, status=ST.WITHDRAWN, withdrawn_status=ST.PENDING_CONFIRM,
+                withdrawn_kind="pruned", withdrawn_ts=switch + 3600, confirm_after_ts=switch + 3600, draw1="dE",
+                first_gain=1.0, score=70.0, hash_named="h1")
+    snap = type("Snap", (), {"neurons": []})()
+    ev._carryover(ts, new, snap, now)
+    assert new.carried_from == old.key and not early.carried_to and E.SpecEvaluator._cohort_block(new) == 0

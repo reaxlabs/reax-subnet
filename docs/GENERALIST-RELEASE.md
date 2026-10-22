@@ -30,6 +30,34 @@ count from opening for that weekly window. Generalist entries never consume the 
 `REAX_SPEC_G_MED` remains the existing explicit JSON override for the worker; populate the source constant as well,
 freeze the same calibrated `generalist` value in both, and retain its receipt. Generalist shadow diagnostics cannot replace binding gap penalties.
 
+## Opening playoff slots (from `OPENING_PLAYOFF_SLOTS_START_UTC`, date set in the release notes)
+
+Decision: Florian, 21 Oct 2026 (board #23036). Only the generalist track's opening cohort: the first cohort playoff on the
+vacant track after `GENERALIST_START_UTC` (all entrants committed before the opening). From `OPENING_PLAYOFF_SLOTS_START_UTC`
+(`None` = off, the weights are exactly the ones without this rule), playoff places 2 and 3 take the track's two
+former-champion ranks, 17 % and 8 % of the generalist share (the same 75/17/8 split as every track; no extra emission,
+the share is the existing former-champion share). Place 1 is the champion.
+
+* **Ranking.** The playoff's own order, rebuilt from the stored results (the playoff is found from the first champion's
+  history, so it does not matter that old draws are pruned): entrants that took the extension draw first, then the stored
+  playoff score, best first, ties to the earlier commitment. Entries the playoff skipped (twins, derived entries, entries
+  below the floor after the extension) hold no place. The champion is place 1; places after the winner are ordered by the
+  playoff score (mean of both draws when extended); ties by commitment order. Places 2 and 3 are the next two.
+* **Qualification** (a place that fails is left empty, a lower place does not move into it; the entries after it in the ranks
+  move up as for any unranked entry): playoff score above `TRACK_ENTRY_FLOOR["generalist"]`; the non-proc score of that
+  playoff more than `KEEPALIVE_BASE_FLOOR[declared base]["generalist"]` + 1.5 points (strictly above, like the base rule) (`OPENING_PLAYOFF_BASE_MARGIN`; an entry
+  whose declared base has no floor in that table does not qualify); not a copy or twin (`derived_from`), not withdrawn,
+  pruned or rejected, copy check done, and still committed to that submission; and the normal award approval. An unapproved
+  slot keeps its rank and its share goes to the inference part (rank 3 is not promoted), like any unapproved former champion.
+* **Duration.** Both slots start at the later of the crowning and `OPENING_PLAYOFF_SLOTS_START_UTC` (so a playoff that ran
+  before the release gets its 7 days from the activation instant) and last 7 days (`OPENING_PLAYOFF_SLOT_DAYS`, end
+  exclusive). They sit behind the real former champions: when the champion is dethroned it becomes the newest former
+  champion and pushes the slots down; a slot pushed out is gone for good: every former champion crowned since the opening crowning removes the lowest place for
+  good, even if that former champion later stops committing. A slot is never rank 1. If the champion no longer commits and no
+  former champion exists, no slot is paid (the share goes to inference).
+* The 7-day gate uses each validator's wall-clock UTC, like the other dated rules.
+* Deterministic from the saved state and the clock; no new network inputs, no environment override.
+
 ## Schedule and draws
 
 The default `50/50` profile changes exactly at opening from two slots (0.15 DF + 0.15 RA) to one (0.30 generalist).
@@ -51,6 +79,20 @@ category has fewer than 30 eligible items. No borrowing across categories, no pa
 in the release dry-run, especially degenerate proc-only categories; the dry-run is a release gate, not a calibration waiver.
 Use counts still retire each item at 24. Seeds use the existing mechanism.
 
+**Rules v4, larger draws (from `DRAWS_V4_START_UTC`, date set in the release notes).** From that instant a generalist draw
+has **90 items in each of the ten categories (900 per draw)**, with the same tier shares, type targets, borrowing and
+liveness rules per category (so an unconstrained binding draw has 135 proc and 180 cross-author items), and a valid pool
+needs at least 90 eligible items per category (and 180 for a first draw plus its disjoint confirmation). Before that
+instant, and while the constant is unset, draws stay at 30 per category. The margin floor of the generalist track drops
+from 1.5 to **1.0 point** from the same instant (`machine.MARGIN_FLOOR_V4`; see "Decision rule v3" in
+SPECIALIST-TRACKS.md); the z-gates are unchanged. Use counts still retire each item at 24, so the pool is used up three
+times as fast per draw; watch the "refill needed" warnings, which now count 900-item draws. An entry whose first stage was
+taken before the instant keeps its draws: its later draws are 900-item draws, decisions taken after the instant use the
+1.0 floor, and draws of different sizes are pooled as before (mean of the gains over `rms(SE) / sqrt(k)`). The entry floor
+and keep-alive floors are not changed by this rule (see the release notes for their recalibration, if any). To dry-run the
+larger draws on the real pool: `python tools/generalist_draw_dryrun.py /path/to/pool.jsonl --pairs 100 --per-category 90`
+(default 30; output counts only, as above).
+
 Run `python tools/generalist_draw_dryrun.py /path/to/pool.jsonl --pairs 100` on the real G1 pool before release. Each pair
 excludes the first draw from its confirmation and carries use counts forward across pairs. Output contains only counts:
 complete pairs, draws possible, and aggregate shortfalls per category/tier. No item text, ids or predictions are printed.
@@ -69,6 +111,26 @@ entry requires a measured 96GB-class box; set `REAX_SPEC_GPU_BUDGET_GB` >=81 (88
 `REAX_SPEC_STARTUP_TIMEOUT_S=1800`, and set evaluation rate from the capacity measurement. The default base download
 budget is 40GiB before opening and 80GiB afterward, evaluated per download so an early-started worker switches too.
 An explicit `REAX_SPEC_BASE_BUDGET_GB` overrides both. Templates/caps do not prove GPU capacity; G2 still needs measurements.
+
+## Award-time Decision-Index check
+
+Before any generalist award request, the release owner's award pipeline scores the candidate and the official base
+(REAX 1, `decisionmodels/reax-1@ca2a0cc5...`) on the frozen house DI-proxy eval: the HF-DI-style composite (0.6 private
+same-skill + 0.4 private new-domain) plus the AA-style part, in the model's native protocol where it has one. This is a
+GPU run of about 10 minutes per candidate on the gen box and is not part of the validator. It exists so we do not pay for
+gains on our own pool that do not hold on the Decision Indices.
+
+`tools/award_di_proxy.py` takes the two per-item result files (`id`, `unit`/`area`, `weight_group`, `score` in [0,1],
+`protocol`), `--eval-file` with its expected `--eval-sha` (checked by the tool) and the ids, and prints the `di_proxy`
+block `{done, eval_id, eval_sha, protocol, base_id, items, score, base_score, diff, se}` in points (0-100, 4 decimals).
+It refuses mismatched item sets, duplicate or missing ids, NaN, out-of-range scores, differing unit/protocol per item and
+an eval sha mismatch. Composite weights come from a small JSON (unit -> weight, normalised; default equal over units).
+
+The comparison is paired per item: `diff` = weighted mean of (candidate - base) item scores, with the same weights.
+`se` is the larger of a stratified paired bootstrap (2,000 resamples per run, seeded) and the analytic paired SE.
+Threshold (non-inferiority): `lower90 = diff - 1.2816 x se >= -0.5` points. If the check fails, or the block is missing
+or not `done`, the signer does not release the award automatically and raises a manual card to Florian with the block
+and the item-level files. The tool only produces the numbers; the decision stays with the signer.
 
 ## Release-owner checklist
 

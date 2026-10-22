@@ -27,12 +27,18 @@ Two rules keep the expensive tier ahead of the cheap ones whatever the miner cou
    tier). This is the published 1.2 rule and it stays per miner in 1.2.0rc3, so how fast GPU miners get never
    shrinks the cheap tiers' pay per miner. Splitting a cheap-tier machine into more hotkeys can raise its tier's cap
    (more miners), but never above the tier's fixed budget; inside the pool the split still earns nothing extra.
+
+From ``COLDKEY_DR_START_UTC`` (None = not yet) per-coldkey diminishing returns replace the order_ratio brake: inside a
+pool the k-th slot of one coldkey keeps ``coldkey_factor(k)`` of its score (1 for the first COLDKEY_FREE_SLOTS, then
+COLDKEY_DR_RATIO per extra slot) in the pools of COLDKEY_DR_POOLS (s1-lite, s1-cpu), the tier-order cap counts the
+effective miners (sum of the factors; slots in the other pools) and runs at ratio 1.0 (docs/DESIGN-POOLS.md section 4.6).
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Mapping, Optional
 
 TIER_ORDER = ("gpu", "small", "cpu")
@@ -49,6 +55,49 @@ BASE_GPU_MAX_FACTOR = 16.0
 # 10 -> 29 for s1-pro at the new cap). 0.75 keeps most of the checked share while the reference load grows slower
 # than the throughput.
 VERIFIED_EXPONENT = 0.75
+
+
+# Per-coldkey diminishing returns in the inference pools (rule change of 21 Oct 2026, docs/DESIGN-POOLS.md 4.6). Until
+# the date (set in the release notes) everything below is unused: None = today's rule bit for bit. Validators must agree,
+# so there is no environment override.
+COLDKEY_DR_START_UTC: Optional[datetime] = datetime(2026, 10, 23, 13, 0, tzinfo=timezone.utc)
+# Slots of one coldkey in one pool that keep their whole score, and the factor per slot after them.
+COLDKEY_FREE_SLOTS = 2
+COLDKEY_DR_RATIO = 0.7
+# The tier-order cap runs at this ratio while the rule is active (the order_ratio brake is replaced, not stacked).
+COLDKEY_DR_ORDER_RATIO = 1.0
+# Pools the factors apply to: the small tiers only. In s1-fast / s1-pro pay is linear in verified throughput, and the big
+# coldkeys there sit at the per-hotkey cap (real capacity, not split machines). All four pools = the wider variant.
+COLDKEY_DR_POOLS: frozenset[str] = frozenset({"s1-lite", "s1-cpu"})
+
+
+def coldkey_dr_active(now: Optional[datetime]) -> bool:
+    """True from ``COLDKEY_DR_START_UTC`` on (the start instant itself counts); never without a date or a clock."""
+    return COLDKEY_DR_START_UTC is not None and now is not None and now >= COLDKEY_DR_START_UTC
+
+
+def coldkey_factor(k: int, free: Optional[int] = None, ratio: Optional[float] = None) -> float:
+    """Factor of the k-th (1-based, best score first) slot of one coldkey in one pool: 1 up to ``free`` slots,
+    ``ratio ** (k - free)`` after them (defaults: the release constants, read at call time)."""
+    free = COLDKEY_FREE_SLOTS if free is None else free
+    ratio = COLDKEY_DR_RATIO if ratio is None else ratio
+    return 1.0 if k <= free else ratio ** (k - free)
+
+
+def coldkey_factors(scores: Mapping[int, float], coldkey_of: Optional[Mapping[int, str]],
+                    free: Optional[int] = None, ratio: Optional[float] = None) -> dict[int, float]:
+    """Factor per slot of one pool. Slots are grouped by coldkey and ranked by score (best first, ties by slot id);
+    rank k gets ``coldkey_factor(k)``. A slot whose coldkey is unknown counts as its own coldkey (factor 1: honest
+    miners are never cut because of a missing metagraph row)."""
+    groups: dict[str, list[int]] = {}
+    for slot in scores:
+        ck = coldkey_of.get(slot) if coldkey_of is not None else None
+        groups.setdefault(ck if ck else f"\0slot:{slot}", []).append(slot)
+    out: dict[int, float] = {}
+    for slots in groups.values():
+        for k, slot in enumerate(sorted(slots, key=lambda x: (-scores[x], x)), start=1):
+            out[slot] = coldkey_factor(k, free, ratio)
+    return out
 
 
 @dataclass(frozen=True)
@@ -202,8 +251,14 @@ def compute_tiered_weights(
     owner_uid: Optional[int],
     min_ema: float,
     burn_fraction: float = 0.0,
+    coldkey_of: Optional[Mapping[int, str]] = None,
+    now: Optional[datetime] = None,
 ) -> dict[int, float]:
     """Weights over all UIDs. ``capacity_by_pool`` holds measured decisions/s (missing = never probed).
+
+    ``coldkey_of`` (slot -> coldkey) and ``now`` switch on the per-coldkey diminishing returns from
+    ``COLDKEY_DR_START_UTC`` (see the module docstring); without either, or before the date, the result is the
+    unchanged brake rule.
 
     An empty pool's share goes pro rata to the other pools (as in compute_pool_weights, never burned) and the
     owner UID gets only the burn fraction, or the whole miner part when no pool has an eligible miner; a tier whose own cap
@@ -228,6 +283,18 @@ def compute_tiered_weights(
                 v = s * cap.multiplier(caps.get(uid))
                 if v > 0:
                     scores[pool][uid] = v
+
+    # Per-coldkey diminishing returns: scores of the k-th slot of a coldkey scale by coldkey_factor(k) inside each pool.
+    dr = coldkey_dr_active(now) and coldkey_of is not None
+    tier_eff = {t: 0.0 for t in TIER_ORDER}  # effective miners per tier (sum of the factors; only used when dr)
+    if dr:
+        for pool in scores:
+            if pool in COLDKEY_DR_POOLS:
+                f = coldkey_factors(scores[pool], coldkey_of)
+                scores[pool] = {uid: v * f[uid] for uid, v in scores[pool].items()}
+                tier_eff[POOL_TIER[pool]] += math.fsum(f.values())
+            else:  # pools outside the set count slots, as without the rule
+                tier_eff[POOL_TIER[pool]] += float(len(scores[pool]))
 
     # Budget per tier. A pool without an eligible miner passes its share pro rata to the pools that have one (inside
     # its tier first, then across tiers): an unclaimed share is never burned (1.2). Only when no pool has an eligible
@@ -254,7 +321,10 @@ def compute_tiered_weights(
     for _ in range(4 * len(TIER_ORDER)):
         moved = False
         for upper, lower in zip(present, present[1:]):
-            cap_lower = budgets.order_ratio * tier_budget[upper] / tier_miners[upper] * tier_miners[lower]
+            if dr:  # effective miners: a farm cannot raise its tier's cap by adding hotkeys
+                cap_lower = COLDKEY_DR_ORDER_RATIO * tier_budget[upper] / tier_eff[upper] * tier_eff[lower]
+            else:
+                cap_lower = budgets.order_ratio * tier_budget[upper] / tier_miners[upper] * tier_miners[lower]
             if tier_budget[lower] > cap_lower * (1 + 1e-12):
                 tier_budget[upper] += tier_budget[lower] - cap_lower
                 tier_budget[lower] = cap_lower

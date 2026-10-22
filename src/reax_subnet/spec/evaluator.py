@@ -202,15 +202,85 @@ async def score_model(backend: Backend, rows: Sequence[Mapping[str, Any]]) -> tu
     return SC.score_run(rows, probs)
 
 
+def opening_playoff_slots(ts: ST.TrackState, now: float) -> list[tuple[ST.Submission, float]]:
+    """Generalist opening cohort (``competition_split.OPENING_PLAYOFF_SLOTS_START_UTC``): the entries that hold a
+    former-champion slot at ``now`` as playoff places 2 and 3, ``[(submission, playoff score), ...]`` in place order.
+    ``[]`` while the constant is None, before it, outside the entry's 7 days or without an opening playoff.
+
+    The opening playoff is the one the track's first champion (earliest ``champion_since_ts``) was crowned from: its
+    ``kind == "playoff"`` history row names the draw id, the field is every entry with a playoff row on that id (no row = a
+    lone crowning = no slots; independent of ``ts.draws``, which is pruned). It counts if the crowning was at or after
+    ``GENERALIST_START_UTC`` and the whole field was committed before it (cohort block 0). The playoff's own order is rebuilt
+    from the rows: entrants that took the extension draw (``draw2``) first, then the stored score, best first, ties by earlier
+    commitment (``_decide_playoff``'s ``order``); entries that sort above the winner were skipped by the decision and hold no
+    place; the champion is place 1, the next ``OPENING_PLAYOFF_PLACES`` entries are places 2 and 3. Each former champion
+    crowned since the opening crowning (any commitment) removes the lowest place for good. A place whose entry does not
+    qualify is not filled by a lower one. Qualification (state only): playoff score above the track entry floor; non-proc
+    score (total for a legacy row) > the declared base's ``KEEPALIVE_BASE_FLOOR`` for the track +
+    ``OPENING_PLAYOFF_BASE_MARGIN`` (strict, as ``_big_ok``; no base hash or floor: no); not rejected, withdrawn, a copy/twin
+    (``derived_from``) or unchecked (``delta_checked``); still a plain non-champion, non-former entry (those hold their
+    normal rank). Owner approval is not read here (``combine_weights`` asks ``award_ok`` as for any rank). Both slots run from
+    max(the crowning, the constant) for ``OPENING_PLAYOFF_SLOT_DAYS``. Pure."""
+    start = split.OPENING_PLAYOFF_SLOTS_START_UTC
+    if start is None or ts.track_id != "generalist" or now < start.timestamp():
+        return []
+    open_ts = split.GENERALIST_START_UTC.timestamp()
+    # anchor on the track's first champion, not on ts.draws (the playoff draw is pruned once 40 newer ones exist)
+    crowned = [(s.champion_since_ts, s.key) for s in ts.submissions.values()
+               if isinstance(s.champion_since_ts, (int, float)) and math.isfinite(s.champion_since_ts)]
+    if not crowned:
+        return []
+    crowned_at, winner = min(crowned)
+    first = ts.submissions[winner]
+    draw_id = next((h["draw"] for h in first.history if h.get("kind") == "playoff" and isinstance(h.get("draw"), str)), None)
+    if draw_id is None or crowned_at < open_ts:      # no playoff row: a lone crowning; before the opening
+        return []
+    field = [(s, h) for s in ts.submissions.values() for h in s.history
+             if h.get("kind") == "playoff" and h.get("draw") == draw_id]
+    if any(s.first_seen_ts >= open_ts for s, _ in field):
+        return []
+    slot_start = max(crowned_at, start.timestamp())
+    if not slot_start <= now < slot_start + split.OPENING_PLAYOFF_SLOT_DAYS * 86400.0:
+        return []
+    ok = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)  # noqa: E731
+    order = lambda x: ("draw2" not in x[1], -x[1]["score"], x[0].first_seen_block, x[0].uid, x[0].key)  # noqa: E731
+    won = next((x for x in field if x[0].key == winner and ok(x[1].get("score"))), None)
+    if won is None:
+        return []
+    # entries that sort above the winner were skipped by the decision (twin, no margin, below the floor after the
+    # extension): they hold no place
+    rest = sorted((x for x in field if x[0].key != winner and ok(x[1].get("score")) and order(x) > order(won)), key=order)
+    # a former champion crowned since the opening crowning pushed one slot out for good, whatever it commits to now
+    pushed = sum(1 for s in ts.submissions.values() if s.status == ST.FORMER and s.delta_checked
+                 and isinstance(s.champion_since_ts, (int, float)) and s.champion_since_ts >= crowned_at)
+    floor = TRACK_ENTRY_FLOOR.get(ts.track_id)
+    out: list[tuple[ST.Submission, float]] = []
+    for s, h in rest[:max(0, split.OPENING_PLAYOFF_PLACES - pushed)]:
+        base = (KEEPALIVE_BASE_FLOOR.get(s.base_id) or {}).get(ts.track_id) if s.base_id else None
+        qual = h.get("nonproc") if h.get("nonproc") is not None else h["score"]
+        if s.status in (ST.REJECTED, ST.WITHDRAWN, ST.CHAMPION, ST.FORMER) or s.derived_from or not s.delta_checked:
+            continue
+        if floor is not None and h["score"] <= floor:
+            continue
+        if not ok(base) or not ok(qual) or qual <= base + split.OPENING_PLAYOFF_BASE_MARGIN:
+            continue
+        out.append((s, float(h["score"])))
+    return out
+
+
 def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot,
-                    limit: int | None = C.MAX_LEADERS) -> dict[str, list[tuple[int, float]]]:
+                    limit: int | None = C.MAX_LEADERS, now: float | None = None) -> dict[str, list[tuple[int, float]]]:
     """Champion first, then former champions (most recently crowned first), only submissions their hotkey still
     commits to. This order IS the rank (docs/SPECIALIST-TRACKS.md, "Ranks"): the result is a ``RankedLeaders``, which the
     share layer pays in this order. The scores come from different draws and are reported, never compared. ``limit``:
     at most this many per track (None = all; only the legacy keep-alive uses None).
 
     Pure function of the saved state and the chain snapshot (no docker, no GPU): the validator in remote mode calls it on
-    the state file the competition worker wrote, so the hotkey/uid and commitment are re-verified on every call."""
+    the state file the competition worker wrote, so the hotkey/uid and commitment are re-verified on every call.
+
+    ``now`` (unix seconds, default the wall clock) matters only while ``OPENING_PLAYOFF_SLOTS_START_UTC`` is set: the
+    generalist's opening-playoff entries (``opening_playoff_slots``) follow the real former champions, so they fill ranks 2
+    and 3 only (never rank 1) and are cut first at ``limit``; their score is the playoff score."""
     live = {n.hotkey: (n.uid, n.commitment) for n in snapshot.neurons}
     out: dict[str, list[tuple[int, float]]] = {}
     for track_id in track_ids:
@@ -222,15 +292,24 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
         # a former champion crowned by a release whose copy check could pass without the base is not ranked
         former = [s for s in ts.submissions.values() if s.status == ST.FORMER and s.delta_checked]
         ranked += sorted(former, key=lambda s: -(s.champion_since_ts or 0))
+        slots: dict[str, float] = {}
+        if split.OPENING_PLAYOFF_SLOTS_START_UTC is not None:
+            opening = opening_playoff_slots(ts, time.time() if now is None else now)
+            slots = {s.key: sc for s, sc in opening}
+            ranked += [s for s, _ in opening]
         res = RankedLeaders()
         for s in ranked:
             uid_c = live.get(s.hotkey)
-            if uid_c is None or s.score is None:
+            if uid_c is None or (s.score is None and s.key not in slots):
                 continue
+            if s.key in slots and (not res or any(u == uid_c[0] for u, _ in res)):
+                continue    # a slot is a former-champion rank (never rank 1) and a uid counts once
             c = parse_commitment(uid_c[1])
             if c is None or f"{s.hotkey}|{c.text()}" != s.key:
                 continue
-            res.append((uid_c[0], float(s.score)))
+            if any(u == uid_c[0] for u, _ in res):
+                continue
+            res.append((uid_c[0], slots[s.key] if s.key in slots else float(s.score)))
             if isinstance(s.champion_since_ts, (int, float)) and math.isfinite(s.champion_since_ts):
                 res.crowned.setdefault(uid_c[0], float(s.champion_since_ts))
             if limit is not None and len(res) >= limit:
@@ -307,16 +386,25 @@ def _big_ok(s: ST.Submission, track_id: str, now: float, base_floors: Mapping[st
     return bool(ok(floor) and ok(qual) and qual > floor + KEEPALIVE_BIG_MARGIN)
 
 
+def _first_pass_ts(s: ST.Submission) -> float | None:
+    """When the entry's first pass was taken: ``first_pass_ts``, or for a state written before that field
+    ``confirm_after_ts - CONFIRM_DELAY_S`` (exact then: the confirmation was always due one delay after the first pass).
+    A ``confirm_after_ts`` pulled in before a track close (``M.confirm_due_ts``) no longer says when the first pass was."""
+    if isinstance(s.first_pass_ts, (int, float)) and not isinstance(s.first_pass_ts, bool):
+        return float(s.first_pass_ts)
+    c = s.confirm_after_ts
+    return c - M.CONFIRM_DELAY_S if isinstance(c, (int, float)) else None
+
+
 def _keepalive_since(s: ST.Submission) -> float | None:
     """When the entry's keep-alive window started: crowning for a champion, the first pass for a pending one. The first
-    pass is read from ``confirm_after_ts`` (set once, at the first pass, to first pass + ``CONFIRM_DELAY_S``), not from
+    pass is read from ``first_pass_ts`` (set once, at the first pass; an older state: ``confirm_after_ts`` - ``CONFIRM_DELAY_S``), not from
     ``last_eval_ts``, which a re-fetch at every confirmation attempt moves (an entry whose confirmation keeps failing must
     not keep its keep-alive)."""
     if s.status == ST.CHAMPION:
         t = s.champion_since_ts
     else:
-        c = s.confirm_after_ts
-        t = c - M.CONFIRM_DELAY_S if isinstance(c, (int, float)) else None
+        t = _first_pass_ts(s)
     return float(t) if isinstance(t, (int, float)) and math.isfinite(t) else None
 
 
@@ -358,9 +446,9 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
         # the same or a new hotkey of the coldkey) counts from the model's earliest first pass in this track
         first_pass: dict[str, float] = {}
         for s in ts.submissions.values():
-            c = s.confirm_after_ts
-            if s.hash_named and isinstance(c, (int, float)) and math.isfinite(c):
-                first_pass[s.hash_named] = min(first_pass.get(s.hash_named, math.inf), float(c) - M.CONFIRM_DELAY_S)
+            c = _first_pass_ts(s)
+            if s.hash_named and c is not None and math.isfinite(c):
+                first_pass[s.hash_named] = min(first_pass.get(s.hash_named, math.inf), c)
         cands = []
         for s in ts.submissions.values():
             if s.status not in KEEPALIVE_STATUSES or not s.delta_checked:
@@ -398,28 +486,67 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
             cands.append((KEEPALIVE_STATUSES.index(s.status), cb, n.uid, s.key, n, float(score), qual))
         per_coldkey: dict[str, int] = {}
         res: list[tuple[int, float]] = []
-        rank: dict[int, tuple[float, int, int]] = {}
+        rank: dict[int, tuple[float, ...]] = {}
+        # rc10.post5 (CoS #23473, 22 Oct 2026): on the vacant generalist track the opening-cohort entries (first seen before
+        # GENERALIST_START_UTC) rank before post-opening entries for the KEEPALIVE_MAX_ENTRIES cut, so no cohort entry is
+        # pruned while it waits for its draws and the playoff. Other tracks and a crowned track: unchanged (0 for all).
+        vacant_gen = track_id == "generalist" and not ts.champion
+        start_ts = split.GENERALIST_START_UTC.timestamp()
+        cohort_key = {s.key: (0 if not vacant_gen or s.first_seen_ts < start_ts else 1) for s in ts.submissions.values()}
         for *head, n, score, qual in sorted(cands, key=lambda c: c[:4]):
             if per_coldkey.get(n.coldkey, 0) >= C.MAX_OPEN_PER_COLDKEY_TRACK or any(u == n.uid for u, _ in res):
                 continue
             per_coldkey[n.coldkey] = per_coldkey.get(n.coldkey, 0) + 1
             res.append((n.uid, score))
             # a crowned champion waiting for the owner's approval always keeps its slot (status first), then the score
-            rank[n.uid] = (head[0], -qual, head[1], n.uid)
+            rank[n.uid] = (head[0], cohort_key.get(head[3], 1), -qual, head[1], n.uid)
         champ_n = sum(1 for u, _ in res if rank[u][0] == 0)
         if len(res) > KEEPALIVE_MAX_ENTRIES:
             # the 2-per-coldkey rule above came first; now only the strongest entries keep waiting alive: a champion
-            # first, then the highest qualifying score, ties by earlier on-chain commitment block (unknown: uid only), then uid. The rest get nothing.
+            # first, then (vacant generalist track only) the opening cohort, then the highest qualifying score, ties by earlier on-chain commitment block (unknown: uid only), then uid. The rest get nothing.
             # rc8 (review-rc8 F2): the champion is listed on top of the 8 pending entries, not inside them; combine_weights
             # drops an approved champion (paid by its rank) and then pays at most KEEPALIVE_MAX_ENTRIES in this order, so an
             # approved champion leaves 8 pending entries paid and a champion awaiting approval keeps its slot first.
             res.sort(key=lambda r: rank[r[0]])
-            keep = champ_n + KEEPALIVE_MAX_ENTRIES
+            # rc10.post5 (Florian via CoS #23485): every qualifying opening-cohort entry of the vacant generalist track is
+            # listed, even beyond KEEPALIVE_MAX_ENTRIES (they rank first, see cohort_key); post-opening entries fill the rest
+            cohort_n = sum(1 for u, _ in res if rank[u][0] != 0 and rank[u][1] == 0) if vacant_gen else 0
+            keep = champ_n + max(KEEPALIVE_MAX_ENTRIES, cohort_n)
             if len(res) > keep:
                 log.info("track %s: %d entries qualify for keep-alive, only the top %d pending entries (plus a champion) are "
                          "listed; no keep-alive for uids %s", track_id, len(res), KEEPALIVE_MAX_ENTRIES, [u for u, _ in res[keep:]])
             res = res[:keep]
         out[track_id] = res
+    return out
+
+
+def keepalive_protected(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot) -> dict[str, list[int]]:
+    """rc10.post5 (Florian via CoS #23485, 22 Oct 2026): per track, the uids whose keep-alive slot ``combine_weights``
+    never cuts: the open opening-cohort entries (first seen before ``GENERALIST_START_UTC``, status in
+    ``KEEPALIVE_STATUSES``) of the generalist track while it has no champion, so none is pruned before the playoff. Only
+    entries that qualify in ``compute_keepalive`` are paid at all; this list only exempts them from the slot cut. Other
+    tracks and a crowned generalist track: none. A record whose hotkey no longer holds its uid and commits to it in
+    ``snapshot`` protects nothing (critic F1). Pure."""
+    out: dict[str, list[int]] = {}
+    live = {n.hotkey: n for n in snapshot.neurons}
+    start_ts = split.GENERALIST_START_UTC.timestamp()
+    for track_id in track_ids:
+        if track_id != "generalist":
+            continue
+        ts = state.track(track_id)
+        if ts.champion:
+            continue
+        uids: set[int] = set()
+        for s in ts.submissions.values():
+            if s.status not in KEEPALIVE_STATUSES or s.status == ST.CHAMPION or not s.first_seen_ts < start_ts:
+                continue
+            n = live.get(s.hotkey)
+            c = parse_commitment(n.commitment) if n is not None else None
+            if c is not None and n.uid == s.uid and f"{s.hotkey}|{c.text()}" == s.key:
+                uids.add(n.uid)
+        uids = sorted(uids)
+        if uids:
+            out[track_id] = uids
     return out
 
 
@@ -489,7 +616,24 @@ def carryover_eligible(old: ST.Submission, new: ST.Submission, registered: Mappi
         return False
     if old.withdrawn_kind != "pruned" and (old.withdrawn_kind or not _pruned_now(old, registered)):
         return False
+    if reentry_match(old, new):    # a re-entry (#23211) seen by its deadline is never cut by the 72 h window
+        return at <= max(_carryover_end(old), REENTRY_DEADLINE_TS)
     return at <= _carryover_end(old)
+
+
+# Re-entry (Florian 21 Oct 2026, board #23203/#23204/#23211): a pruned opening-cohort entry of the vacant generalist track
+# that passed its first draw keeps its opening-cohort place when the SAME repo@revision (full 40 hex) is committed again
+# by the same hotkey or by a hotkey of the same coldkey, first seen by 22 Oct 2026 07:30:00 UTC. The opening playoff waits
+# for such entries until then, and afterwards for a re-entry seen by then that is still open. A UID number proves nothing.
+REENTRY_DEADLINE_TS = 1792654200.0   # 2026-10-22T07:30:00Z
+
+
+def reentry_match(old: ST.Submission, new: ST.Submission) -> bool:
+    """``new`` re-enters the withdrawn ``old`` under the published terms (same repo@revision, same hotkey or coldkey)."""
+    return (old.track_id == new.track_id == "generalist" and old.repo == new.repo and len(new.revision) == 40
+            and old.revision == new.revision and new.key != old.key
+            and (old.hotkey == new.hotkey or bool(old.coldkey) and old.coldkey == new.coldkey)
+            and new.first_seen_ts <= REENTRY_DEADLINE_TS)
 
 
 def _carryover_end(old: ST.Submission) -> float:
@@ -658,6 +802,7 @@ class SpecEvaluator:
         self._cycle_fetch_rejections: dict[str, int] = {}
         self._probes_halted = False    # a hub infrastructure error (429, 5xx, timeout) ends this cycle's probing
         self._retry_tracks: set[str] = set()
+        self._close_noted: set[str] = set()     # tracks whose close with pending confirmations was logged (this process)
         self._host_failed: set[str] = set()
         self._disk_wait = False                  # a download did not fit the free-space floor: no further download this cycle
         self._oversize_used = False
@@ -703,6 +848,7 @@ class SpecEvaluator:
                     await self._retry_waiting(tdef, snapshot, now)
                 except Exception:  # noqa: BLE001 - a failed metadata probe must not stop other tracks
                     log.exception("track %s: repo availability probes failed", tdef.track_id)
+            self._confirm_before_close(active, now)
             # start the windows of the entries that qualify now, before a long evaluation cycle can eat their lead
             mark_provisional(self.state, [t.track_id for t in active], snapshot, self.clock())
             ST.save(self.state, self.cfg.state_path)
@@ -760,11 +906,14 @@ class SpecEvaluator:
             return self.leaders(active, snapshot)
 
     def leaders(self, active: Sequence[C.TrackDef], snapshot: Snapshot) -> dict[str, list[tuple[int, float]]]:
-        return compute_leaders(self.state, [t.track_id for t in active], snapshot)
+        return compute_leaders(self.state, [t.track_id for t in active], snapshot, now=self.clock())
 
     def keepalive(self, active: Sequence[C.TrackDef], snapshot: Snapshot) -> dict[str, list[tuple[int, float]]]:
         return compute_keepalive(self.state, [t.track_id for t in active], snapshot,
                                  {t.track_id: self._entry_floor(t) for t in active}, now=self.clock())
+
+    def protected(self, active: Sequence[C.TrackDef], snapshot: Snapshot) -> dict[str, list[int]]:
+        return keepalive_protected(self.state, [t.track_id for t in active], snapshot)
 
     def legacy(self, snapshot: Snapshot) -> dict[str, list[tuple[int, bool]]]:
         """Leaders of the ended DF/RA tracks from this evaluator's state (``legacy_leaders``); the window is checked by
@@ -853,6 +1002,7 @@ class SpecEvaluator:
             return f"coldkey already has {C.MAX_OPEN_PER_COLDKEY_TRACK} open submissions in this track"
         week = [s for t in self.state.tracks.values() for s in t.submissions.values()
                 if s is not sub and s.coldkey == sub.coldkey and s.status != ST.REJECTED
+                and not (s.status == ST.WITHDRAWN and reentry_match(s, sub))   # re-entry (#23211): not a new submission
                 and (s.track_id == "generalist") == generalist
                 and (not generalist or s.generalist_budget_checked)
                 and (max(s.first_seen_ts, split.GENERALIST_START_UTC.timestamp()) if generalist
@@ -921,6 +1071,72 @@ class SpecEvaluator:
             competence, calibration, _ = SC._score_weighted(arrays, counts)
             pooled["score"] = SC.combine(competence, calibration)
         sub.category_draws[draw.draw_id] = per_draw
+
+    def _track_close(self, track_id: str) -> float | None:
+        """When the track closes (unix seconds, as ``TrackDef.active`` reads it); None = it does not close (generalist)."""
+        for t in self.cfg.tracks:
+            if t.track_id == track_id:
+                return M.finite_track_end(t.end_ts if t.end_ts is not None else t.start_ts + t.days * 86400)
+        return None
+
+    def _set_confirm_due(self, ts: ST.TrackState, ch: ST.Submission, first_ts: float, now: float) -> None:
+        """``confirm_after_ts`` of a first pass taken at ``first_ts`` (``M.confirm_due_ts``). ``first_pass_ts`` is stored only
+        when the due time is not ``first_ts + delay`` (pulled in before the close): None keeps the state as it was before
+        the gate and the keep-alive derives the first pass from ``confirm_after_ts`` as always."""
+        delay = self.cfg.confirm_delay_s
+        ch.confirm_after_ts = M.confirm_due_ts(first_ts, delay, self._track_close(ts.track_id), now)
+        ch.first_pass_ts = None if ch.confirm_after_ts == first_ts + delay else first_ts
+
+    def _cap_to_close(self, track_id: str, due: float, now: float) -> float:
+        """``due`` (a confirmation time that is already ``>= now``) held back to the close lead of the track once the
+        confirm-before-close gate is open; an entry inside the lead is due now. Unchanged without the gate or a close."""
+        if not M.confirm_before_close_active(now):
+            return due
+        close = self._track_close(track_id)
+        if close is None:
+            return due
+        return min(due, max(close - M.CONFIRM_CLOSE_LEAD_S, now))
+
+    def _confirm_before_close(self, active: Sequence[C.TrackDef], now: float) -> None:
+        """Every pending confirmation gets its draw before the track closes (gate ``M.CONFIRM_BEFORE_CLOSE_START_UTC``).
+
+        Idempotent pass at the start of the cycle. A pending entry (first pass taken, no confirmation yet) whose
+        ``confirm_after_ts`` lies after ``close - CONFIRM_CLOSE_LEAD_S`` and in the future is moved to
+        ``max(close - lead, now, first pass)``: entries that became pending before the gate opened (12 h from their first
+        pass, possibly past the close) are brought in once; one logged line each, the old value in it. The first pass
+        time is kept in ``first_pass_ts`` (a state without it: derived from the old ``confirm_after_ts`` first), so the
+        keep-alive window, which counts from the first pass, neither starts earlier nor ends earlier than before.
+        A track that has closed with entries still pending (no confirmation draw happened, e.g. the downloads failed) is
+        logged once per process: no grace period, nobody is crowned after the close."""
+        if not M.confirm_before_close_active(now):
+            return
+        for tdef in self.cfg.tracks:
+            close = self._track_close(tdef.track_id)
+            ts = self.state.tracks.get(tdef.track_id)
+            if close is None or ts is None:
+                continue
+            if tdef not in active:
+                if now >= close and tdef.track_id not in self._close_noted:
+                    self._close_noted.add(tdef.track_id)
+                    for sub in ts.ordered(ST.PENDING_CONFIRM):
+                        if not sub.confirm_draw:
+                            text = f"{sub.key[:12]}: track closed with the confirmation still pending"
+                            if any(text in str(e) for e in ts.events[-200:]):
+                                continue   # critic F4: once per entry, also across restarts
+                            ts.log(now, f"{sub.key[:12]}: track closed with the confirmation still pending "
+                                        f"(due {int(sub.confirm_after_ts or 0)}); no grace period, no crowning after the close")
+                            log.warning("track %s closed with %s still pending confirmation", tdef.track_id, sub.key[:12])
+                continue
+            limit = close - M.CONFIRM_CLOSE_LEAD_S
+            for sub in ts.ordered(ST.PENDING_CONFIRM):
+                c = sub.confirm_after_ts
+                if sub.confirm_draw or c is None or c <= limit or c <= now:
+                    continue
+                first = _first_pass_ts(sub)
+                sub.first_pass_ts = first
+                sub.confirm_after_ts = max(limit, now, first if first is not None else 0.0)
+                ts.log(now, f"{sub.key[:12]}: confirmation pulled forward before the track closes "
+                            f"(was due {int(c)}, now {int(sub.confirm_after_ts)})")
 
     def _entry_floor(self, tdef: C.TrackDef) -> float:
         """The release constant ``competition_split.TRACK_ENTRY_FLOOR`` (None = none) or the configured floor, if higher."""
@@ -1091,7 +1307,8 @@ class SpecEvaluator:
         if sub.status != ST.QUEUED or sub.carried_from:
             return
         registered = {n.hotkey: n.registered_block for n in snap.neurons}
-        for old in sorted(ts.submissions.values(), key=lambda s: (s.first_seen_block, s.uid, s.key)):
+        # a re-entry's own original first (critic r1 F5), then the earliest eligible record
+        for old in sorted(ts.submissions.values(), key=lambda s: (not reentry_match(s, sub), s.first_seen_block, s.uid, s.key)):
             if not carryover_eligible(old, sub, registered, min(now, sub.first_seen_ts)):
                 continue
             for name in ("score", "draw1", "delta", "first_gain", "first_incumbent", "nonproc", "by_tier",
@@ -1102,13 +1319,22 @@ class SpecEvaluator:
             stage = {"first": {old.draw1, *old.close_draws}, "confirm": set(old.confirm_draws)}
             sub.history = copy.deepcopy([h for h in old.history if h.get("draw") in stage.get(h.get("kind"), ())])
             sub.status, sub.reason = ST.PENDING_CONFIRM, ""
-            sub.confirm_after_ts = max(old.confirm_after_ts, now)
+            uncapped = max(old.confirm_after_ts, now)
+            sub.confirm_after_ts = self._cap_to_close(ts.track_id, uncapped, now)
+            # first_pass_ts only where confirm_after_ts no longer says it (None otherwise: the state stays as before the gate)
+            sub.first_pass_ts = old.first_pass_ts
+            if sub.first_pass_ts is None and sub.confirm_after_ts != uncapped:
+                sub.first_pass_ts = uncapped - M.CONFIRM_DELAY_S
             sub.carried_from, old.carried_to = old.key, sub.key
             # critic B2: the recommit keeps the original's derivation; a near-copy someone committed after the original
             # (while it was pruned) does not become its parent
             sub.derived_from, sub.derived_how = old.derived_from, old.derived_how
             ts.log(now, f"{sub.key}: same tensors as pruned {old.key} (uid {old.uid}), "
                         "first draw carried over (rule 17 Oct)")
+            if self._cohort_block(old) == 0 and reentry_match(old, sub):
+                # re-entry (#23211): the opening-cohort place travels with the entry (first seen as the original)
+                sub.first_seen_ts = old.first_seen_ts
+                ts.log(now, f"{sub.key}: re-entry of opening-cohort entry {old.key} (uid {old.uid}), keeps its opening-cohort place")
             break
 
     async def _checked(self, ts: ST.TrackState, p: _Prepared, now: float,
@@ -1600,6 +1826,7 @@ class SpecEvaluator:
         queued = queue_order([s for s in ts.ordered(ST.QUEUED)
                               if not s.reason.startswith(WAITING_FOR_REPO)
                               and (not s.reason.startswith("waiting") or now - self._retry_at(s) >= C.RETRY_UNAVAILABLE_S)], snap)
+        queued = self._opening_cohort_first(ts, queued)
         if self.cfg.v3_decisions:
             # v3: an entry in a close call takes its one extra first-stage draw before fresh entries; like the confirmation
             # group, one earlier draw per group (joining the exclusions of different draws could exhaust the pool)
@@ -1727,9 +1954,9 @@ class SpecEvaluator:
                     exclude |= set(ts.draws[d].item_ids)
         seed = self.seed_source(tdef.track_id, snap.block)
         try:
-            rows, fresh = S.draw(self._pool(tdef.category), n=self.cfg.sample_size, seed=seed, use_counts=ts.used, exclude=exclude,
-                                 x_mode=self._x_mode_for(tdef.track_id), x_share=self.cfg.x_tier_share,
-                                 generalist=tdef.track_id == "generalist")
+            rows, fresh = S.draw(self._pool(tdef.category), n=self._draw_n(tdef.track_id, now), seed=seed, use_counts=ts.used,
+                                 exclude=exclude, x_mode=self._x_mode_for(tdef.track_id), x_share=self.cfg.x_tier_share,
+                                 generalist=tdef.track_id == "generalist", now=now)
         except S.SampleError as exc:
             log.warning("track %s: no draw this cycle: %s", tdef.track_id, exc)
             ts.log(now, f"no draw: {exc}; refill the sealed pool")
@@ -1797,6 +2024,15 @@ class SpecEvaluator:
         if confirm_mode:
             self._cohort_step(ts, now)    # a lone confirmed entry of a complete cohort is crowned in the same cycle
 
+    def _margin_now(self, track_id: str, now: float) -> float | None:
+        """The time the margin rules read (rules v4 floor, ``M.margin_floor``): the decision time on the generalist track,
+        ``None`` (today's floor) on the specialist tracks, which keep their published 1.5 margin floor."""
+        return now if track_id == "generalist" else None
+
+    def _draw_n(self, track_id: str, now: float) -> int:
+        """Items of a draw of this track made at ``now`` (generalist: 10 x ``S.generalist_per_category(now)``)."""
+        return S.draw_size(self.cfg.sample_size, track_id == "generalist", now)
+
     def _record_draw(self, ts: ST.TrackState, pool: list[dict], rows: list[dict], fresh: bool, seed: int, snap: Snapshot, now: float) -> str:
         draw_id = hashlib.sha256(f"{ts.track_id}|{seed}".encode()).hexdigest()[:16]
         ts.draws[draw_id] = ST.Draw(draw_id, now, snap.block, seed, [r["id"] for r in rows], fresh)
@@ -1804,18 +2040,20 @@ class SpecEvaluator:
             categories = {r["id"]: r["category"] for r in rows}
             ts.draws[draw_id].item_categories = categories
             ts.item_categories.update(categories)
-            shortfalls = S.generalist_shortfalls(rows, self._x_mode_for(ts.track_id), self.cfg.x_tier_share)
+            shortfalls = S.generalist_shortfalls(rows, self._x_mode_for(ts.track_id), self.cfg.x_tier_share,
+                                                 S.generalist_per_category(now))
             ts.draws[draw_id].x_shortfall = {c: counts[S.X_TIER] for c, counts in shortfalls.items()
                                               if counts.get(S.X_TIER, 0)}
         for r in rows:
             ts.used[r["id"]] = ts.used.get(r["id"], 0) + 1
         self._prune_draws(ts, now)
         # reuse is normal (ITEM_MAX_USES); the only refill trigger is too few non-proc uses left (REFILL_DRAWS draws' worth)
-        left = S.nonproc_draws_left(pool, ts.used, self.cfg.sample_size)
+        size = self._draw_n(ts.track_id, now)   # the draw's own size: 900 for a generalist draw from DRAWS_V4_START_UTC on
+        left = S.nonproc_draws_left(pool, ts.used, size)
         if left < S.REFILL_DRAWS:
             items = S.eligible_count(pool, ts.used)
             log.warning("track %s: refill needed: about %.0f draws of %d left in the LLM-written items (fewer than %d); "
-                        "%d sealed items below %d uses", ts.track_id, left, self.cfg.sample_size, S.REFILL_DRAWS, items,
+                        "%d sealed items below %d uses", ts.track_id, left, size, S.REFILL_DRAWS, items,
                         S.ITEM_MAX_USES)
             ts.log(now, f"refill needed: about {left:.0f} draws left, {items} sealed items below {S.ITEM_MAX_USES} uses")
         self._x_runway(ts, pool, rows, now)
@@ -1831,13 +2069,14 @@ class SpecEvaluator:
         x_rows = sum(1 for r in pool if r.get("tier") in S.X_TIERS)
         if not x_rows and mode != "binding":
             return
-        want = int(round(self.cfg.sample_size * self.cfg.x_tier_share))
+        size = self._draw_n(ts.track_id, now)
+        want = int(round(size * self.cfg.x_tier_share))
         got = sum(1 for r in rows if r.get("tier") in S.X_TIERS)
         if mode == "binding" and got < want:
             log.warning("track %s: cross-author shortage: %d of %d items drawn (%d in the pool); the normal tiers filled the rest",
                         ts.track_id, got, want, x_rows)
             ts.log(now, f"cross-author shortage: {got} of {want} items drawn ({x_rows} in the pool), the normal tiers filled the rest")
-        left = S.x_draws_left(pool, ts.used, self.cfg.sample_size, self.cfg.x_tier_share)
+        left = S.x_draws_left(pool, ts.used, size, self.cfg.x_tier_share)
         if left < S.REFILL_DRAWS:
             log.warning("track %s: cross-author refill needed: about %.0f draws of %d X items left (fewer than %d); %d X items "
                         "in the pool", ts.track_id, left, want, S.REFILL_DRAWS, x_rows)
@@ -2009,7 +2248,7 @@ class SpecEvaluator:
                     pse = SC.paired_se(results[ch.key], results[pk], seed)
                 gain_p = total[ch.key] - total[pk]
                 parent_gain = gain_p if parent_gain is None else min(parent_gain, gain_p)
-                parent_ok = parent_ok and gain_p >= M.required_margin(pse)
+                parent_ok = parent_ok and gain_p >= M.required_margin(pse, self._margin_now(ts.track_id, now))
             parent_txt = "" if parent_ok else f"; does not beat its parent ({parent_gain:+.2f})" + comp_txt
             if self.cfg.nc_near_champ and current is not None and inc_items is not None and gain is not None:
                 near = self._near_champ(ch, current, (paths or {}).get(ch.key, ""))
@@ -2018,7 +2257,7 @@ class SpecEvaluator:
                 elif self._is_near(near):
                     n_ch = sum(it.valid and it.top_hit for it in results[ch.key])
                     n_inc = sum(it.valid and it.top_hit for it in inc_items)
-                    need = max(M.required_margin(se), NEAR_CHAMP_FLOOR)
+                    need = max(M.required_margin(se, self._margin_now(ts.track_id, now)), NEAR_CHAMP_FLOOR)
                     near_ok = n_ch > n_inc and gain >= need
                     ch.history.append({"draw": draw_id, "kind": "near_champ", "vs": current.key, "cos": round(near.cosine, 4),
                                        "rel": round(near.relative_l2, 4), "alpha": round(near.alpha, 4), "correct": n_ch, "inc_correct": n_inc,
@@ -2028,7 +2267,7 @@ class SpecEvaluator:
                         parent_txt += (f"; close to the champion's weights (cos {near.cosine:.3f}, rel {near.relative_l2:.3f}): "
                                        f"needs more items right ({n_ch} vs {n_inc}) and a gain of {need:.2f} ({gain:+.2f})")
             if not confirm_mode:
-                fp = M.first_pass(ch.score, inc_total, se, entry_floor=self._entry_floor(tdef))
+                fp = M.first_pass(ch.score, inc_total, se, entry_floor=self._entry_floor(tdef), now=self._margin_now(ts.track_id, now))
                 row = {"draw": draw_id, "kind": "first", "score": ch.score, "incumbent": inc_total, "gain": fp.gain, "delta": fp.delta,
                        "nonproc": ch.nonproc, "by_tier": dict(ch.by_tier), **xrec(ch.key)}
                 if v3:
@@ -2043,7 +2282,7 @@ class SpecEvaluator:
                     ch.delta, ch.first_gain, ch.draw1 = fp.delta, fp.gain, draw_id
                     ch.confirm_draw, ch.confirm_score = "", None
                     ch.first_incumbent = current.key if current else ""
-                    ch.confirm_after_ts = now + self.cfg.confirm_delay_s
+                    self._set_confirm_due(ts, ch, now, now)
                     ch.decision_rule = M.V3_RULE if v3 else ""
                     ch.confirm_draws = []
                     ts.log(now, f"{ch.key[:12]} passed the first draw ({fp.gain:+.2f} vs margin {fp.delta:.2f})")
@@ -2061,11 +2300,11 @@ class SpecEvaluator:
                 row.update(se=se, inc_key=inc_key, gain=gain, z=z)
             verdict, why = "", ""
             if v3 and current is not None and ch.decision_rule == M.V3_RULE:
-                verdict, why = self._confirm_v3(ch, row, inc_key, gain, se, parent_ok, parent_txt)
+                verdict, why = self._confirm_v3(ch, row, inc_key, gain, se, parent_ok, parent_txt, self._margin_now(ts.track_id, now))
                 ok = verdict == "crown"
             else:   # the old rule: no flag, an entry whose first pass was decided before v3 (grandfathered), or a vacant track
-                ok = M.confirm(ch.score, inc_total, ch.delta or M.MARGIN_FLOOR, entry_floor=self._entry_floor(tdef),
-                               promoted_this_round=promoted, new_incumbent=new_inc, se=se) and parent_ok
+                ok = M.confirm(ch.score, inc_total, ch.delta or M.margin_floor(self._margin_now(ts.track_id, now)), entry_floor=self._entry_floor(tdef),
+                               promoted_this_round=promoted, new_incumbent=new_inc, se=se, now=self._margin_now(ts.track_id, now)) and parent_ok
             ch.history.append(row)
             self._gap_shadow(ts, ch, seed, xs)
             if verdict == "extra":
@@ -2112,20 +2351,20 @@ class SpecEvaluator:
         pz = M.z_of(pg, pse)
         row["pooled_z"] = pz
         close_used = len(ch.close_draws) >= M.MAX_CLOSE_DRAWS
-        verdict = M.first_stage_v3(row["gain"], se, pg, pse, close_used=close_used)
+        verdict = M.first_stage_v3(row["gain"], se, pg, pse, close_used=close_used, now=self._margin_now(ts.track_id, now))
         if not parent_ok:
             verdict = "fail"
         if verdict == "pass":
             stage = [h["draw"] for h in prior] + [draw_id]
             draw1 = stage[0]
             ch.status, ch.reason = ST.PENDING_CONFIRM, ""
-            ch.delta, ch.first_gain, ch.draw1 = max(M.MARGIN_FLOOR, M.Z_PASS * pse), pg, draw1
+            ch.delta, ch.first_gain, ch.draw1 = max(M.margin_floor(self._margin_now(ts.track_id, now)), M.Z_PASS * pse), pg, draw1
             ch.confirm_draw, ch.confirm_score, ch.confirm_draws = "", None, []
             ch.first_incumbent = current.key
             if ch.close_draws and draw_id not in ch.close_draws:
                 ch.close_draws.append(draw_id)
             first_ts = ts.draws[draw1].ts if draw1 in ts.draws else now
-            ch.confirm_after_ts = first_ts + self.cfg.confirm_delay_s   # counted from the FIRST draw: a close call adds no delay
+            self._set_confirm_due(ts, ch, first_ts, now)    # counted from the FIRST draw: a close call adds no delay
             ch.decision_rule = M.V3_RULE
             ts.log(now, f"{ch.key[:12]} passed the first stage (z {row['z']:.2f}, pooled z {pz:.2f} over {len(stage)} draw(s), "
                         f"gain {pg:+.2f})")
@@ -2138,13 +2377,13 @@ class SpecEvaluator:
             ch.status = ST.NOT_BETTER
             if prior or close_used:
                 ch.reason = (f"close call, second draw: pooled evidence {pz:.1f} SE (gain {pg:+.2f}), "
-                             f"{M.Z_PASS:.1f} SE and {M.MARGIN_FLOOR:.1f} points needed" + parent_txt)
+                             f"{M.Z_PASS:.1f} SE and {M.margin_floor(self._margin_now(ts.track_id, now)):.1f} points needed" + parent_txt)
             else:
                 ch.reason = (f"first draw: gain {row['gain']:+.2f}, margin {row['delta']:.2f} (z {row['z']:.1f})" + parent_txt)
             ts.log(now, f"{ch.key[:12]} {ch.reason}")
 
     def _confirm_v3(self, ch: ST.Submission, row: dict[str, Any], inc_key: str, gain: float, se: float, parent_ok: bool,
-                    parent_txt: str) -> tuple[str, str]:
+                    parent_txt: str, now: float | None = None) -> tuple[str, str]:
         """Confirmation verdict under rule v3: ("crown" | "extra" | "fail", text). Pools every draw against the incumbent of
         this confirmation (first stage included when it was measured against the same one)."""
         first = [h for h in self._stage_rows(ch, inc_key, "first", {ch.draw1, *ch.close_draws}) if h is not row]
@@ -2156,7 +2395,7 @@ class SpecEvaluator:
         pz = M.z_of(pg, pse)
         row["pooled_z"] = pz
         extra_used = len(ch.confirm_draws) >= M.MAX_EXTRA_CONFIRMS
-        verdict = M.confirm_v3(pairs, confirm_pairs, extra_used=extra_used)
+        verdict = M.confirm_v3(pairs, confirm_pairs, extra_used=extra_used, now=now)
         if not parent_ok:
             return "fail", f"confirmation draw: gain too small{parent_txt}"
         if verdict == "crown":
@@ -2164,7 +2403,7 @@ class SpecEvaluator:
         if verdict == "extra":
             return verdict, (f"confirmation: pooled evidence {pz:.1f} SE < {M.Z_CROWN:.2f}, one more draw")
         return verdict, (f"confirmation draw: gain too small (pooled evidence {pz:.1f} SE, {M.Z_CROWN:.2f} SE and "
-                         f"{M.MARGIN_FLOOR:.1f} points needed)")
+                         f"{M.margin_floor(now):.1f} points needed)")
 
     # ------------------------------------------------- cross-author gap (stage 2 plumbing: reported, never applied)
 
@@ -2272,6 +2511,29 @@ class SpecEvaluator:
 
     # ------------------------------------------------------- first champion: cohort playoff
 
+    @classmethod
+    def _opening_cohort_first(cls, ts: ST.TrackState, queued: list[ST.Submission]) -> list[ST.Submission]:
+        """rc10.post3 (Florian 21 Oct 2026, board #23162): on the vacant generalist track every opening-cohort entry takes
+        its first draw before any post-opening entry, whatever the immunity order says (the cohort playoff waits for all of
+        them). Inside each part the given order is kept. Other tracks and a crowned track: unchanged."""
+        if ts.track_id != "generalist" or ts.champion:
+            return list(queued)
+        first = [s for s in queued if cls._cohort_block(s) == 0 or cls._reentrant(ts, s)]
+        return first + [s for s in queued if s not in first]
+
+    @classmethod
+    def _reentry_waiting(cls, s: ST.Submission) -> bool:
+        """A pruned opening-cohort entry of the generalist track that passed its first draw and has not re-entered yet."""
+        return (s.track_id == "generalist" and _carryover_waiting(s) and s.withdrawn_kind == "pruned"
+                and cls._cohort_block(s) == 0)
+
+    @classmethod
+    def _reentrant(cls, ts: ST.TrackState, s: ST.Submission) -> bool:
+        """``s`` (live, not carried over yet) re-enters a pruned opening-cohort entry (#23211)."""
+        if s.status == ST.WITHDRAWN or s.carried_from or cls._cohort_block(s) == 0:
+            return False
+        return any(cls._reentry_waiting(o) and reentry_match(o, s) for o in ts.submissions.values())
+
     @staticmethod
     def _cohort_block(s: ST.Submission) -> int:
         if s.track_id == "generalist" and s.first_seen_ts < split.GENERALIST_START_UTC.timestamp():
@@ -2286,6 +2548,13 @@ class SpecEvaluator:
         ready.sort(key=lambda s: (-(s.confirm_score if s.confirm_score is not None else -math.inf),
                                   s.first_seen_block, s.uid, s.key))
         open_ = [s for s in ts.submissions.values() if self._cohort_block(s) <= block and self._cohort_open(ts, s)]
+        if block == 0 and ts.track_id == "generalist":
+            # re-entry (#23211): a pruned opening entry holds the opening playoff until the deadline; a re-entry seen by
+            # then holds it while it is open (like every entry: one whose repo is unavailable does not hold it)
+            now = self.clock()
+            open_ += [s for s in ts.submissions.values()
+                      if (self._reentry_waiting(s) and now < REENTRY_DEADLINE_TS)
+                      or (self._reentrant(ts, s) and self._cohort_open(ts, s))]
         return ready, sorted(open_, key=lambda s: (s.first_seen_block, s.uid, s.key))
 
     @staticmethod
@@ -2318,6 +2587,8 @@ class SpecEvaluator:
             since = min((ts.draws[s.confirm_draw].ts for s in ready if s.confirm_draw in ts.draws), default=now)
             if now - since < COHORT_MAX_WAIT_S:
                 return []
+            if now < REENTRY_DEADLINE_TS and any(self._reentry_waiting(s) for s in open_):
+                return []   # re-entry (#23211): the opening playoff waits for pruned entries until the deadline
             log.info("track %s: cohort of block %d complete by its deadline (%.0f h); %d open entries no longer wait: %s",
                      ts.track_id, block, COHORT_MAX_WAIT_S / 3600, len(open_), ", ".join(s.key[:12] for s in open_))
         if len(ready) == 1:
@@ -2397,7 +2668,8 @@ class SpecEvaluator:
         # the pools are small: the playoff draw may reuse items of the entries' earlier draws (least-used items first)
         seed = self.seed_source(tdef.track_id, snap.block)
         try:
-            rows, fresh = S.draw(self._pool(tdef.category), n=self.cfg.sample_size, seed=seed, use_counts=ts.used, **self._playoff_x(tdef))
+            rows, fresh = S.draw(self._pool(tdef.category), n=self._draw_n(tdef.track_id, now), seed=seed, use_counts=ts.used, now=now,
+                                 **self._playoff_x(tdef))
         except S.SampleError as exc:
             log.warning("track %s: no playoff draw this cycle: %s", tdef.track_id, exc)
             ts.log(now, f"no draw: {exc}; refill the sealed pool")
@@ -2462,10 +2734,10 @@ class SpecEvaluator:
         pool = self._pool(tdef.category)
         xkw = self._playoff_x(tdef)
         try:
-            rows2, fresh2 = S.draw(pool, n=self.cfg.sample_size, seed=seed2, use_counts=ts.used, exclude=first, **xkw)
+            rows2, fresh2 = S.draw(pool, n=self._draw_n(tdef.track_id, now), seed=seed2, use_counts=ts.used, exclude=first, now=now, **xkw)
         except S.SampleError:   # the pool does not allow a disjoint draw: least-used items, as the first playoff draw
             try:
-                rows2, fresh2 = S.draw(pool, n=self.cfg.sample_size, seed=seed2, use_counts=ts.used, **xkw)
+                rows2, fresh2 = S.draw(pool, n=self._draw_n(tdef.track_id, now), seed=seed2, use_counts=ts.used, now=now, **xkw)
             except S.SampleError as exc:
                 log.warning("track %s: no playoff extension draw: %s", tdef.track_id, exc)
                 ts.log(now, f"no extension draw: {exc}; refill the sealed pool")
@@ -2602,11 +2874,11 @@ class SpecEvaluator:
                 for k in must_beat:
                     pse, cse = SC.paired_se_parts(results[s.key], results[k], seed)
                     cgain = SC.score_items(results[s.key]).competence - SC.score_items(results[k]).competence
-                    if total[s.key] - total[k] < M.required_margin(pse) or cgain < max(TWIN_COMP_FLOOR, M.SE_MULTIPLE * cse):
+                    if total[s.key] - total[k] < M.required_margin(pse, self._margin_now(ts.track_id, now)) or cgain < max(TWIN_COMP_FLOOR, M.SE_MULTIPLE * cse):
                         short.append(k)
             else:
                 short = [k for k in must_beat
-                         if total[s.key] - total[k] < M.required_margin(SC.paired_se(results[s.key], results[k], seed))]
+                         if total[s.key] - total[k] < M.required_margin(SC.paired_se(results[s.key], results[k], seed), self._margin_now(ts.track_id, now))]
             if short:
                 ts.log(now, f"{s.key[:12]} not crowned: does not beat {short[0][:12]} by the full margin on the playoff draw")
                 continue

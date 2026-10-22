@@ -25,6 +25,7 @@ import math
 import os
 import secrets
 import time
+from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Mapping, Optional
 
 import aiohttp
@@ -1092,8 +1093,13 @@ class S1Validator(Validator):
         # Per pool each slot is a miner of that pool with the pool's cap (the tier-order cap counts slots); the slot
         # weights are summed per UID before the competition layer.
         if self.tiered:
+            # Per-coldkey diminishing returns (tiers.COLDKEY_DR_START_UTC; None = off): a slot's coldkey is its UID's.
+            coldkey_by_uid = {n.uid: n.coldkey for n in snap.neurons if n.coldkey}
+            coldkey_of = {slot: coldkey_by_uid[slot_uid(slot)] for pool in self.pools for slot in ema_by_pool[pool]
+                          if slot_uid(slot) in coldkey_by_uid}
             slot_weights = compute_tiered_weights(ema_by_pool, capacity_by_pool, self.budgets, snap.owner_uid,
-                                                  self.params.min_ema, self.params.burn_fraction)
+                                                  self.params.min_ema, self.params.burn_fraction,
+                                                  coldkey_of=coldkey_of, now=datetime.now(timezone.utc))
         else:
             slot_weights = compute_pool_weights(ema_by_pool, self.shares, snap.owner_uid, self.params.min_ema,
                                                 self.params.burn_fraction)

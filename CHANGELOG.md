@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0rc11 — rules v4 active from 23 Oct 2026 13:00 UTC; rc10.post2-5 hotfixes folded in (validator + competition worker)
+
+`WEIGHTS_VERSION_KEY` is unchanged (1250). One source for the validator and the competition worker. Release constants
+`CONFIRM_BEFORE_CLOSE_START_UTC`, `DRAWS_V4_START_UTC`, `COLDKEY_DR_START_UTC`, `ENGINE_COPYLINE_START_UTC` and
+`OPENING_PLAYOFF_SLOTS_START_UTC` are all set to 2026-10-23T13:00:00Z (before that instant the weights are exactly the
+rc10 ones). Includes rc10.post2 (nonce retention), post3/post4 (cohort-first queue, re-entry of pruned opening-cohort
+entries), post5 (cohort keep-alive protection) and `certifi==2026.10.19` in `requirements/lock.txt` (eMudhra CA, #22935).
+The reax-1 pool is not part of this release.
+
 ## 1.2.0rc10.post2 — capacity probe: no false 'stale' answers with many scoring slots (validator)
 
 `WEIGHTS_VERSION_KEY` is unchanged (1250). The validator checks the miners' signed probe answers after the probe window, one

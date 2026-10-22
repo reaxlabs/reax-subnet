@@ -28,7 +28,7 @@ async def scripted_states(tmp_path):
                 assert sub.pop('params', None) in (None, 4 * 64 * 64)
                 for field, default in [('decision_rule',
         ''), ('close_draws', []), ('confirm_draws', []),
-                    ('category_draws', {}), ('category_pooled', {}), ('generalist_budget_checked', False), ('hash_backbone', ''), ('joint_infra_outcomes', 0)]:
+                    ('category_draws', {}), ('category_pooled', {}), ('generalist_budget_checked', False), ('hash_backbone', ''), ('joint_infra_outcomes', 0), ('first_pass_ts', None)]:
                     if field in sub:
                         assert sub[field] == default
                         del sub[field]

@@ -278,6 +278,21 @@ KEEPALIVE_BIG_MARGIN = 1.5
 # @ea9d5d8b (572884f6..., readout not rescaled) 55.34 (-2.67).
 KEEPALIVE_BASE_FLOOR: dict[str, dict[str, float]] = {'0e8d23478b5b6ccefff3136e5e53ecfb7d053451ec405d2b0fe31ce3a49a713e': {'generalist': 39.23}, '1647929265009944f8157465e27417ec84014893953f3b3ed0874e373bb276fc': {'generalist': 62.23}, '19d89e343b9109fcb478d685cb08f15914c4aded296d02c68c2c3fa9f0fdb4df': {'generalist': 39.93}, '4031ce5ec8b6f10e388f09df862810315e4132f429f8cdf308f13566bd159eef': {'generalist': 60.43}, '564471ef18768dd040eb3ce7effaf0561b65b3b2a50cb10980974bae3ae713dd': {'generalist': 55.01}, '572884f6e3788b5debd2084e2789a009622e50272fe6c226e1d93dcb24ec6d41': {'generalist': 55.34}, '81a3eb978ff3c5b90c273a100f36499a86dfec698652c2d181f43e11e89fe08d': {'generalist': 58.01}, 'dac9897fe790514fec2d32f666b5627e098205b051b48fe6630a3699a5138e10': {'generalist': 49.52}}
 
+# Opening generalist cohort: playoff places 2 and 3 (Florian 21 Oct 2026 ~14:45Z, board #23036, "ErPing's proposal"). Of the
+# generalist track's opening cohort playoff (the first cohort playoff on the vacant track after GENERALIST_START_UTC), the
+# entries in places 2 and 3 of the playoff's own ranking take the track's two former-champion ranks (17 % / 8 % of the track's
+# share, TRACK_RANK_SPLIT; no extra emission) while no real former champion holds them, if they (a) score above the track
+# entry floor (TRACK_ENTRY_FLOOR["generalist"]), (b) reach KEEPALIVE_BASE_FLOOR[declared base]["generalist"] +
+# OPENING_PLAYOFF_BASE_MARGIN (strictly above) on the non-proc score of that playoff (the total for a legacy entry), an entry whose base has no
+# floor does not qualify, (c) are no copy/twin (``derived_from``), withdrawn, pruned or rejected entry, and (d) pass the normal
+# award review (award_ok, unchanged). Each slot starts at max(the crowning, this instant) and ends OPENING_PLAYOFF_SLOT_DAYS
+# later or when newer former champions push it out of the MAX_LEADERS ranks. None = off: the weights are exactly the ones
+# without this rule. No env override: validators must agree. The release owner sets the date in the release notes.
+OPENING_PLAYOFF_SLOTS_START_UTC: Optional[datetime] = datetime(2026, 10, 23, 13, 0, tzinfo=timezone.utc)
+OPENING_PLAYOFF_PLACES = 2          # places 2 and 3 of the playoff (place 1 is the champion)
+OPENING_PLAYOFF_SLOT_DAYS = 7
+OPENING_PLAYOFF_BASE_MARGIN = 1.5   # points above the declared base's floor
+
 
 
 class RankedLeaders(list):
@@ -475,7 +490,8 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                     engine_waiting: Optional[Sequence[int]] = None,
                     keep_share: bool = False, now: Optional[float] = None,
                     engine_cochampions: Optional[Mapping[int, float]] = None,
-                    legacy_keepalive: Optional[Sequence[int]] = None) -> dict[int, float]:
+                    legacy_keepalive: Optional[Sequence[int]] = None,
+                    keepalive_protected: Optional[Mapping[str, Sequence[int]]] = None) -> dict[int, float]:
     """Mix the competitions into the serving weights.
 
     ``keep_share`` (with ``now``, unix seconds; needs ``award_ok``): the keep-share rule above (``keep_share_ranks``).
@@ -577,6 +593,18 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     ranks_of = {t: track_payout(tracks[t], floors.get(t)) for t in tracks}
 
     def cut(track_id: str, uids: list[int]) -> list[int]:
+        # rc10.post5 (Florian via CoS #23485): protected uids (open opening-cohort entries of the vacant generalist track,
+        # spec.evaluator.keepalive_protected) keep their slot first, beyond KEEPALIVE_MAX_ENTRIES if needed; the others
+        # fill what is left of the KEEPALIVE_MAX_ENTRIES slots in the given order
+        prot = set((keepalive_protected or {}).get(track_id, ()))
+        if prot:
+            keep = [u for u in uids if u in prot]
+            rest = [u for u in uids if u not in prot]
+            room = max(0, KEEPALIVE_MAX_ENTRIES - len(keep))
+            if len(rest) > room:
+                log.info("track %s: keep-alive for %d protected cohort entries and %d more, %d qualifying entries get none: "
+                         "uids %s", track_id, len(keep), room, len(rest) - room, rest[room:])
+            return keep + rest[:room]
         if len(uids) > KEEPALIVE_MAX_ENTRIES:
             # ``keepalive`` arrives in rank order (compute_keepalive): entries outside the top ones get nothing
             log.info("track %s: keep-alive for %d entries only, %d qualifying entries get none: uids %s",

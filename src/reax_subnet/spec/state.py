@@ -82,6 +82,7 @@ class Submission:
     draw1: str = ""                       # draw id of the first pass
     first_incumbent: str | None = None    # key of the incumbent the first pass was measured against ("" = vacant track)
     confirm_after_ts: float | None = None
+    first_pass_ts: float | None = None    # when the first pass was taken (only when confirm_after_ts was pulled in before a track close; None = confirm_after_ts - CONFIRM_DELAY_S). Keep-alive counts from the first pass, which a pulled-in confirm_after_ts must not move
     confirm_draw: str = ""                # vacant track (1.2.0rc7): draw id of the passed confirmation, waiting for the cohort playoff
     confirm_score: float | None = None    # the score on that draw (orders the playoff when the budget cannot serve every entry)
     wait_kind: str = ""                   # PENDING_VERIFY (1.2.0rc7): WAIT_INFRA = waits for this host, holds back its cohort

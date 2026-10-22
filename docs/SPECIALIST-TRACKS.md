@@ -136,6 +136,18 @@ empty think block). `reax-spec-eval` uses the same templates, so your local numb
   error is the paired bootstrap error of the score difference over the shared items.
 * It is then **confirmed on a second, disjoint fresh draw taken at least 12 hours later**, where it must beat the
   incumbent again by at least half of that margin. Only then does it become the incumbent.
+* **Every pending confirmation gets its draw before the track closes** (from `CONFIRM_BEFORE_CLOSE_START_UTC`, date set in
+  the release notes; until then the plain 12 hours apply). The confirmation is due 12 hours after the first draw, but
+  not later than 6 hours (`CONFIRM_CLOSE_LEAD_S`) before the track closes, and never before the first draw itself: a first
+  pass 8 hours before the close is confirmed 2 hours later, one in the last 6 hours is confirmed at the next cycle. The 6
+  hours leave room for the confirmation, a possible v3 extra confirmation draw (it is due at once, not after another
+  delay) and the cohort step under the hourly evaluation budget. Inside those 6 hours a due confirmation is always served
+  before any new first-stage entry of the track. Entries that are already pending on the first cycle after the date and
+  would be due later than that are moved forward once (one line in the track log, with the old time). The keep-alive
+  window still counts from the first pass, which is stored separately (`first_pass_ts`). A track without a close (the
+  generalist) keeps the 12 hours. If the close arrives while an entry is still pending (for example its download
+  failed), nothing changes: there is no grace period, nobody is crowned after the close, and the validator logs the
+  entry once.
 * Challengers are handled in order of their commitment block (then UID). A challenger that is confirmed first becomes
   the incumbent for the ones after it, and they must beat it by the full margin (on a track without a champion, a
   cohort playoff picks the first champion, see "First champion of a track"). This holds whether it was confirmed
@@ -203,6 +215,15 @@ incumbent's on the same items and the SE is the paired bootstrap error of that d
   commitment:** the later challenger needs clear evidence against the model that was crowned first.
 * A model that is a copy, twin or child of another model still has to beat that model by the full margin
   (`max(1.5, 2 x SE)`) on every draw, as before.
+
+*Rules v4 (generalist track only; from `DRAWS_V4_START_UTC`, date set in the release notes).* Generalist draws grow from
+300 to 900 items (90 per category), which cuts the paired SE to about 58 % (by a factor of about 1.7), and the margin floor drops from 1.5 to
+**1.0 point** (`MARGIN_FLOOR_V4`) for every decision taken at or after that instant: "gain `>= 1.5`" above reads "gain
+`>= 1.0`", the close-call minimum 0.75 reads 0.5 (half the floor), the pooled-mean bars of the confirmation read 1.0, and
+`max(1.5, 2 x SE)` reads `max(1.0, 2 x SE)` (also for the copy, twin and child checks). The z-gates (2.0, 1.0, 1.5, 2.75,
+0.5) and the 3.0-point rule for entries close to the champion's weights do not change. Draws of different sizes are pooled
+as before, so an entry whose first stage was taken before the instant is confirmed on 900-item draws under the 1.0 floor.
+Specialist tracks (demand_forecasting, risk_assessment) keep 300-item draws and the 1.5 floor.
 
 *Entries already pending.* An entry that passed its first draw before the switch is confirmed under the old rule
 (positive gain of at least half the margin). The state records `decision_rule = "v3"` on entries decided under the new

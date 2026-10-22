@@ -30,6 +30,7 @@ import hashlib
 import math
 import re
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Mapping, Optional, Sequence
 
 from . import competition_split as _cs
@@ -38,6 +39,21 @@ from .engthresholds import THRESHOLDS as _T
 from .s1scoring import logit_distance
 
 ENGINE_BLOCK_SECONDS = 12.0
+
+# Copy line (Florian 21 Oct 2026, board #22920, variant B with closed binaries; docs/ENGINE-COMPETITION.md, "Reusing other
+# entries"). Release constant, no environment override: validators must agree. None = off, the rules are exactly the
+# previous ones. From this instant on: declared reuse of another entry's code (source or binaries) makes the entry
+# "derived" (it must beat every parent by the full margin), undeclared reuse found by review is a copy (strike; the
+# second one and every later one pauses the hotkey for ENGINE_COPYLINE_PAUSE_BLOCKS), the same owner may reuse its own code.
+ENGINE_COPYLINE_START_UTC: Optional[datetime] = datetime(2026, 10, 23, 13, 0, tzinfo=timezone.utc)
+assert ENGINE_COPYLINE_START_UTC is None or ENGINE_COPYLINE_START_UTC.tzinfo is not None  # naive would raise every cycle
+ENGINE_COPYLINE_PAUSE_BLOCKS = 7 * 24 * 3600 // 12  # 7 days of 12 s blocks
+ENGINE_COPYLINE_PAUSE_AT_STRIKE = 2  # from the second detected undeclared reuse on (the first has no consequence beyond the copy)
+
+
+def copyline_active(now: datetime) -> bool:
+    """True from ``ENGINE_COPYLINE_START_UTC`` on (the start instant itself counts); never while the constant is None."""
+    return ENGINE_COPYLINE_START_UTC is not None and now >= ENGINE_COPYLINE_START_UTC
 PROTOCOL_ENG = "reax-eng/1"
 # Image references are kept short enough that the whole commitment fits the chain's 128-byte raw field.
 _COMMIT_RE = re.compile(
@@ -298,6 +314,40 @@ class TrackState:
     history: list[dict[str, Any]] = field(default_factory=list)  # title changes, newest last (max 50)
     # cycle_end / session_void per cycle: audit only, kept apart so they cannot push title changes out of ``history``
     cycle_events: list[dict[str, Any]] = field(default_factory=list)  # newest last (max CYCLE_EVENTS_MAX)
+    # Copy line (add-only; absent from the file while empty, so a rollback to a build without it reads the file unchanged):
+    # hotkey -> digests found to reuse another entry's code undeclared; hotkey -> block until which it is paused;
+    # child digest -> parent digests it must beat by the full margin (declared or detected, same-owner ones left out).
+    copy_strikes: dict[str, list[str]] = field(default_factory=dict)
+    copy_paused_until: dict[str, int] = field(default_factory=dict)
+    derived: dict[str, list[str]] = field(default_factory=dict)
+    # child digest -> parent digest -> hotkeys whose digests all set the bar for THAT child (the committer of the declared
+    # digest, or the hotkey of the declared uid when the committer is unknown; fixed at the first reading, never shared
+    # between children); digest -> best valid score ever measured (survives re-measurement).
+    derived_hk: dict[str, dict[str, list[str]]] = field(default_factory=dict)
+    held_scores: dict[str, float] = field(default_factory=dict)
+
+    def hold(self, result: "EvalResult") -> None:
+        """Copy line: remember the best valid score of a digest, so a parent's bar does not drop when it is measured again
+        (or fails later). Not called while the copy line is off."""
+        if result.ok:
+            self.held_scores[result.digest] = max(self.held_scores.get(result.digest, 0.0), result.score)
+
+    def record_copy(self, hotkey: str, digest: str, block: int) -> int:
+        """Count an undeclared reuse (once per digest) against ``hotkey``; the second one and every later one pauses the
+        hotkey until ``block`` + ENGINE_COPYLINE_PAUSE_BLOCKS (never shortening a pause that runs longer). Returns the
+        hotkey's strike count."""
+        seen = self.copy_strikes.setdefault(hotkey, [])
+        if digest not in seen:
+            seen.append(digest)
+            if len(seen) >= ENGINE_COPYLINE_PAUSE_AT_STRIKE:
+                self.copy_paused_until[hotkey] = max(self.copy_paused_until.get(hotkey, 0), block + ENGINE_COPYLINE_PAUSE_BLOCKS)
+            self.add_cycle_event({"block": block, "event": "copy_strike", "hotkey": hotkey, "digest": digest,
+                                  "strikes": len(seen)})  # audit only: must not push title changes out of ``history``
+        return len(seen)
+
+    def copy_paused(self, hotkey: str, block: int) -> bool:
+        """A paused hotkey's new commitments are not evaluated until the pause block."""
+        return block < self.copy_paused_until.get(hotkey, 0)
 
     def add_cycle_event(self, event: dict[str, Any]) -> None:
         self.cycle_events.append(event)
@@ -311,6 +361,7 @@ class TrackState:
                              "dropped_champion": self.champion.digest if self.champion else None,
                              "dropped_results": len(self.results)})
         self.results, self.attempts = {}, {}
+        self.held_scores = {}
         self.champion, self.challenger = None, None
         self.champion_invalid, self.champion_last_session = 0, ""
 
@@ -327,6 +378,11 @@ class TrackState:
             "cycle_events": self.cycle_events[-CYCLE_EVENTS_MAX:],
             "champion_invalid": self.champion_invalid,
             "champion_last_session": self.champion_last_session,
+            **({"copy_strikes": self.copy_strikes} if self.copy_strikes else {}),
+            **({"copy_paused_until": self.copy_paused_until} if self.copy_paused_until else {}),
+            **({"derived": self.derived} if self.derived else {}),
+            **({"derived_hk": self.derived_hk} if self.derived_hk else {}),
+            **({"held_scores": self.held_scores} if self.held_scores else {}),
         }
 
     @classmethod
@@ -346,6 +402,12 @@ class TrackState:
         st.champion_last_session = str(raw.get("champion_last_session", ""))
         st.history = list(raw.get("history", []))[-50:]
         st.cycle_events = list(raw.get("cycle_events", []))[-CYCLE_EVENTS_MAX:]
+        st.copy_strikes = {str(h): [str(d) for d in ds] for h, ds in raw.get("copy_strikes", {}).items()}
+        st.copy_paused_until = {str(h): int(b) for h, b in raw.get("copy_paused_until", {}).items()}
+        st.derived = {str(d): [str(x) for x in ps] for d, ps in raw.get("derived", {}).items()}
+        st.derived_hk = {str(d): {str(p): [str(x) for x in hs] for p, hs in per.items()}
+                         for d, per in raw.get("derived_hk", {}).items() if isinstance(per, dict)}
+        st.held_scores = {str(d): float(v) for d, v in raw.get("held_scores", {}).items()}
         return st
 
 
@@ -497,7 +559,32 @@ def co_champion_set(ch: Optional["Champion"]) -> Optional[tuple[str, tuple[tuple
     return None
 
 
-def update_champion(state: TrackState, eligible: Sequence[Submission], params: TrackParams, block: int) -> Optional[Champion]:
+def parent_bar(state: TrackState, digest: str, margin: float) -> float:
+    """Copy line: the score a derived entry must reach, ``(1 + margin) x`` the best valid score among the digests of its
+    declared parents; 0 for an entry without parents. A declared parent counts as its hotkey: the best valid score ever held
+    over ALL digests that hotkey committed (the committer; ``state.derived_hk[digest][parent]`` holds the declared uid's hotkey
+    only where the committer was unknown, per child), so naming a weak or
+    failed digest of the parent does not lower the bar. A declared parent with no valid score at all returns ``inf``: the
+    entry is held until the parent is measured, never crowned on a missing bar."""
+    bars = []
+    for p in state.derived.get(digest, ()):
+        hks = set(state.derived_hk.get(digest, {}).get(p, ()))
+        first = state.first_seen.get(p)
+        if first is not None:
+            hks.add(first[1])
+        if p in state.owners:
+            hks.add(state.owners[p])
+        fam = {p} | {d for d, (_, h) in state.first_seen.items() if h in hks} | {d for d, h in state.owners.items() if h in hks}
+        scores = [state.held_scores[d] for d in fam if d in state.held_scores]
+        scores += [state.results[d].score for d in fam if d in state.results and state.results[d].ok]
+        if not scores:
+            return math.inf
+        bars.append(max(scores))
+    return max(bars) * (1.0 + margin) if bars else 0.0
+
+
+def update_champion(state: TrackState, eligible: Sequence[Submission], params: TrackParams, block: int,
+                    copyline: bool = False) -> Optional[Champion]:
     """Apply the champion rule over the currently committed, eligible submissions.
 
     * A challenger needs ``confirmations`` separate sessions, each beating the champion's held score by ``margin``;
@@ -538,7 +625,14 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
         key=lambda s: (-state.results[s.digest].score, *seen_order(state, s)),
     )
     margin = max(params.margin, required_engine_margin(params.reference_noise_std))
-    pool = [s for s in contenders if (ch is None or s.digest != ch.digest) and (ch is None or state.results[s.digest].score >= bar)]
+    def bar_of(digest: str) -> float:
+        # copy line: an entry whose review record was not read into ``derived`` is not crownable (fail closed)
+        if not copyline:
+            return bar
+        return math.inf if digest not in state.derived else max(bar, parent_bar(state, digest, margin))
+
+    pool = [s for s in contenders if (ch is None or s.digest != ch.digest) and (ch is None or state.results[s.digest].score >= bar)
+            and (not copyline or state.results[s.digest].score >= bar_of(s.digest))]
     best = None
     if pool:
         # Within-margin rule: candidates not separated from the top score by the displacement margin are a tie on merit
@@ -554,18 +648,18 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
         if cand is not None:
             r = state.results[cand.digest]
             if _new_measurement(c, r, params):
-                if r.score >= bar:
+                if r.score >= bar_of(cand.digest):
                     c["measurements"].append([r.block, r.score, r.session])
                 else:
                     cand = None  # failed its confirmation against the current bar
-            if cand is not None and min(m[1] for m in c["measurements"]) < bar:
+            if cand is not None and min(m[1] for m in c["measurements"]) < bar_of(cand.digest):
                 cand = None  # the bar rose (new champion score) above what it was measured at
     if best is not None and (cand is None or best.digest != cand.digest):
         rb = state.results[best.digest]
         pooled = _pooled(c["measurements"]) if cand is not None else 0.0
         beats_pending = (cand is None or rb.score >= pooled * (1.0 + margin)
                          or (rb.score * (1.0 + margin) > pooled and seen_order(state, best) < seen_order(state, cand)))
-        if rb.score >= bar and beats_pending:
+        if rb.score >= bar_of(best.digest) and beats_pending:
             cand = best
             c = {"digest": best.digest, "hotkey": best.hotkey, "measurements": [[rb.block, rb.score, rb.session]]}
     if cand is None:
@@ -611,10 +705,17 @@ def champion_fraction(reward: RewardParams, age_blocks: int) -> float:
     return reward.champion_start - (reward.champion_start - reward.champion_floor) * min(1.0, age / reward.decay_blocks)
 
 
-def former_champions(state: TrackState) -> list[dict[str, Any]]:
+def copy_digests(state: TrackState) -> frozenset[str]:
+    """Digests struck as copies (``copy_strikes``); the validator passes them as ``exclude`` to the payout helpers only
+    while the copy line is active."""
+    return frozenset(d for ds in state.copy_strikes.values() for d in ds)
+
+
+def former_champions(state: TrackState, exclude: frozenset[str] = frozenset()) -> list[dict[str, Any]]:
     """Champions that were crowned and later replaced, newest crowning first, from the ``history`` events
     (``crowned`` / ``vacated`` / ``context_changed``): ``{"digest", "hotkey", "block", "score"}``. The current champion, a
-    vacated one and everything before a context change are not in the list. History keeps the last 50 events."""
+    vacated one and everything before a context change are not in the list. History keeps the last 50 events. ``exclude``:
+    digests left out (copies, copy line)."""
     out: list[dict[str, Any]] = []
     for e in state.history:
         kind = e.get("event")
@@ -627,7 +728,8 @@ def former_champions(state: TrackState) -> list[dict[str, Any]]:
         elif kind == "vacated":
             out = [f for f in out if (f["digest"], f["hotkey"]) != (e.get("digest"), e.get("hotkey"))]
     ch = state.champion
-    return [f for f in reversed(out) if ch is None or (f["digest"], f["hotkey"]) != (ch.digest, ch.hotkey)]
+    return [f for f in reversed(out) if f["digest"] not in exclude
+            and (ch is None or (f["digest"], f["hotkey"]) != (ch.digest, ch.hotkey))]
 
 
 def dethroned_blocks(state: TrackState) -> dict[tuple[str, str], Any]:
@@ -703,18 +805,19 @@ def waiting_uids(state: TrackState, eligible: Sequence[Submission], block: int,
     return out[: _cs.ENGINE_KA_MAX_ENTRIES]
 
 
-def former_ranks(state: TrackState, track: str, block: int) -> list[dict[str, Any]]:
+def former_ranks(state: TrackState, track: str, block: int,
+                 exclude: frozenset[str] = frozenset()) -> list[dict[str, Any]]:
     """The former champions of ``track`` as ranks below the title holder, most recently crowned first (1.2.0rc10.post1,
     Florian 21 Oct 2026 05:30Z "B"): ``{"pairs", "block", "co", "share"}``. Pure.
 
     The opening co-champion set (ENGINE_CO_CHAMPIONS) is ONE former champion, ranked by its newest member's crowning; it
     is left out while it holds the title. ``share`` is ENGINE_RANK_SPLIT[1] / [2] for the first two entries while their
     slot runs (ENGINE_FORMER_SLOT_BLOCKS from the block at which they were dethroned, ``dethroned_blocks``), else 0.
-    Entries with a malformed crowning block are left out."""
+    Entries with a malformed crowning block are left out, and the ``exclude`` digests (copies, copy line)."""
     co_seen = co_champion_set(state.champion) is not None
     deth = dethroned_blocks(state)
     out: list[dict[str, Any]] = []
-    for f in former_champions(state):
+    for f in former_champions(state, exclude):
         if not isinstance(f["block"], int):
             continue
         co = co_champion_set(Champion(f["digest"], f["hotkey"], -1, 0.0, f["block"]))
@@ -731,7 +834,7 @@ def former_ranks(state: TrackState, track: str, block: int) -> list[dict[str, An
 
 
 def protected_uids(state: TrackState, eligible: Sequence[Submission], params: TrackParams, block: int,
-                   champion_approved: bool, track: str = "s1-fast") -> list[int]:
+                   champion_approved: bool, track: str = "s1-fast", exclude: frozenset[str] = frozenset()) -> list[int]:
     """Engine keep-alive ahead of the waiting entries (competition_split.ENGINE_KA_PROTECTED_MAX). Pure.
 
     (a) The live current champion while ``champion_approved`` is False (it awaits the owner's award decision).
@@ -747,7 +850,7 @@ def protected_uids(state: TrackState, eligible: Sequence[Submission], params: Tr
     live = by_pair.get((ch.digest, ch.hotkey))
     if live is not None and not champion_approved:
         out.append(live.uid)
-    for g in former_ranks(state, track, block):
+    for g in former_ranks(state, track, block, exclude):
         if g["share"] <= 0:
             continue
         for digest, hotkey in g["pairs"]:

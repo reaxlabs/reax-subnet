@@ -15,7 +15,9 @@ WORKDIR /app
 # torch 2.14 runs some CUDA ops (e.g. Qwen3's rotary embedding) through Triton, which compiles a small
 # driver module with a C compiler on first use. Without gcc the GPU path crashes (found on an RTX PRO 6000,
 # 3 Oct 2026; CPU runs are unaffected).
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends gcc libc6-dev >/dev/null \
+# ca-certificates: the newest bundle of the base's Debian release (eMudhra emSign ECC Root CA - G3 distrusted, Oct 2026); build
+# releases with --no-cache so this layer is fresh.
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends gcc libc6-dev ca-certificates >/dev/null \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements/lock.txt requirements/lock.txt
 # Every dependency is pinned by hash.
@@ -46,6 +48,8 @@ ENV REAX_WALLET_PATH=/wallets \
 FROM python:3.12-slim@sha256:dddfd7e07f9d15aeeca61529320492139d21cac7f0070c00609243e51e4e0016 AS miner-s1
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates >/dev/null \
+    && rm -rf /var/lib/apt/lists/*
 COPY requirements/lock-s1.txt requirements/lock-s1.txt
 RUN pip install --require-hashes --only-binary=:all: -r requirements/lock-s1.txt
 COPY pyproject.toml README.md LICENSE THIRD_PARTY_NOTICES.md ./

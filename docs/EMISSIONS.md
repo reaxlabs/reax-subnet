@@ -30,3 +30,13 @@ the owner or recycles it depends on the runtime version, so check on testnet bef
 * With a partial burn (0 < value < 1) and no owner UID on the subnet, the burn has no recipient and is ignored:
   miners are paid in full. The owner hotkey is registered when the subnet is created, so this only matters if
   that UID was deregistered.
+
+## Per coldkey inside the inference pools (from `COLDKEY_DR_START_UTC`, date set in the release notes)
+
+The pool shares (80 / 15 / 5 per tier) do not change. In the small pools (s1-lite and s1-cpu; `COLDKEY_DR_POOLS`), the miner part of one coldkey has diminishing returns:
+its first two hotkeys count in full, every further hotkey 0.7 times the one before (3rd 70 %, 4th 49 %, 5th 34 %), so any
+number of hotkeys on one coldkey counts at most 4.33 full hotkeys. s1-fast and s1-pro are not changed (pay there stays linear
+in verified throughput). The weight this frees stays in the same pool and goes to
+the other miners of the pool pro rata, never to the owner or the burn. The lite brake (tier-order ratio 0.5) is replaced by the same
+ratio at 1.0 applied to these effective miner counts. Honest operators with one or two hotkeys per coldkey are not reduced.
+Numbers and variants: docs/DESIGN-POOLS.md section 4.6.

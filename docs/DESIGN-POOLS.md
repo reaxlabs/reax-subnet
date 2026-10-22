@@ -260,6 +260,45 @@ probe for UIDs flagged by these signals.
 - Every hotkey pays the subnet registration burn, which is the natural per-node cost.
 - With the rules above, a sybil hotkey earns nothing extra, so its registration is pure cost.
 
+### 4.6 Per-coldkey diminishing returns (replaces the lite brake)
+From `COLDKEY_DR_START_UTC` (date set in the release notes; until then nothing in this section applies and the order_ratio
+0.5 brake of section 5 stays) the small pools **s1-lite and s1-cpu** (`COLDKEY_DR_POOLS`) treat all hotkeys of one coldkey as one operator.
+s1-fast and s1-pro are not touched: there pay is linear in verified throughput (mechanism v2), one hotkey per machine is
+never worse than several, and the big coldkeys sit at the per-hotkey cap, i.e. they are real verified capacity. The
+brake this replaces only ever acted on the small tiers. Setting `COLDKEY_DR_POOLS` to all four pools makes the same rule
+apply to the GPU pools as well (simulated below as the alternative; not the default).
+
+- **Per pool, per coldkey.** The eligible slots of one coldkey in one pool are ranked by their in-pool score (`ema` x
+  capacity factor), best first, ties by slot id. The k-th slot keeps its whole score for k <= 2 (`COLDKEY_FREE_SLOTS`) and
+  is multiplied by 0.7 for every slot after that (`COLDKEY_DR_RATIO`): 3rd slot 70 %, 4th 49 %, 5th 34 %, 10th 5.8 %.
+  However many hotkeys a coldkey registers, they count for at most 2 + 0.7 / 0.3 = 4.33 full hotkeys in a pool.
+- **Nothing is burned.** The pool's share is split over the reduced scores as before, so the weight a farm loses goes
+  pro rata to every other miner of the pool. A coldkey with one or two hotkeys in a pool is not reduced; it gains only what
+  the pool redistributes.
+- **Tier-order cap on effective miners.** The cap of section 5 counts the sum of the factors per tier (effective miners)
+  instead of slots for tiers whose pools are in the set (slots as before for the others), so adding hotkeys no longer raises a tier's cap, and its ratio is 1.0 (the 0.5 brake is replaced, not
+  stacked). The 80 / 15 / 5 budgets stay the hard cap.
+- **Same hotkey, several pools.** Pools are separate: one hotkey in s1-fast and s1-pro is one slot in each.
+- **Unknown coldkey.** A slot whose UID has no coldkey in the metagraph snapshot counts as its own coldkey (fail open for
+  honest miners).
+- **What it does not do.** A farm that spreads its hotkeys over N coldkeys keeps 2 free slots per coldkey. The rule makes that
+  cost one more coldkey per two hotkeys; it cannot see links that are not on chain.
+
+Simulation on the live dashboard (21 Oct 10:12Z, 235 paid miners, `tools/sim_coldkey_dr.py`, numbers from `SIM.md` in the
+job folder), default scope (s1-lite, s1-cpu), raw change of pay (includes the weight the rule frees and the lifted brake):
+
+| pool | miner with one hotkey in the pool | 26-hotkey s1-lite coldkey |
+|---|---|---|
+| s1-fast | -4 % | n/a |
+| s1-pro | -4 % | n/a |
+| s1-lite | +98 % | -66 % |
+| s1-cpu | +243 % | n/a |
+
+The GPU pools lose 4 % because the lite brake used to send the small tier's excess up to the GPU tier; with the brake gone
+the tiers sit at their 80 / 15 / 5 budgets (GPU 83.4 % -> 80.0 %, small 16.2 % -> 18.9 %, cpu 0.3 % -> 1.2 %). The four
+big coldkeys: the s1-lite coldkey -66 %, the three GPU coldkeys -4 % each (they are not reduced). Alternative with all four
+pools: the s1-pro and s1-fast big coldkeys lose 45-71 %, every single-hotkey miner gains +32 % to +243 %.
+
 ## 5. Budgets: the numbers behind 80 / 15 / 5
 
 Example of per-miner shares of the inference part. All miners are healthy at the target capacity; the shares are

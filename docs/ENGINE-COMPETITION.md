@@ -112,6 +112,77 @@ them. Items never repeat inside the timed runs, so a legitimate exact-match cach
 - **Frozen thresholds:** margin, min gain, agreement gate, distance budget, items, runs and confirmations live in one block, `src/reax_subnet/engthresholds.py`. Its sha256 is logged when the validator starts and written into the state file (`thresholds_sha256`); changing a value is a new release.
 - Each validator keeps its own champion state; Yuma consensus combines them (stake-weighted), as for serving scores.
 
+## 5a. Reusing other entries (copy line)
+
+*From `ENGINE_COPYLINE_START_UTC` in `src/reax_subnet/engcomp.py` (date set in the release notes). Until then the previous
+rule applies unchanged: an entry that reuses another miner's files is judged by review alone.*
+
+Recombining what works is a legitimate way to make progress; repackaging is not. The line:
+
+1. **Ideas are free.** Re-implementing a technique you saw in a public entry is always allowed, with no declaration.
+2. **Reusing another entry's code, source or binaries, is allowed only if you declare it.** The image carries the label
+   `ai.reax.engine.parents`, a JSON list: `[{"uid": 4, "digest": "<64 hex of the parent image>", "files": ["/app/engine.py", "/app/kernels/"]}]`
+   (at most 8 parents, at most 2,000 files per parent, label at most 128 KiB; `files` are the paths in YOUR image whose content
+   comes from that parent, and an entry ending in `/` is a directory prefix covering everything below it). Such an entry
+   counts as **derived**: in every confirming session it must beat **every declared parent** by the full challenger margin (the
+   engine track's margin: 3 % or 3x the reference noise, whichever is larger), on top of the normal champion bar.
+   - **The parent is its hotkey.** The bar is the best valid score ever measured for ANY digest committed by the hotkey that
+     committed the declared parent digest. The declared `uid` must belong to that hotkey: if it does not, the label is a problem
+     and that entry is held out of the title until it is fixed. Only when the committer of the digest is not yet known is the
+     declared uid's hotkey used, read once and fixed. The set belongs to that one entry: another entry's label can never
+     change it, and a uid that is re-registered later changes nothing. Naming an old or weak digest of the parent, or a parent
+     whose latest run failed, does not lower it; the best score is kept even if the parent is measured again.
+   - **No score, no crowning.** A declared parent with no valid score yet holds the entry (never crowned, never on a missing
+     bar) until the parent has been measured.
+   - **Only declared parents set bars.** The validators build the bar from the label alone. Reuse that review finds but the
+     label does not declare is not a bar: it is a copy (point 4).
+   - **Read first.** From the start date an entry can be crowned only after its review record has been read: a missing or
+     unreadable record, or a label with any problem (bad JSON, nested deeper than 4 levels, more than 8 parents or 2,000 files
+     per parent), keeps that entry out of the title until it is fixed. A validator without a review directory crowns nobody.
+     A record written before the start date has no label fields: for an unmeasured digest the check runs again before its first
+     run; for an already-measured, eligible digest the validators re-read the image labels once (docker image inspect). Until
+     then it cannot be crowned, but it stays in the pool and nobody has to recommit. Only an image that is gone (not on
+     the host and not pullable by its digest) counts as "no parents declared" (it was measured before the rule; undeclared
+     reuse is still caught by a COPY marker). A docker error or timeout changes nothing: the re-read is retried next cycle
+     and the entry stays out of the title until it succeeds. A measured digest whose record is missing stays out of the
+     title (in release mode every measured digest has a record).
+3. **Binaries are treated like source, and closing code gives no protection and no payout.** A closed binary (`.so`, `.cubin`, ...
+   without published source; `.safetensors` and `.bin` files inside directories named exactly model, models, weights,
+   checkpoint(s) or tokenizer(s) are weights and not counted; any other `.bin` is listed as "weights? (check)") may be reused under the same declaration and the same
+   full-margin rule. But a component without published source keeps its entry **unpaid**: the owner's signed award approval is
+   withheld until the source is published. This is done by hand (no code gates it): **closed components present -> withhold the
+   approval**; it is on the review checklist and printed by the review tool.
+4. **Undeclared reuse found by our review is a copy.** The reviewer creates `COPY/<digest>`; **the marker alone is enough**
+   (`REVIEWED/<digest>` is not needed and is not created for a copy). In that cycle the commitment fails (it is never run) and
+   counts as a strike. The first strike has no further consequence; the **second and every later** one pauses that hotkey for
+   **7 days** (50 400 blocks; a later strike restarts the 7 days from its own block, never shortening a longer pause). A marker
+   put on an entry that was already measured, a former champion or the champion has the same effect: its result becomes a
+   failure, it is vacated if it holds the title, and it leaves the former-champion ranks and the keep-alive.
+5. **The same owner may reuse its own code freely**: parents on the same coldkey (chain snapshot), or a signed ownership proof
+   (below), are not constraints and are not copies.
+
+**While a hotkey is paused** it is out of the challenger pool, out of confirmation sessions and cannot be crowned; its new
+commitments are not evaluated. What it already earns from earlier, non-copy entries continues: the champion share of a
+sitting champion and the former-champion ranks (the former-champion slot keep-alive continues); waiting entries of a paused
+hotkey get no waiting keep-alive. A copy itself earns nothing.
+
+**Where the declaration lives.** In the image label, not in the chain commitment: the on-chain field is 128 bytes and an engine
+commitment already uses most of it. The label is part of the image configuration, which is part of the digest, so the declaration
+is bound to exactly the image that is run and cannot be changed afterwards; the pre-run check already reads the labels.
+
+**Ownership proof (different coldkeys, one owner).** The parent's hotkey signs (sr25519) the text
+`reax-eng/1 same-owner:<parent hotkey>><child hotkey>:<parent digest>` and the child image carries
+`ai.reax.engine.ownership=[{"parent_digest": "...", "parent_hotkey": "...", "signature": "<hex>"}]`. Validators accept it only
+when the signature verifies (`bittensor.sp_core.verify`) for exactly that parent digest and child hotkey; without the chain
+library the proof is not accepted.
+
+**Review tooling and checklist.** `tools/engine_parents_check.py CHILD_DIR --parent DIGEST=DIR ... --declared <label>` compares the
+extracted trees and prints the identical files and binaries, declared vs detected, and the verdict: "derived (declared)", "copy
+(undeclared)", "same owner", "independent" or "unverified declaration". It needs no docker. Pass every digest of the parent's
+hotkey; a declared digest without a tree is reported (exit 3). Checklist: (1) run the tool against the declared parents' hotkeys;
+(2) shared but undeclared files -> create `COPY/<child digest>` (exit 2); (3) closed components listed -> withhold the award
+approval until their source is published; (4) otherwise create `REVIEWED/<digest>` as usual.
+
 ## 6. Rewards (share of miner emissions)
 
 The split between serving and the competitions is defined once in [COMPETITIONS.md](COMPETITIONS.md)

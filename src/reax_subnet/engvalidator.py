@@ -29,10 +29,11 @@ from .competition_split import (
     COMPETITIONS_START_UTC, SPLIT_PROFILE, NoSpecialistEvaluator, SpecialistEvaluator, active_tracks, combine_weights,
     ENGINE_RESTORE_PREVIOUS, engine_keepalive_enabled, keep_share_enabled, legacy_ka_tracks, legacy_ka_uids,
 )
+from . import engcopyline, engreview
 from .engcomp import (
     EvalResult, RewardParams, Submission, TrackParams, TrackState, _valid, champion_fraction, competition_weights,
-    co_champion_set, confirmation_due, former_ranks, needs_remeasurement, observe, parse_engine_commitment, pending,
-    protected_uids, track_thresholds, update_champion, waiting_uids,
+    co_champion_set, confirmation_due, copy_digests, former_ranks, needs_remeasurement, observe, parse_engine_commitment, pending,
+    protected_uids, track_thresholds, update_champion, waiting_uids, copyline_active,
 )
 from .spec.commitment import parse_commitment as parse_spec_commitment
 from .engthresholds import FROZEN_SHA256, thresholds_sha256
@@ -81,6 +82,7 @@ class EngineCompetition:
         self.start_utc = start_utc
         self.engine_start_utc = engine_start_utc
         self.award_gate = award_gate
+        self._verify_ownership: Optional[Callable[[str, str, str], bool]] = None  # tests; else sr25519_verifier(), lazily
         self.cycle_gate_file = cycle_gate_file
         self.cycle_gate_max_age_s = cycle_gate_max_age_s
         self._gate_logged: Optional[bool] = None
@@ -269,8 +271,14 @@ class EngineCompetition:
             eligible = observe(st, subs, snap.block, first_committer_only=not bind)
             eligible = await self._owned(st, eligible, bind)
             awaiting = getattr(self.runner, "awaiting_review", None)
-            todo = pending(st, [s for s in eligible if awaiting is None or not awaiting(s.ref)], self.max_evals)
-            again = needs_remeasurement(st, eligible)
+            cl = copyline_active(self._utcnow())  # ENGINE_COPYLINE_START_UTC; False while the constant is None
+            if cl:
+                await self._recheck_measured(st, eligible)
+                self._apply_copy_markers(st, eligible, snap.block)
+                self._refresh_derived(st, eligible, snap)
+            elig = self._unpaused(st, eligible, snap.block) if cl else eligible
+            todo = pending(st, [s for s in elig if awaiting is None or not awaiting(s.ref)], self.max_evals)
+            again = needs_remeasurement(st, elig)
             ch = st.champion
             if ch is not None and todo and not any(s.digest == ch.digest for s in again):
                 again += [s for s in eligible if s.digest == ch.digest and s.hotkey == ch.hotkey]
@@ -279,7 +287,11 @@ class EngineCompetition:
             before = st.champion.digest if st.champion else None
             stopped = await self._run_sessions(st, track, params, todo, snap, report[track], between)
             eligible = await self._owned(st, observe(st, subs, snap.block, first_committer_only=not bind), bind)
-            ch = update_champion(st, eligible, params, snap.block)
+            if cl:  # the static check writes a new image's review record inside the session: read it before any crowning
+                self._apply_copy_markers(st, eligible, snap.block)
+                self._refresh_derived(st, eligible, snap)
+                eligible = self._unpaused(st, eligible, snap.block)
+            ch = update_champion(st, eligible, params, snap.block, copyline=cl)
             # Confirmation = a second, fresh session (new containers, new secret items) right after the first, in
             # this cycle; the champion is measured again with the challenger, so the comparison stays paired.
             for _ in range(params.confirmations - 1):
@@ -287,12 +299,122 @@ class EngineCompetition:
                     break
                 stopped = await self._run_sessions(st, track, params, needs_remeasurement(st, eligible), snap,
                                                    report[track], between)
-                ch = update_champion(st, eligible, params, snap.block)
+                if cl:
+                    self._refresh_derived(st, eligible, snap)
+                ch = update_champion(st, eligible, params, snap.block, copyline=cl)
             if (ch.digest if ch else None) != before:
                 log.info("engine competition [%s]: champion is now %s", track,
                          f"uid {ch.uid} {ch.digest[:12]} score {ch.score:.3f}" if ch else "vacant")
         self.save()
         return report
+
+    async def _recheck_measured(self, st: TrackState, eligible: list[Submission]) -> None:
+        """Copy line: an eligible digest measured before the start has a review record without the ``copyline`` mark and is
+        never reviewed again (review runs for unmeasured digests only). Its static check is re-run once (labels only, the
+        runner's ``recheck_copyline``); until then it is not crownable (``_refresh_derived`` leaves it out of ``derived``)
+        but stays in the pool. A failure leaves it for the next cycle."""
+        recheck = getattr(self.runner, "recheck_copyline", None)
+        if recheck is None:
+            return
+        for s in eligible:
+            if s.digest in st.results:
+                try:
+                    await recheck(s.ref)
+                except Exception as exc:  # noqa: BLE001 - retried next cycle; the digest stays not crownable
+                    log.warning("engine competition: copy-line re-check of %s failed (%r)", s.digest[:12], exc)
+
+    def _ownership_verifier(self, rec: Mapping[str, Any]) -> Optional[Callable[[str, str, str], bool]]:
+        """The sr25519 verifier, loaded only when an image actually carries an ownership proof (None: no proof counts)."""
+        if self._verify_ownership is None and rec.get("ownership_label"):
+            self._verify_ownership = engcopyline.sr25519_verifier()
+        return self._verify_ownership
+
+    def _unpaused(self, st: TrackState, eligible: list[Submission], block: int) -> list[Submission]:
+        """Copy line: a paused hotkey's submissions are out of the challenger pool, the confirmation and the crowning until
+        the pause ends. Its sitting champion entry stays (it is not a new entry; the payouts it already earns continue)."""
+        ch = st.champion
+        return [s for s in eligible if not st.copy_paused(s.hotkey, block)
+                or (ch is not None and (s.digest, s.hotkey) == (ch.digest, ch.hotkey))]
+
+    def _apply_copy_markers(self, st: TrackState, eligible: list[Submission], block: int) -> None:
+        """Copy line: ``COPY/<digest>`` on an eligible image (measured or not, reviewed or not) = a failed result and a strike
+        in this cycle (once per digest; the second and every later one pauses the hotkey). A copy that holds the title
+        is vacated and a pending challenge of it dropped; the payout helpers leave copies out (``copy_digests``)."""
+        review_dir = getattr(self.runner, "review_dir", "")
+        if not review_dir:
+            return
+        for s in eligible:
+            if not engreview.valid_digest(s.digest) or not engreview.copy_marker(review_dir, s.digest):
+                continue
+            n = st.record_copy(s.hotkey, s.digest, block)
+            r = st.results.get(s.digest)
+            if r is None or r.ok:
+                log.warning("engine competition: uid %d %s is a copy (undeclared reuse of another entry's code), strike %d",
+                            s.uid, s.digest[:12], n)
+                st.results[s.digest] = EvalResult(digest=s.digest, track=s.track, ok=False, block=block,
+                                                  reason="copy: undeclared reuse of another entry's code (declare parents "
+                                                         f"in the image label {engcopyline.PARENTS_LABEL})")
+            if st.challenger is not None and st.challenger.get("digest") == s.digest:
+                st.challenger = None
+            ch = st.champion
+            if ch is not None and (ch.digest, ch.hotkey) == (s.digest, s.hotkey):
+                st.history.append({"block": block, "event": "vacated", "digest": ch.digest, "hotkey": ch.hotkey})
+                st.champion, st.champion_invalid, st.champion_last_session = None, 0, ""
+
+    def _refresh_derived(self, st: TrackState, eligible: list[Submission], snap: Snapshot) -> None:
+        """Copy line: from each eligible image's review record set ``st.derived[digest]`` = the declared parents it must beat
+        by the full margin, without the ones the same owner holds (same coldkey in the snapshot, or a valid signed ownership
+        proof); ``[]`` = read, no parents. An entry is crownable only with a key here: a missing or unreadable record, a
+        label with any problem, or an error while reading it leaves the key out (fail closed, that digest only; the cycle
+        goes on). Also keeps the best valid score of every digest (``held_scores``). Recomputed from the record each time."""
+        for r in st.results.values():
+            st.hold(r)
+        review_dir = getattr(self.runner, "review_dir", "")
+        if not review_dir:
+            return
+        coldkeys = {n.hotkey: n.coldkey for n in snap.neurons}
+        uid_hotkey = {n.uid: n.hotkey for n in snap.neurons}
+        for s in eligible:
+            try:
+                self._derive_one(st, s, review_dir, coldkeys, uid_hotkey)
+            except Exception as exc:  # noqa: BLE001 - one bad record must not stop the cycle
+                st.derived.pop(s.digest, None)
+                log.warning("engine competition: copy-line record of %s unreadable (%r); not crownable", s.digest[:12], exc)
+
+    def _derive_one(self, st: TrackState, s: Submission, review_dir: str, coldkeys: Mapping[str, str],
+                    uid_hotkey: Mapping[int, str]) -> None:
+        rec = engreview.load_record(review_dir, s.digest) if engreview.valid_digest(s.digest) else None
+        if not rec or not rec.get("copyline"):  # no record, or written before the start (no label fields): not read
+            st.derived.pop(s.digest, None)
+            return
+        parents, problems = engcopyline.parse_parents(rec.get("parents_label"))
+        if problems:
+            st.derived.pop(s.digest, None)
+            log.warning("engine competition: parents label of %s has problems (%s); not crownable", s.digest[:12],
+                        "; ".join(problems))
+            return
+        own = []
+        hk_of: dict[str, list[str]] = {}
+        for p in parents:
+            phk = st.owners.get(p.digest) or st.first_seen.get(p.digest, (0, ""))[1]  # the parent digest's committer
+            fixed = st.derived_hk.get(s.digest, {}).get(p.digest)
+            if fixed is not None:  # read once for this child: a later uid re-registration changes nothing
+                hk_of[p.digest] = fixed
+            elif phk:  # the committer decides; a declared uid that is someone else's is a label problem
+                if uid_hotkey.get(p.uid) not in (None, phk):
+                    st.derived.pop(s.digest, None)
+                    log.warning("engine competition: parents label of %s names uid %d for parent %s, which was committed by "
+                                "another hotkey; not crownable", s.digest[:12], p.uid, p.digest[:12])
+                    return
+                hk_of[p.digest] = [phk]
+            elif uid_hotkey.get(p.uid):  # committer unknown: the declared uid's hotkey, fixed at this first reading
+                hk_of[p.digest] = [uid_hotkey[p.uid]]
+            if phk and (engcopyline.same_coldkey(s.hotkey, phk, coldkeys) or engcopyline.valid_ownership_proof(
+                    rec.get("ownership_label"), p.digest, phk, s.hotkey, self._ownership_verifier(rec))):
+                own.append(p.digest)
+        if hk_of:
+            st.derived_hk[s.digest] = hk_of
+        st.derived[s.digest] = engcopyline.constraint_parents((p.digest for p in parents), (), own)
 
     async def _owned(self, st: TrackState, eligible: list[Submission], bind: bool) -> list[Submission]:
         """Keep only submissions whose image is bound to the committing hotkey (F1). An image carries one hotkey label, so
@@ -343,6 +465,8 @@ class EngineCompetition:
             if isinstance(res, EvalResult):
                 res.session = secrets.token_hex(8)  # identifies this measurement (confirmations never count one twice)
                 st.results[sub.digest] = res
+                if copyline_active(self._utcnow()):
+                    st.hold(res)  # copy line: the best valid score survives a later re-measurement
                 st.attempts.pop(sub.digest, None)
                 report.append({"uid": sub.uid, **res.to_json()})
                 log.info("engine competition [%s] uid %d %s: %s score %.3f (%.2f vs %.2f dec/s, mean_d %s)%s",
@@ -372,6 +496,14 @@ class EngineCompetition:
             return fail(f"inconclusive {n} times: {reason}") if n >= params.max_infra_attempts else None
 
         progress: dict[str, Any] = {}
+        review_dir = getattr(self.runner, "review_dir", "")
+        if review_dir and copyline_active(self._utcnow()) and engreview.copy_marker(review_dir, sub.digest):
+            # review found undeclared reuse (COPY/<digest>): not evaluated; a strike (the second pauses the hotkey)
+            n = st.record_copy(sub.hotkey, sub.digest, block)
+            log.warning("engine competition: uid %d %s is a copy (undeclared reuse of another entry's code), strike %d",
+                        sub.uid, sub.digest[:12], n)
+            return fail("copy: undeclared reuse of another entry's code (declare parents in the image label "
+                        f"{engcopyline.PARENTS_LABEL})")
         try:
             if getattr(self.runner, "binds_hotkey", False):
                 try:
@@ -468,9 +600,11 @@ class EngineCompetition:
                         and (bind or st.first_seen.get(s.digest, (0, s.hotkey))[1] == s.hotkey)
                         and (not bind or st.owners.get(s.digest, s.hotkey) == s.hotkey)]
             ch = st.champion
-            ranks = former_ranks(st, track, snap.block) if track == "s1-fast" else []
+            cl = copyline_active(self._utcnow())
+            bad = copy_digests(st) if cl else frozenset()  # copies earn no former-champion rank and no keep-alive
+            ranks = former_ranks(st, track, snap.block, bad) if track == "s1-fast" else []
             if self.engine_keepalive and track == "s1-fast":
-                waiting = waiting_uids(st, eligible, snap.block, {n.uid: n.coldkey for n in snap.neurons},
+                waiting = waiting_uids(st, self._unpaused(st, eligible, snap.block) if cl else eligible, snap.block, {n.uid: n.coldkey for n in snap.neurons},
                                        {n.uid: n.registered_block for n in snap.neurons})
             live = next((s for s in eligible if ch is not None and s.digest == ch.digest and s.hotkey == ch.hotkey),
                         None)
@@ -480,7 +614,7 @@ class EngineCompetition:
             if self.engine_keepalive and track == "s1-fast" and self.award_gate is not None:
                 # protected entries first (ENGINE_KA_PROTECTED_MAX): champion awaiting approval, former champions in a slot
                 approved = self.award_gate.approved(track, ch.hotkey, engine_submission_id(ch.digest))
-                prot = protected_uids(st, eligible, self.tracks[track], snap.block, approved, track)
+                prot = protected_uids(st, eligible, self.tracks[track], snap.block, approved, track, bad)
                 waiting = prot + [u for u in waiting if u not in prot]
             comp = competition_weights(st, eligible, self.tracks[track], self.reward, snap.block)
             if track == "s1-fast" and ch.uid in comp:
@@ -527,6 +661,8 @@ class EngineCompetition:
         pv = getattr(self.specialist, "provisional", None)
         prov = pv(ids, now) if pv is not None and ids else {}
         prov = {t: prov[t] for t in ids if prov.get(t)}
+        pr = getattr(self.specialist, "protected", None)
+        protected = pr(ids, now) if pr is not None and ids else {}
         legacy: list[int] = []
         lg = getattr(self.specialist, "legacy", None)
         lids = legacy_ka_tracks(now, self.profile) if lg is not None else ()
@@ -542,7 +678,8 @@ class EngineCompetition:
         return combine_weights(base, champion, frac, scores, self.profile, owner_uid=snap.owner_uid,
                                burn_fraction=burn_fraction, award_ok=self._spec_award_ok(snap), keepalive=alive,
                                provisional=prov, engine_waiting=waiting, keep_share=self.keep_share, now=now.timestamp(),
-                               engine_cochampions=cochamps or None, legacy_keepalive=legacy or None)
+                               engine_cochampions=cochamps or None, legacy_keepalive=legacy or None,
+                               keepalive_protected=protected or None)
 
     def _previous_approved(self, track: str, st: TrackState, eligible: list[Submission], block: int,
                            ranks: list[dict[str, Any]]) -> Optional[tuple[dict[str, Any], dict[int, float]]]:

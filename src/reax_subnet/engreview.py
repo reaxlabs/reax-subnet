@@ -217,3 +217,30 @@ def new_record(ref: str, digest: str, violations: list[str], warnings: list[str]
     return {"version": REVIEW_RECORD_VERSION, "ref": ref[:300], "digest": digest, "checked_at": int(time.time()),
             "status": "rejected" if violations else "static_ok", "violations": violations, "warnings": warnings,
             "image": summary, "files": dict(files)}
+
+
+# ------------------------------------------------------------------------------------------------ copy line
+def copyline_fields(info: Mapping[str, Any]) -> dict[str, str]:
+    """The copy-line labels of the image (engcopyline.PARENTS_LABEL / OWNERSHIP_LABEL), complete, for the review record
+    (the summary's labels are cut at 200 characters). Only the labels that exist are returned: an image without them
+    leaves the record exactly as before."""
+    from .engcopyline import MAX_LABEL_BYTES, OWNERSHIP_LABEL, PARENTS_LABEL
+    cfg = info.get("Config") if isinstance(info.get("Config"), dict) else {}
+    labels = cfg.get("Labels") if isinstance(cfg.get("Labels"), dict) else {}
+    out = {}
+    for key, name in (("parents_label", PARENTS_LABEL), ("ownership_label", OWNERSHIP_LABEL)):
+        v = labels.get(name)
+        if isinstance(v, str) and v:
+            out[key] = v[:MAX_LABEL_BYTES + 1]  # one byte over the cap stays visible, so the parser rejects it
+    return out
+
+
+def copy_marker(review_dir: str, digest: str) -> bool:
+    """The operator's marker ``COPY/<digest>``: review found undeclared reuse of another entry's code (source or binaries)
+    in this image. A regular file (a symlink does not count), like ``REVIEWED/<digest>``."""
+    if not valid_digest(digest):
+        return False
+    try:
+        return stat.S_ISREG(os.lstat(os.path.join(review_dir, "COPY", digest)).st_mode)
+    except OSError:
+        return False

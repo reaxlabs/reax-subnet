@@ -169,3 +169,86 @@ async def test_evaluator_serves_the_entry_whose_immunity_ends_first(tmp_path):
                       registered_block=reg) for n, reg in zip(neurons, (990, 100))]
     await env.ev.evaluate_cycle(snapshot(1000, neurons))
     assert env.sub(2).status == ST.PENDING_CONFIRM and env.sub(1).status == ST.QUEUED
+
+
+def _gen_cohort_case(champion=False):
+    GEN = "generalist"
+    start = CS.GENERALIST_START_UTC.timestamp()
+    st = ST.SpecState()
+    # 6 opening-cohort entries (first seen before the opening) with weaker latest scores, 6 post-opening entries with stronger ones
+    cohort = [_sub(st, u, ST.PENDING_CONFIRM, 40.0, nonproc=60.0 + u, block=u, track=GEN) for u in range(1, 7)]
+    post = [_sub(st, u, ST.PENDING_CONFIRM, 40.0, nonproc=80.0 + u, block=u, track=GEN) for u in range(7, 13)]
+    for s in post:
+        s.first_seen_ts = start + 3600.0
+    subs = cohort + post
+    if champion:
+        subs.append(_sub(st, 13, ST.CHAMPION, 40.0, nonproc=70.0, block=13, track=GEN))
+        subs[-1].first_seen_ts = start + 60.0
+    nofloor = {GEN: 0.0}
+    return compute_keepalive(st, [GEN], _snap(subs), nofloor, now=NOW, nonproc_floors=nofloor, base_floors={GEN: {}})[GEN]
+
+
+def test_vacant_generalist_track_lists_every_opening_cohort_entry_before_post_opening_entries():
+    # rc10.post5 (CoS #23473): a cohort entry waiting for its draws/playoff is not cut by stronger post-opening entries
+    out = _gen_cohort_case()
+    assert [u for u, _ in out] == [6, 5, 4, 3, 2, 1, 12, 11]
+
+
+def test_crowned_generalist_track_and_other_tracks_keep_the_plain_score_order():
+    out = _gen_cohort_case(champion=True)
+    assert [u for u, _ in out] == [13, 12, 11, 10, 9, 8, 7, 6, 5]
+    st = ST.SpecState()
+    subs = [_sub(st, u, ST.PENDING_CONFIRM, 40.0, nonproc=60.0 + u, block=u) for u in range(1, 13)]
+    for s in subs[6:]:
+        s.first_seen_ts = CS.GENERALIST_START_UTC.timestamp() + 3600.0
+    out = compute_keepalive(st, [DF], _snap(subs), {DF: 0.0}, now=NOW)[DF]
+    assert [u for u, _ in out] == [12, 11, 10, 9, 8, 7, 6, 5]
+
+
+def test_vacant_generalist_track_lists_all_cohort_entries_beyond_eight_and_protects_them():
+    GEN = "generalist"
+    start = CS.GENERALIST_START_UTC.timestamp()
+    st = ST.SpecState()
+    cohort = [_sub(st, u, ST.PENDING_CONFIRM, 40.0, nonproc=60.0 + u, block=u, track=GEN) for u in range(1, 10)]   # 9
+    post = [_sub(st, u, ST.PENDING_CONFIRM, 40.0, nonproc=90.0 + u, block=u, track=GEN) for u in range(10, 13)]
+    for s in post:
+        s.first_seen_ts = start + 3600.0
+    withdrawn = _sub(st, 13, ST.WITHDRAWN, 40.0, nonproc=99.0, block=13, track=GEN)   # a withdrawn cohort record: not protected
+    nofloor = {GEN: 0.0}
+    out = compute_keepalive(st, [GEN], _snap(cohort + post + [withdrawn]), nofloor, now=NOW, nonproc_floors=nofloor,
+                            base_floors={GEN: {}})[GEN]
+    assert [u for u, _ in out] == [9, 8, 7, 6, 5, 4, 3, 2, 1]                     # all 9 cohort entries, no post-opening one
+    prot = E.keepalive_protected(st, [GEN, DF], _snap(cohort + post + [withdrawn]))
+    assert prot == {GEN: list(range(1, 10))}
+    # combine_weights: the cohort entries keep their slots beyond 8, also one that serves a little (would be sorted last)
+    serving = {u: 1.0 for u in range(50, 90)}
+    serving[9] = 0.001
+    w = combine_weights(serving, None, 0.0, {}, keepalive={GEN: out + [(12, 40.0)]}, floors={GEN: 0.0},
+                        keepalive_protected=prot)
+    assert all(w.get(u, 0) > 0 for u in range(1, 10)) and w.get(12, 0) == 0
+    w8 = combine_weights(serving, None, 0.0, {}, keepalive={GEN: out + [(12, 40.0)]}, floors={GEN: 0.0})
+    assert sum(1 for u in list(range(1, 10)) + [12] if w8.get(u, 0) > 0.0011 / sum(serving.values())) <= 8   # unchanged without it
+    # a crowned track protects nothing
+    st.track(GEN).champion = post[0].key
+    post[0].status = ST.CHAMPION
+    assert E.keepalive_protected(st, [GEN], _snap(cohort + post)) == {}
+
+
+def test_protected_cut_keeps_nine_pure_cohort_entries_and_cuts_the_unprotected_one():
+    GEN = "generalist"
+    serving = {u: 1.0 for u in range(50, 90)}
+    entries = [(u, 40.0) for u in range(1, 11)]                       # 10 pure entrants, 1..9 protected, 10 not
+    w = combine_weights(serving, None, 0.0, {}, keepalive={GEN: entries}, floors={GEN: 0.0},
+                        keepalive_protected={GEN: list(range(1, 10))})
+    paid = {u for u in w if u < 50}
+    assert paid == set(range(1, 10)) and len({round(w[u], 12) for u in paid}) == 1
+    w0 = combine_weights(serving, None, 0.0, {}, keepalive={GEN: entries}, floors={GEN: 0.0})
+    assert {u for u in w0 if u < 50} == set(range(1, 9))               # without protection: the plain 8-cut
+
+
+def test_protection_needs_the_live_commitment():
+    GEN = "generalist"
+    st = ST.SpecState()
+    subs = [_sub(st, u, ST.PENDING_CONFIRM, 40.0, nonproc=70.0, block=u, track=GEN) for u in (1, 2)]
+    assert E.keepalive_protected(st, [GEN], _snap(subs)) == {GEN: [1, 2]}
+    assert E.keepalive_protected(st, [GEN], _snap(subs[:1])) == {GEN: [1]}   # uid 2 no longer commits: not protected

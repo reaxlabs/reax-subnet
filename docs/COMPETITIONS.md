@@ -84,6 +84,8 @@ DF/RA retain their published end, capped by the generalist opening. The release 
 | `generalist` | `GENERALIST_START_UTC` (default target 30 Oct 12:00 UTC) | next release decision | 0.30 |
 
 At opening the active `50/50` profile has one track slot, inference 0.50 and engine 0.20. Ranks stay 75/17/8.
+From `OPENING_PLAYOFF_SLOTS_START_UTC` (date set in the release notes) the generalist's opening cohort playoff places 2 and 3 take the
+17 % / 8 % former-champion ranks for 7 days under conditions; same shares, no extra emission (see GENERALIST-RELEASE.md).
 Generalist regular and provisional keep-alive together stay within 25% of its share. Every unclaimed part returns
 to inference. The cancelled 6 Nov DF/RA extension and specialist open class do not apply.
 See [GENERALIST-RELEASE.md](GENERALIST-RELEASE.md) for the release gates.

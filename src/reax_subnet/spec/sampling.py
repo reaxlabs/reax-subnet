@@ -12,7 +12,8 @@ import hashlib
 import json
 import os
 import random
-from typing import Any, Mapping, Sequence
+from datetime import datetime, timezone
+from typing import Any, Mapping, Optional, Sequence, Union
 
 SAMPLE_SIZE = 300   # 1.2.0rc6 (was 600): with 85 % non-proc items, a first draw and its disjoint confirmation fit the pools
 MIN_SAMPLE = 200
@@ -56,6 +57,37 @@ GENERALIST_CATEGORIES = (
     "language_taste", "forecasting_risk_science",
 )
 GENERALIST_PER_CATEGORY = 30
+# Rules v4, change 3a (owner decision 21 Oct 2026): from this instant a generalist draw has GENERALIST_PER_CATEGORY_V4
+# items in each of the ten categories (900 instead of 300) and the margin floor is ``machine.MARGIN_FLOOR_V4``. None = off,
+# every function below behaves bit for bit as before. No env override: every validator must use the same instant. The date
+# is set in the release notes. Specialist tracks (DF/RA) keep their sizes.
+DRAWS_V4_START_UTC: Optional[datetime] = datetime(2026, 10, 23, 13, 0, tzinfo=timezone.utc)
+GENERALIST_PER_CATEGORY_V4 = 90
+
+
+def v4_active(now: Union[float, datetime, None]) -> bool:
+    """True from ``DRAWS_V4_START_UTC`` on (the boundary instant counts as active). ``now``: unix seconds or a datetime;
+    None (no time given) or the gate off: False, the old rules."""
+    if now is None or DRAWS_V4_START_UTC is None:
+        return False
+    if isinstance(now, datetime):
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        return now >= DRAWS_V4_START_UTC
+    return float(now) >= DRAWS_V4_START_UTC.timestamp()
+
+
+def generalist_per_category(now: Union[float, datetime, None] = None) -> int:
+    """Items per category of a generalist draw made at ``now``: 30, from ``DRAWS_V4_START_UTC`` on 90."""
+    return GENERALIST_PER_CATEGORY_V4 if v4_active(now) else GENERALIST_PER_CATEGORY
+
+
+def draw_size(sample_size: int, generalist: bool, now: Union[float, datetime, None] = None) -> int:
+    """Items of a draw made at ``now``: the configured ``sample_size``, except that a generalist draw at the default size
+    is 10 x ``generalist_per_category(now)`` (any other configured size is left alone and refused by ``draw``)."""
+    if generalist and sample_size == SAMPLE_SIZE:
+        return len(GENERALIST_CATEGORIES) * generalist_per_category(now)
+    return sample_size
 
 
 class SampleError(RuntimeError):
@@ -139,7 +171,8 @@ def nonproc_draws_left(pool: Sequence[dict[str, Any]], use_counts: Mapping[str, 
 
 def draw(pool: Sequence[dict[str, Any]], *, n: int, seed: int, use_counts: Mapping[str, int] | None = None,
          exclude: set[str] | frozenset[str] = frozenset(), min_n: int = MIN_SAMPLE, x_mode: str = "off",
-         x_share: float = X_TIER_SHARE, generalist: bool = False) -> tuple[list[dict], bool]:
+         x_share: float = X_TIER_SHARE, generalist: bool = False,
+         now: Union[float, datetime, None] = None, per_category: Optional[int] = None) -> tuple[list[dict], bool]:
     """Pick ``n`` items. Returns (rows, fresh) where fresh is False if any already-used item had to be reused.
 
     Each tier takes its ``TIER_MIX`` quota from its own items, fresh ones first, then its least-used ones. Only what a
@@ -151,11 +184,16 @@ def draw(pool: Sequence[dict[str, Any]], *, n: int, seed: int, use_counts: Mappi
     Cross-author items (``X_TIERS``) are never part of the normal draw. ``x_mode`` "shadow" adds ``round(n x x_share)`` of
     them to the result (the caller scores them apart); "scored" and "binding" take them out of the non-proc tiers' share of
     the ``n`` (fewer usable X items than that: the rest of the share is filled by the normal tiers, so the draw still has
-    ``n`` items); without eligible cross-author items in the pool all of them are the same as "off"."""
+    ``n`` items); without eligible cross-author items in the pool all of them are the same as "off".
+
+    ``generalist``: exactly ``generalist_per_category(now)`` items in each category (``now``: the draw's time, unix seconds
+    or datetime; None = the old 30 per category), so ``n`` must be ``draw_size(SAMPLE_SIZE, True, now)``. ``per_category``
+    overrides that size (the release dry-run tool only; the evaluator never sets it)."""
     if generalist:
-        if n != SAMPLE_SIZE:
-            raise SampleError("generalist draws require exactly 300 items")
-        return _draw_generalist(pool, seed, use_counts or {}, exclude, x_mode, x_share)
+        per_cat = per_category or generalist_per_category(now)
+        if n != per_cat * len(GENERALIST_CATEGORIES):
+            raise SampleError(f"generalist draws require exactly {per_cat * len(GENERALIST_CATEGORIES)} items")
+        return _draw_generalist(pool, seed, use_counts or {}, exclude, x_mode, x_share, per_cat)
     use = use_counts or {}
     rng = random.Random(seed)
     usable = [r for r in pool if r["id"] not in exclude and use.get(r["id"], 0) < ITEM_MAX_USES]
@@ -239,41 +277,44 @@ def _quotas(n: int, weights: Mapping[str, float]) -> dict[str, int]:
     return out
 
 
-def generalist_tier_quotas(x_mode: str, x_share: float) -> dict[str, dict[str, int]]:
+def generalist_tier_quotas(x_mode: str, x_share: float,
+                           per_category: int = GENERALIST_PER_CATEGORY) -> dict[str, dict[str, int]]:
     """Tier targets apply across types within each category; carry rounding to keep full-draw totals."""
+    total = per_category * len(GENERALIST_CATEGORIES)
     weights = dict(TIER_MIX)
     if x_mode in ("scored", "binding"):
         nonproc = 1 - weights["proc_sealed"]
         weights = {t: w if t == "proc_sealed" else w * (nonproc - x_share) / nonproc
                    for t, w in weights.items()}
         weights[X_TIER] = x_share
-    targets = _quotas(SAMPLE_SIZE, weights)
+    targets = _quotas(total, weights)
     assigned = {t: 0 for t in weights}
     order = []
-    for i in range(SAMPLE_SIZE):
+    for i in range(total):
         tier = max((t for t in weights if assigned[t] < targets[t]),
                    key=lambda t: (i + 1) * weights[t] - assigned[t])
         order.append(tier)
         assigned[tier] += 1
-    return {c: {t: order[i * GENERALIST_PER_CATEGORY:(i + 1) * GENERALIST_PER_CATEGORY].count(t)
+    return {c: {t: order[i * per_category:(i + 1) * per_category].count(t)
                 for t in weights} for i, c in enumerate(GENERALIST_CATEGORIES)}
 
 
-def generalist_shortfalls(rows: Sequence[dict], x_mode: str, x_share: float) -> dict[str, dict[str, int]]:
+def generalist_shortfalls(rows: Sequence[dict], x_mode: str, x_share: float,
+                          per_category: int = GENERALIST_PER_CATEGORY) -> dict[str, dict[str, int]]:
     """Aggregate diagnostics only; no ids, text or predictions."""
-    quotas = generalist_tier_quotas(x_mode, x_share)
+    quotas = generalist_tier_quotas(x_mode, x_share, per_category)
     return {c: {t: max(0, n - sum(r["category"] == c and
                                 (X_TIER if r["tier"] in X_TIERS else r["tier"]) == t for r in rows))
                 for t, n in target.items()} for c, target in quotas.items()}
 
 
 def _draw_generalist(pool: Sequence[dict], seed: int, use: Mapping[str, int], exclude: set[str] | frozenset[str],
-                     x_mode: str, x_share: float) -> tuple[list[dict], bool]:
-    """Exactly 30/category. Category tier quotas may borrow across types, never categories.
+                     x_mode: str, x_share: float, per_cat: int = GENERALIST_PER_CATEGORY) -> tuple[list[dict], bool]:
+    """Exactly ``per_cat`` (30; 90 from ``DRAWS_V4_START_UTC``) per category. Category tier quotas may borrow across types, never categories.
 
     Type proportions are targets within the tier constraints. Missing tiers use non-proc/non-X
     first. If those are exhausted, remaining eligible rows preserve category liveness; tier
-    shortfalls are diagnostic. Only a category below 30 eligible items prevents a valid draw.
+    shortfalls are diagnostic. Only a category below ``per_cat`` eligible items prevents a valid draw.
     """
     _validate_generalist(pool)
     rng = random.Random(seed)
@@ -281,12 +322,12 @@ def _draw_generalist(pool: Sequence[dict], seed: int, use: Mapping[str, int], ex
               if r["id"] not in exclude and use.get(r["id"], 0) < ITEM_MAX_USES
               and (r["tier"] not in X_TIERS or x_mode in ("scored", "binding"))]
     chosen: list[dict] = []
-    targets = generalist_tier_quotas(x_mode, x_share)
+    targets = generalist_tier_quotas(x_mode, x_share, per_cat)
     for category in GENERALIST_CATEGORIES:
         rows = [r for r in usable if r["category"] == category]
-        if len(rows) < GENERALIST_PER_CATEGORY:
-            raise SampleError(f"generalist category {category}: only {len(rows)} eligible items, need 30")
-        quotas = _quotas(GENERALIST_PER_CATEGORY,
+        if len(rows) < per_cat:
+            raise SampleError(f"generalist category {category}: only {len(rows)} eligible items, need {per_cat}")
+        quotas = _quotas(per_cat,
                          {p: sum(r["question"]["type"] == p for r in rows) for p in PRIMITIVES})
         type_counts = {p: 0 for p in PRIMITIVES}
         picked: list[dict] = []
@@ -312,10 +353,10 @@ def _draw_generalist(pool: Sequence[dict], seed: int, use: Mapping[str, int], ex
         for tier, count in targets[category].items():
             take([r for r in rows if (X_TIER if r["tier"] in X_TIERS else r["tier"]) == tier], count)
         take([r for r in rows if r["tier"] != "proc_sealed" and r["tier"] not in X_TIERS],
-             GENERALIST_PER_CATEGORY - len(picked))
+             per_cat - len(picked))
         # Degenerate all-proc/all-X categories still meet their category quota. The release
         # dry-run exposes shortages; publication/calibration must review such pool shapes.
-        take(rows, GENERALIST_PER_CATEGORY - len(picked))
+        take(rows, per_cat - len(picked))
         chosen += picked
     chosen.sort(key=lambda r: r["id"])
     return chosen, all(use.get(r["id"], 0) == 0 for r in chosen)

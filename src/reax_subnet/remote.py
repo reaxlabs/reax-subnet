@@ -30,7 +30,7 @@ from .engcomp import RewardParams, TrackParams, TrackState
 from .engvalidator import STATE_VERSION, TRACKS, EngineCompetition
 from .spec import config as spec_config
 from .spec import state as spec_state
-from .spec.evaluator import compute_keepalive, compute_leaders, compute_provisional, legacy_leaders
+from .spec.evaluator import compute_keepalive, compute_leaders, keepalive_protected, compute_provisional, legacy_leaders
 
 log = logging.getLogger("reax.remote")
 
@@ -185,7 +185,7 @@ class RemoteSpecEvaluator:
         leaders = None
         if state is not None:
             try:
-                leaders = compute_leaders(state, ids, snapshot)
+                leaders = compute_leaders(state, ids, snapshot, now=self.clock())
             except Exception as exc:  # noqa: BLE001 - a corrupt file must not keep paying the last good leaders
                 why = f"invalid content ({type(exc).__name__})"
         self._outage.update(leaders is not None, why)
@@ -203,6 +203,16 @@ class RemoteSpecEvaluator:
             return compute_keepalive(self._state, ids, snapshot, now=self.clock())
         except Exception:  # noqa: BLE001 - a corrupt file pays no keep-alive
             return {t: [] for t in ids}
+
+    def protected(self, active: Sequence[spec_config.TrackDef], snapshot: Snapshot) -> dict[str, list[int]]:
+        """Keep-alive uids the slot cut never drops (open opening-cohort entries, ``keepalive_protected``)."""
+        ids = [t.track_id for t in active]
+        if self._state is None:
+            return {}
+        try:
+            return keepalive_protected(self._state, ids, snapshot)
+        except Exception:  # noqa: BLE001 - a corrupt file protects nothing
+            return {}
 
     def provisional(self, active: Sequence[spec_config.TrackDef], snapshot: Snapshot) -> dict[str, list[int]]:
         """Provisional keep-alive uids from the same state read; the window start was written by the worker."""

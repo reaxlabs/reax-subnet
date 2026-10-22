@@ -10,6 +10,10 @@
   entry floor itself, on a vacant track) says nothing about this pair.
 * With no incumbent the first model must reach the entry floor on both draws.
 
+Rules v4 (``sampling.DRAWS_V4_START_UTC``, off by default): ``MARGIN_FLOOR`` is replaced by ``MARGIN_FLOOR_V4`` (1.0) for
+every decision taken at or after that instant, and ``CLOSE_MIN_GAIN`` is half the floor in force. Draws of different sizes
+pool unchanged (``pooled``).
+
 Decision rule v3 (variance-aware, ``V3_DECISIONS``; docs/SPECIALIST-TRACKS.md "Decision rule v3"): the same ideas, but
 the evidence is counted in standard errors and a close call gets one more draw instead of a verdict on one noisy draw.
 Per challenger, only draws measured against the SAME incumbent are pooled: ``z = mean(gain) / (rms(se) / sqrt(k))``.
@@ -29,11 +33,25 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Sequence
+from datetime import datetime, timezone
+from typing import Optional, Sequence, Union
+
+from . import sampling
 
 MARGIN_FLOOR = 1.5
+# Rules v4 (3a): from ``sampling.DRAWS_V4_START_UTC`` on the floor is 1.0 point (draws of 900 items have a paired SE of
+# about 58 % (1/sqrt(3)) of the 300-item draws, so the z-gates keep the false-crown rate while a real +2 gain is crowned far more
+# often). The z-gates are unchanged. With the gate off (None) or no time given, everything is as before.
+MARGIN_FLOOR_V4 = 1.0
 SE_MULTIPLE = 2.0
 CONFIRM_DELAY_S = 12 * 3600
+# Every pending confirmation gets its draw before its track closes (Florian 21 Oct 2026). OFF (None) until the dated release
+# notice: a first pass at/after this instant (or an entry still pending when the first cycle at/after it runs) is due at
+# ``min(first pass + CONFIRM_DELAY_S, track end - CONFIRM_CLOSE_LEAD_S)``, never earlier than its first pass. No env override:
+# validators must agree.
+CONFIRM_BEFORE_CLOSE_START_UTC: Optional[datetime] = datetime(2026, 10, 23, 13, 0, tzinfo=timezone.utc)
+CONFIRM_CLOSE_LEAD_S = 6 * 3600     # the confirmation, a possible v3 extra confirmation draw and a cohort step fit under MAX_EVALS_PER_HOUR
+_NO_END_TS = 253370764800.0         # 1 Jan 9999: a track end at/after this (ENGINE_HELD = datetime.max) is "no close"
 CONFIRM_FRACTION = 0.5
 
 # Decision rule v3. Z_PASS = 2 is the old "gain >= 2 x SE", Z_CROWN = 2.75 is the pooled bar for the crowning (about the
@@ -49,6 +67,18 @@ MAX_EXTRA_CONFIRMS = 1  # extra confirmation draws per submission
 Z_CONFIRM_MIN = 0.5     # the confirmation draw itself must show at least this many SE (it must confirm, not just not contradict)
 Z_RECORD_MAX = 99.0     # recorded z values are clamped (no Infinity in the state file)
 CLOSE_MIN_GAIN = 0.5 * MARGIN_FLOOR  # smallest first-stage gain that earns a close-call draw
+
+
+def margin_floor(now: Union[float, datetime, None] = None) -> float:
+    """The margin floor in force at ``now`` (unix seconds or datetime): ``MARGIN_FLOOR_V4`` from
+    ``sampling.DRAWS_V4_START_UTC`` on, else ``MARGIN_FLOOR``. Decided by the time of the decision, whatever the sizes of
+    the draws pooled in it."""
+    return MARGIN_FLOOR_V4 if sampling.v4_active(now) else MARGIN_FLOOR
+
+
+def close_min_gain(now: Union[float, datetime, None] = None) -> float:
+    """Half the margin floor in force: the smallest first-stage gain that earns a close-call draw."""
+    return 0.5 * margin_floor(now)
 
 
 def pooled(gains: Sequence[float], ses: Sequence[float]) -> tuple[float, float]:
@@ -80,8 +110,8 @@ def reaches(mean: float, se: float, z: float) -> bool:
     return mean >= z * se
 
 
-def required_margin(se: float) -> float:
-    return max(MARGIN_FLOOR, SE_MULTIPLE * se)
+def required_margin(se: float, now: Union[float, datetime, None] = None) -> float:
+    return max(margin_floor(now), SE_MULTIPLE * se)
 
 
 @dataclass(frozen=True)
@@ -91,13 +121,39 @@ class FirstPass:
     delta: float
 
 
-def first_pass(challenger: float, incumbent: float | None, se: float, *, entry_floor: float = 0.0) -> FirstPass:
+def first_pass(challenger: float, incumbent: float | None, se: float, *, entry_floor: float = 0.0,
+               now: Union[float, datetime, None] = None) -> FirstPass:
     """Draw 1. ``incumbent`` None = vacant track: the entry floor is the bar."""
     if incumbent is None:
         return FirstPass(challenger >= entry_floor, challenger - entry_floor, entry_floor)
-    delta = required_margin(se)
+    delta = required_margin(se, now)
     gain = challenger - incumbent
     return FirstPass(gain >= delta, gain, delta)
+
+
+def confirm_before_close_active(now: float) -> bool:
+    """True from ``CONFIRM_BEFORE_CLOSE_START_UTC`` on (False while it is None). ``now``: unix seconds."""
+    start = CONFIRM_BEFORE_CLOSE_START_UTC
+    return start is not None and now >= start.timestamp()
+
+
+def finite_track_end(track_end_ts: float | None) -> float | None:
+    """The track's close as unix seconds, or None for a track that does not close (None, inf, nan, ENGINE_HELD)."""
+    if track_end_ts is None or not math.isfinite(track_end_ts) or track_end_ts >= _NO_END_TS:
+        return None
+    return float(track_end_ts)
+
+
+def confirm_due_ts(first_pass_ts: float, delay_s: float, track_end_ts: float | None, now_for_gate: float) -> float:
+    """When the confirmation draw of a first pass at ``first_pass_ts`` is due: ``first_pass_ts + delay_s``, but once
+    ``CONFIRM_BEFORE_CLOSE_START_UTC`` has passed at ``now_for_gate`` not later than ``track_end_ts - CONFIRM_CLOSE_LEAD_S``
+    and never earlier than ``first_pass_ts`` (a first pass inside the last lead is due at once). A track without a close
+    (None, inf, ENGINE_HELD) and a closed gate give ``first_pass_ts + delay_s`` unchanged."""
+    due = first_pass_ts + delay_s
+    end = finite_track_end(track_end_ts)
+    if end is None or not confirm_before_close_active(now_for_gate):
+        return due
+    return max(first_pass_ts, min(due, end - CONFIRM_CLOSE_LEAD_S))
 
 
 def confirmation_due(first_pass_ts: float, now: float, delay_s: float = CONFIRM_DELAY_S) -> bool:
@@ -105,7 +161,8 @@ def confirmation_due(first_pass_ts: float, now: float, delay_s: float = CONFIRM_
 
 
 def confirm(challenger: float, incumbent: float | None, first_delta: float, *, entry_floor: float = 0.0,
-            promoted_this_round: bool = False, new_incumbent: bool = False, se: float = 0.0) -> bool:
+            promoted_this_round: bool = False, new_incumbent: bool = False, se: float = 0.0,
+            now: Union[float, datetime, None] = None) -> bool:
     """Draw 2. Against the incumbent of the first pass: gain >= first_delta / 2 (and > 0). Against a challenger
     promoted earlier in the same round, or any other incumbent the first pass was not measured against
     (``new_incumbent``): gain >= the full margin for this pair. Vacant: the entry floor."""
@@ -113,36 +170,38 @@ def confirm(challenger: float, incumbent: float | None, first_delta: float, *, e
         return challenger >= entry_floor
     gain = challenger - incumbent
     if promoted_this_round or new_incumbent:
-        return gain >= required_margin(se)
+        return gain >= required_margin(se, now)
     return gain > 0 and gain >= CONFIRM_FRACTION * first_delta
 
 
-def first_stage_v3(gain: float, se: float, pooled_gain: float, pooled_se: float, *, close_used: bool) -> str:
+def first_stage_v3(gain: float, se: float, pooled_gain: float, pooled_se: float, *, close_used: bool,
+                   now: Union[float, datetime, None] = None) -> str:
     """Verdict of a first-stage draw against an incumbent: "pass", "close" (one more draw) or "fail".
 
     ``gain``/``se``: this draw. ``pooled_gain``/``pooled_se``: this draw pooled with the earlier first-stage draws
     against the same incumbent (equal to the draw's own when there are none). ``close_used``: the one extra draw was
-    already taken (whatever incumbent it was measured against)."""
-    if reaches(pooled_gain, pooled_se, Z_PASS) and pooled_gain >= MARGIN_FLOOR:
+    already taken (whatever incumbent it was measured against). ``now``: the decision's time (selects the margin floor)."""
+    if reaches(pooled_gain, pooled_se, Z_PASS) and pooled_gain >= margin_floor(now):
         return "pass"
     if close_used:
         return "fail"
     # a close call must at least be half the margin floor: a tiny gain with a tiny SE can never pass, its draw is waste
     if (not reaches(pooled_gain, pooled_se, Z_PASS) and reaches(pooled_gain, pooled_se, Z_CLOSE)
-            and pooled_gain >= CLOSE_MIN_GAIN):
+            and pooled_gain >= close_min_gain(now)):
         return "close"
     return "fail"
 
 
-def confirm_v3(draws: Sequence[tuple[float, float]], confirm: Sequence[tuple[float, float]], *, extra_used: bool) -> str:
+def confirm_v3(draws: Sequence[tuple[float, float]], confirm: Sequence[tuple[float, float]], *, extra_used: bool,
+               now: Union[float, datetime, None] = None) -> str:
     """Verdict of a confirmation draw: "crown", "extra" (one more confirmation draw) or "fail".
 
     ``draws``: (gain, se) of every draw of the current stage against THIS incumbent, the one just taken last (first stage
     included when it was measured against the same incumbent). ``confirm``: (gain, se) of the confirmation draws among
     them, the new one last. Pairs, so a gain can never be paired with another draw's SE.
-    ``extra_used``: this is already the extra confirmation draw."""
+    ``extra_used``: this is already the extra confirmation draw. ``now``: the decision's time (margin floor)."""
     mean, se = pooled([g for g, _ in draws], [e for _, e in draws])
-    strong = reaches(mean, se, Z_CROWN) and mean >= MARGIN_FLOOR
+    strong = reaches(mean, se, Z_CROWN) and mean >= margin_floor(now)
     cmean, cse = pooled([g for g, _ in confirm], [e for _, e in confirm])
     confirmed = cmean > 0 and reaches(cmean, cse, Z_CONFIRM_MIN)
     if not extra_used:
