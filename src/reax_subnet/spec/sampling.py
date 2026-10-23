@@ -49,6 +49,10 @@ X_TIERS = frozenset({X_TIER, "award_realdata"})
 X_TIER_MODES = ("off", "shadow", "scored", "binding")
 X_TIER_MODE = "off"
 X_TIER_SHARE = 0.20
+# Eval v5.1 (docs/EVAL-V5.md): typed rows carry tier "mirror"; the offline scorer tools/score_v5.py needs only these two
+# names here. The switch time stays None in this release (no change to live scoring).
+MIRROR_TIER = "mirror"
+EVAL_V5_START_UTC = None
 
 
 GENERALIST_CATEGORIES = (

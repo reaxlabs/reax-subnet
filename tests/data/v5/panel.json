@@ -1,0 +1,15 @@
+{
+ "pool_version": "synthetic-v0",
+ "T": {
+  "mean": 35.0,
+  "sd": 20.0
+ },
+ "N": {
+  "mean": 30.0,
+  "sd": 15.0
+ },
+ "Pub": {
+  "mean": 40.0,
+  "sd": 18.0
+ }
+}

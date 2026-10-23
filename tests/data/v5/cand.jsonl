@@ -1,0 +1,330 @@
+{"id": "T-omniscience-0", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0, "idk": 0.0}}
+{"id": "T-omniscience-1", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0, "idk": 0.0}}
+{"id": "T-omniscience-2", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0, "idk": 0.0}}
+{"id": "T-omniscience-3", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "idk": 1.0}}
+{"id": "T-omniscience-4", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0, "idk": 0.0}}
+{"id": "T-omniscience-5", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0, "idk": 0.0}}
+{"id": "T-omniscience-6", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0, "idk": 0.0}}
+{"id": "T-omniscience-7", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0, "idk": 0.0}}
+{"id": "T-omniscience-8", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0, "idk": 0.0}}
+{"id": "T-omniscience-9", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0, "idk": 0.0}}
+{"id": "T-omniscience-10", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "idk": 1.0}}
+{"id": "T-omniscience-11", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0, "idk": 0.0}}
+{"id": "T-omniscience-12", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0, "idk": 0.0}}
+{"id": "T-omniscience-13", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0, "idk": 0.0}}
+{"id": "T-omniscience-14", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0, "idk": 0.0}}
+{"id": "T-hard_mc-0", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "T-hard_mc-1", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "T-hard_mc-2", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0}}
+{"id": "T-hard_mc-3", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-hard_mc-4", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "T-hard_mc-5", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-hard_mc-6", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-hard_mc-7", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-hard_mc-8", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "T-hard_mc-9", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0}}
+{"id": "T-hard_mc-10", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "T-hard_mc-11", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "T-hard_mc-12", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-hard_mc-13", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0}}
+{"id": "T-hard_mc-14", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "T-wildguard-0", "probs": [{"yes": 0.0, "no": 1.0}, {"yes": 1.0, "no": 0.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-wildguard-1", "probs": [{"yes": 0.0, "no": 1.0}, {"yes": 0.0, "no": 1.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-wildguard-2", "probs": [{"yes": 0.0, "no": 1.0}, {"yes": 0.0, "no": 1.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-wildguard-3", "probs": [{"yes": 0.0, "no": 1.0}, {"yes": 1.0, "no": 0.0}, {"yes": 1.0, "no": 0.0}]}
+{"id": "T-wildguard-4", "probs": [{"yes": 0.0, "no": 1.0}, {"yes": 0.0, "no": 1.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-wildguard-5", "probs": [{"yes": 1.0, "no": 0.0}, {"yes": 1.0, "no": 0.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-wildguard-6", "probs": [{"yes": 0.0, "no": 1.0}, {"yes": 1.0, "no": 0.0}, {"yes": 1.0, "no": 0.0}]}
+{"id": "T-wildguard-7", "probs": [{"yes": 0.0, "no": 1.0}, {"yes": 1.0, "no": 0.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-wildguard-8", "probs": [{"yes": 1.0, "no": 0.0}, {"yes": 1.0, "no": 0.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-wildguard-9", "probs": [{"yes": 0.0, "no": 1.0}, {"yes": 0.0, "no": 1.0}, {"yes": 1.0, "no": 0.0}]}
+{"id": "T-wildguard-10", "probs": [{"yes": 0.0, "no": 1.0}, {"yes": 0.0, "no": 1.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-wildguard-11", "probs": [{"yes": 1.0, "no": 0.0}, {"yes": 1.0, "no": 0.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-wildguard-12", "probs": [{"yes": 0.0, "no": 1.0}, {"yes": 1.0, "no": 0.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-wildguard-13", "probs": [{"yes": 1.0, "no": 0.0}, {"yes": 1.0, "no": 0.0}, {"yes": 1.0, "no": 0.0}]}
+{"id": "T-wildguard-14", "probs": [{"yes": 1.0, "no": 0.0}, {"yes": 1.0, "no": 0.0}, {"yes": 0.0, "no": 1.0}]}
+{"id": "T-nli-0", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "T-nli-1", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "T-nli-2", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "T-nli-3", "probs": {"entail": 1.0, "neutral": 0.0, "contra": 0.0}}
+{"id": "T-nli-4", "probs": {"entail": 0.0, "neutral": 1.0, "contra": 0.0}}
+{"id": "T-nli-5", "probs": {"entail": 1.0, "neutral": 0.0, "contra": 0.0}}
+{"id": "T-nli-6", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "T-nli-7", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "T-nli-8", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "T-nli-9", "probs": {"entail": 0.0, "neutral": 1.0, "contra": 0.0}}
+{"id": "T-nli-10", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "T-nli-11", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "T-nli-12", "probs": {"entail": 1.0, "neutral": 0.0, "contra": 0.0}}
+{"id": "T-nli-13", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "T-nli-14", "probs": {"entail": 1.0, "neutral": 0.0, "contra": 0.0}}
+{"id": "T-intent-0", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 1.0}}
+{"id": "T-intent-1", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 1.0}}
+{"id": "T-intent-2", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0, "e": 0.0}}
+{"id": "T-intent-3", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 1.0}}
+{"id": "T-intent-4", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 1.0}}
+{"id": "T-intent-5", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}}
+{"id": "T-intent-6", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0, "e": 0.0}}
+{"id": "T-intent-7", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}}
+{"id": "T-intent-8", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0, "e": 0.0}}
+{"id": "T-intent-9", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0, "e": 0.0}}
+{"id": "T-intent-10", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 1.0}}
+{"id": "T-intent-11", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 1.0}}
+{"id": "T-intent-12", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0, "e": 0.0}}
+{"id": "T-intent-13", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 1.0}}
+{"id": "T-intent-14", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0, "e": 0.0}}
+{"id": "T-product_match-0", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "T-product_match-1", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "T-product_match-2", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "T-product_match-3", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "T-product_match-4", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "T-product_match-5", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "T-product_match-6", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "T-product_match-7", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "T-product_match-8", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "T-product_match-9", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "T-product_match-10", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "T-product_match-11", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "T-product_match-12", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "T-product_match-13", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "T-product_match-14", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "T-when2call-0", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-when2call-1", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-when2call-2", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "T-when2call-3", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-when2call-4", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "T-when2call-5", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0}}
+{"id": "T-when2call-6", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "T-when2call-7", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-when2call-8", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0}}
+{"id": "T-when2call-9", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "T-when2call-10", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "T-when2call-11", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-when2call-12", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "T-when2call-13", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "T-when2call-14", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "T-tool_call-0", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "T-tool_call-1", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "T-tool_call-2", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "T-tool_call-3", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "T-tool_call-4", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "T-tool_call-5", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "T-tool_call-6", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "T-tool_call-7", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "T-tool_call-8", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "T-tool_call-9", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "T-tool_call-10", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "T-tool_call-11", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "T-tool_call-12", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "T-tool_call-13", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "T-tool_call-14", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "T-preference-0", "probs": {"a": 0.0, "b": 1.0}}
+{"id": "T-preference-1", "probs": {"a": 0.0, "b": 1.0}}
+{"id": "T-preference-2", "probs": {"a": 0.0, "b": 1.0}}
+{"id": "T-preference-3", "probs": {"a": 1.0, "b": 0.0}}
+{"id": "T-preference-4", "probs": {"a": 1.0, "b": 0.0}}
+{"id": "T-preference-5", "probs": {"a": 1.0, "b": 0.0}}
+{"id": "T-preference-6", "probs": {"a": 0.0, "b": 1.0}}
+{"id": "T-preference-7", "probs": {"a": 1.0, "b": 0.0}}
+{"id": "T-preference-8", "probs": {"a": 1.0, "b": 0.0}}
+{"id": "T-preference-9", "probs": {"a": 1.0, "b": 0.0}}
+{"id": "T-preference-10", "probs": {"a": 0.0, "b": 1.0}}
+{"id": "T-preference-11", "probs": {"a": 1.0, "b": 0.0}}
+{"id": "T-preference-12", "probs": {"a": 1.0, "b": 0.0}}
+{"id": "T-preference-13", "probs": {"a": 1.0, "b": 0.0}}
+{"id": "T-preference-14", "probs": {"a": 1.0, "b": 0.0}}
+{"id": "N-triage-0", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "N-triage-1", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "N-triage-2", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "N-triage-3", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "N-triage-4", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "N-triage-5", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "N-triage-6", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "N-triage-7", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "N-triage-8", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "N-triage-9", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "N-triage-10", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "N-triage-11", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "N-triage-12", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "N-triage-13", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "N-triage-14", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "N-claims-0", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "N-claims-1", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "N-claims-2", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "N-claims-3", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "N-claims-4", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "N-claims-5", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "N-claims-6", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "N-claims-7", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "N-claims-8", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "N-claims-9", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "N-claims-10", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "N-claims-11", "probs": {"yes": 1.0, "no": 0.0}}
+{"id": "N-claims-12", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "N-claims-13", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "N-claims-14", "probs": {"yes": 0.0, "no": 1.0}}
+{"id": "N-clauses-0", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0}}
+{"id": "N-clauses-1", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "N-clauses-2", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0}}
+{"id": "N-clauses-3", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "N-clauses-4", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "N-clauses-5", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0}}
+{"id": "N-clauses-6", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "N-clauses-7", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0}}
+{"id": "N-clauses-8", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "N-clauses-9", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "N-clauses-10", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "N-clauses-11", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "N-clauses-12", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "N-clauses-13", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "N-clauses-14", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "P-pub_mc-0", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "P-pub_mc-1", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "P-pub_mc-2", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "P-pub_mc-3", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "P-pub_mc-4", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "P-pub_mc-5", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "P-pub_mc-6", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "P-pub_mc-7", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "P-pub_mc-8", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "P-pub_mc-9", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "P-pub_mc-10", "probs": {"a": 1.0, "b": 0.0, "c": 0.0, "d": 0.0}}
+{"id": "P-pub_mc-11", "probs": {"a": 0.0, "b": 1.0, "c": 0.0, "d": 0.0}}
+{"id": "P-pub_mc-12", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "P-pub_mc-13", "probs": {"a": 0.0, "b": 0.0, "c": 1.0, "d": 0.0}}
+{"id": "P-pub_mc-14", "probs": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 1.0}}
+{"id": "P-pub_nli-0", "probs": {"entail": 0.0, "neutral": 1.0, "contra": 0.0}}
+{"id": "P-pub_nli-1", "probs": {"entail": 0.0, "neutral": 1.0, "contra": 0.0}}
+{"id": "P-pub_nli-2", "probs": {"entail": 1.0, "neutral": 0.0, "contra": 0.0}}
+{"id": "P-pub_nli-3", "probs": {"entail": 1.0, "neutral": 0.0, "contra": 0.0}}
+{"id": "P-pub_nli-4", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "P-pub_nli-5", "probs": {"entail": 0.0, "neutral": 1.0, "contra": 0.0}}
+{"id": "P-pub_nli-6", "probs": {"entail": 0.0, "neutral": 1.0, "contra": 0.0}}
+{"id": "P-pub_nli-7", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "P-pub_nli-8", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "P-pub_nli-9", "probs": {"entail": 0.0, "neutral": 1.0, "contra": 0.0}}
+{"id": "P-pub_nli-10", "probs": {"entail": 0.0, "neutral": 0.0, "contra": 1.0}}
+{"id": "P-pub_nli-11", "probs": {"entail": 0.0, "neutral": 1.0, "contra": 0.0}}
+{"id": "P-pub_nli-12", "probs": {"entail": 1.0, "neutral": 0.0, "contra": 0.0}}
+{"id": "P-pub_nli-13", "probs": {"entail": 1.0, "neutral": 0.0, "contra": 0.0}}
+{"id": "P-pub_nli-14", "probs": {"entail": 1.0, "neutral": 0.0, "contra": 0.0}}
+{"id": "L-same_family-0", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-same_family-1", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-same_family-2", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-3", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-4", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-5", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-6", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-same_family-7", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-8", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-9", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-same_family-10", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-same_family-11", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-12", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-13", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-same_family-14", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-same_family-15", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-same_family-16", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-same_family-17", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-18", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-19", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-same_family-20", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-same_family-21", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-same_family-22", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-same_family-23", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-same_family-24", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-25", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-26", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-same_family-27", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-same_family-28", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-same_family-29", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-0", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-proc_sealed-1", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-2", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-3", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-4", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-proc_sealed-5", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-proc_sealed-6", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-7", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-8", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-proc_sealed-9", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-proc_sealed-10", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-11", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-12", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-proc_sealed-13", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-14", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-proc_sealed-15", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-16", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-proc_sealed-17", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-proc_sealed-18", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-19", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-20", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-proc_sealed-21", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-proc_sealed-22", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-23", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-proc_sealed-24", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-25", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-26", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-27", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-proc_sealed-28", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-proc_sealed-29", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_family-0", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-1", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-2", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-3", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-4", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-5", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-6", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_family-7", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_family-8", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-9", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-10", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-11", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-12", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_family-13", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_family-14", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-15", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-16", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-17", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-18", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_family-19", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-20", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-21", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-22", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-23", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-24", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-25", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_family-26", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_family-27", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_family-28", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_family-29", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-0", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_domain-1", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-2", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-3", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_domain-4", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_domain-5", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-6", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-7", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-8", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_domain-9", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-10", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_domain-11", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_domain-12", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-13", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_domain-14", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-15", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_domain-16", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_domain-17", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_domain-18", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_domain-19", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-20", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_domain-21", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_domain-22", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_domain-23", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-24", "probs": {"a": 0.0, "b": 1.0, "c": 0.0}}
+{"id": "L-new_domain-25", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_domain-26", "probs": {"a": 0.0, "b": 0.0, "c": 1.0}}
+{"id": "L-new_domain-27", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_domain-28", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
+{"id": "L-new_domain-29", "probs": {"a": 1.0, "b": 0.0, "c": 0.0}}
