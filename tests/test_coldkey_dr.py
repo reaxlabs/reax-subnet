@@ -340,6 +340,7 @@ def _weights(val, coldkeys, models):
     return val.compute_weights(snap)
 
 
+@pytest.mark.usefixtures("rules_v4_gates_off")
 def test_validator_wires_coldkeys_from_the_snapshot(monkeypatch, make_wallet, fake_chain_cls, tmp_path):
     monkeypatch.setattr(E, "MULTIMODEL_START_BLOCK", 0)
     monkeypatch.setattr(E, "DUALROLE_START_BLOCK", 0)

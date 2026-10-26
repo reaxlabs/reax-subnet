@@ -444,9 +444,9 @@ def test_single_url_var_is_unchanged(token):
     with pytest.raises(ConfigError, match="loopback"):
         load_common(env_for(token, REAX_S1_FAST_RUNTIME_URL="http://10.0.0.2:8101"))
     m = load_miner(env_for(token, REAX_S1_FAST_RUNTIME_URL="http://127.0.0.1:8101"))
-    import reax_subnet.config as C   # defaults follow tiers.CAPACITY_CAP_MULTIPLIER (x1: 8 / 16 / 240)
-    assert (m.max_concurrent, m.per_caller_concurrency, m.per_caller_per_minute) == \
-        (C.DEFAULT_MAX_CONCURRENT, C.DEFAULT_PER_CALLER_CONCURRENCY, C.DEFAULT_PER_CALLER_PER_MINUTE)
+    import reax_subnet.config as C   # defaults follow the model's pool cap (config.probe_defaults; x1: 8 / 16 / 240)
+    d_conc, d_min, d_max = C.probe_defaults("s1-fast")
+    assert (m.max_concurrent, m.per_caller_concurrency, m.per_caller_per_minute) == (d_max, d_conc, d_min)
 
 
 def test_url_list_accepts_private_networks(token, tmp_path):
@@ -504,13 +504,14 @@ def test_limits_scale_with_the_number_of_backends(token):
     urls = ",".join(f"http://10.0.0.{i}:8000" for i in range(2, 5))
     m = load_miner(env_for(token, REAX_S1_FAST_RUNTIME_URLS=urls))
     import reax_subnet.config as C   # the larger of the probe-at-cap defaults and the per-backend defaults x N
+    d_conc, d_min, d_max = C.probe_defaults("s1-fast")   # s1-fast's own pool, not the widest GPU pool
     assert (m.max_concurrent, m.per_caller_concurrency, m.per_caller_per_minute) == \
-        (max(C.DEFAULT_MAX_CONCURRENT, 24), max(C.DEFAULT_PER_CALLER_CONCURRENCY, 48), max(C.DEFAULT_PER_CALLER_PER_MINUTE, 720))
+        (max(d_max, 24), max(d_conc, 48), max(d_min, 720))
     many = ",".join(f"http://10.0.0.{i}:8000" for i in range(2, 12))
     m = load_miner(env_for(token, REAX_S1_FAST_RUNTIME_URLS=many))
     assert m.per_caller_concurrency == 128 and m.max_concurrent == 80  # capped at the setting's maximum
     m = load_miner(env_for(token, REAX_S1_FAST_RUNTIME_URLS=urls, REAX_PER_CALLER_CONCURRENCY="5"))
-    assert m.per_caller_concurrency == 5 and m.max_concurrent == max(C.DEFAULT_MAX_CONCURRENT, 24)  # explicit settings win
+    assert m.per_caller_concurrency == 5 and m.max_concurrent == max(d_max, 24)  # explicit settings win
 
 
 class _StubPool:

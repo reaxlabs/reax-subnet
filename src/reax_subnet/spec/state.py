@@ -13,6 +13,7 @@ format, because a version mismatch moves the file aside and every champion is lo
 from __future__ import annotations
 
 import json
+import math
 import logging
 import os
 import tempfile
@@ -125,6 +126,15 @@ class TrackState:
     draws: dict[str, Draw] = field(default_factory=dict)
     item_categories: dict[str, str] = field(default_factory=dict)  # immutable category binding per loaded item
     playoff_aborts: int = 0                                    # cohort playoffs abandoned in a row for a host reason (1.2.0rc7)
+    # rc11.post3 (add-only, optional): a shared leading group crowned at a crown slot. ``cochamps`` = keys of the group in force
+    # (empty = none; the hard-coded GENERALIST_CO_CHAMPIONS stay the initial set), ``cochamps_since`` = its crowning time,
+    # ``former_sets`` = [{"keys": [...], "since": ts}] for each such group a challenger beat (ONE former champion each),
+    # ``slot_results`` = the public evidence of each decided slot (aggregates only; evaluator._slot_record). An older release
+    # that gets this file back ignores the four keys (``_from_json`` reads known TrackState keys only).
+    cochamps: list[str] = field(default_factory=list)
+    cochamps_since: float | None = None
+    former_sets: list[dict[str, Any]] = field(default_factory=list)
+    slot_results: list[dict[str, Any]] = field(default_factory=list)
     events: list[str] = field(default_factory=list)            # short audit lines, newest last (capped)
 
     def log(self, ts: float, text: str) -> None:
@@ -157,6 +167,10 @@ def _build(cls, raw: dict[str, Any]):
     return cls(**{k: v for k, v in raw.items() if k in names})
 
 
+def _ts_or_none(v: Any) -> float | None:
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else None
+
+
 def _from_json(raw: dict[str, Any]) -> SpecState:
     if raw.get("version") != SPEC_STATE_VERSION:
         raise ValueError("state belongs to a different version")
@@ -167,7 +181,12 @@ def _from_json(raw: dict[str, Any]) -> SpecState:
         ts = TrackState(track_id=tid, champion=str(t.get("champion", "")), hashes=dict(t.get("hashes", {})),
                         used={k: int(v) for k, v in t.get("used", {}).items()},
                         item_categories=dict(t.get("item_categories", {})), events=list(t.get("events", [])),
-                        playoff_aborts=int(t.get("playoff_aborts", 0)))
+                        playoff_aborts=int(t.get("playoff_aborts", 0)),
+                        cochamps=[str(k) for k in t.get("cochamps") or []],
+                        cochamps_since=_ts_or_none(t.get("cochamps_since")),
+                        former_sets=[{"keys": [str(k) for k in fs.get("keys") or []], "since": _ts_or_none(fs.get("since"))}
+                                     for fs in t.get("former_sets") or [] if isinstance(fs, dict)],
+                        slot_results=[r for r in t.get("slot_results") or [] if isinstance(r, dict)])
         ts.submissions = {k: _build(Submission, s) for k, s in t.get("submissions", {}).items()}
         for sub in ts.submissions.values():
             sub.serve_log = sub.serve_log[-C.START_FAIL_LOG_SIZE:]

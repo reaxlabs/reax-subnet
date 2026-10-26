@@ -10,7 +10,7 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Mapping
+from typing import Any, Mapping
 
 from .. import competition_split as split
 from ..competition_split import ROTATION_DAYS
@@ -103,6 +103,10 @@ class SpecConfig:
     base_preseed: tuple[str, ...] = ()  # "<hf id>@<revision>" fetched in the background when the evaluator starts
     container_mem: str = vllm.CONTAINER_MEM                 # docker --memory / --memory-swap of the candidate container
     startup_timeout_s: float = vllm.STARTUP_TIMEOUT_S       # how long the candidate's vLLM may take to become healthy
+    # eval v5.1 (spec/v5wire.py; read only once sampling.EVAL_V5_START_UTC is reached)
+    v5_pool_dir: str = ""              # private T/N pool files (mode 0600), REAX_SPEC_V5_POOL_DIR
+    v5_w_n: float = 0.4                # weight of the N part; 0 = the T-only fallback (REAX_SPEC_V5_W_N)
+    v5_panel: Any = None               # v5.PanelStats (stock-panel mean / SD of T, N, Pub for the pool version), REAX_SPEC_V5_PANEL = its JSON
 
     def base_budget_for(self, now: float) -> int:
         return self.generalist_base_budget_bytes if split.spec_open_class_active(now) else self.base_budget_bytes
@@ -174,7 +178,30 @@ def from_env(env: Mapping[str, str] = os.environ, state_dir: str = "") -> SpecCo
         generalist_base_budget_bytes=int(float(env.get("REAX_SPEC_BASE_BUDGET_GB", 80)) * 1024 ** 3),
         base_min_free_bytes=int(float(env.get("REAX_SPEC_BASE_MIN_FREE_GB", BASE_MIN_FREE_GB)) * 1024 ** 3),
         base_preseed=tuple(x.strip() for x in env.get("REAX_SPEC_BASE_PRESEED", "").split(",") if x.strip()),
+        v5_pool_dir=env.get("REAX_SPEC_V5_POOL_DIR", "").strip(),
+        v5_w_n=_unit_float(env.get("REAX_SPEC_V5_W_N", ""), 0.4, "REAX_SPEC_V5_W_N"),
+        v5_panel=_v5_panel(env.get("REAX_SPEC_V5_PANEL", "")),
     )
+
+
+def _unit_float(value: str, default: float, name: str) -> float:
+    """A number in [0, 1]; empty = the default; anything else refuses to start (a wrong weight must not be scored)."""
+    value = value.strip()
+    if not value:
+        return default
+    x = float(value)
+    if not 0.0 <= x <= 1.0:
+        raise ValueError(f"{name} must be in [0, 1], got {value!r}")
+    return x
+
+
+def _v5_panel(value: str):
+    """``REAX_SPEC_V5_PANEL``: the JSON of ``v5.panel_from_json`` ({"pool_version", "T": {"mean", "sd"}, "N": .., "Pub": ..}). Empty =
+    unscaled; unusable refuses to start (a wrong scale must not decide)."""
+    if not value.strip():
+        return None
+    from . import v5
+    return v5.panel_from_json(json.loads(value))
 
 
 def _flag(env: Mapping[str, str], name: str, default: bool) -> bool:

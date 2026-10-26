@@ -243,9 +243,9 @@ async def test_the_reference_deadline_starts_after_the_preparation(probe_v2, mak
     original_new = S1Validator._new_request
     slept = []
 
-    async def capture(self, verify, budget):
+    async def capture(self, verify, budget, **kw):
         budgets.append(budget)
-        return await original_refs(self, verify, budget)
+        return await original_refs(self, verify, budget, **kw)
 
     def slow(self, model, items=None):
         if threading.current_thread() is not threading.main_thread() and not slept:
@@ -276,7 +276,7 @@ def test_validator_services_raise_the_open_file_limit():
 
 # ----------------------------------------------------------------- L1: release identifiers
 def test_scoring_change_bumps_the_weights_version():
-    assert version.WEIGHTS_VERSION_KEY == 1250 and version.__version__ == "1.2.0rc11"
+    assert version.WEIGHTS_VERSION_KEY == 1260 and version.__version__ == "1.2.0rc11.post7"
     changelog = open(os.path.join(ROOT, "CHANGELOG.md")).read()
     assert "## 1.2.0rc3" in changelog
     assert "REAX_PER_CALLER_CONCURRENCY=16" in changelog and "REAX_PER_CALLER_PER_MINUTE=240" in changelog

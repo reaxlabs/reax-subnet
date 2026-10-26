@@ -109,6 +109,15 @@ them. Items never repeat inside the timed runs, so a legitimate exact-match cach
 - A submission counts only if all gates pass **and** it beats the reference by ≥ 3 % (min gain).
 - **Champion:** the best valid submission. A challenger takes the title only with ≥ 3 % over the champion's score,
   confirmed by a second, fresh session (same cycle is fine); a pending challenger is displaced only by a submission that beats its pooled score by the same margin, so a later near-copy cannot reset its confirmation; ties go to the earlier commitment.
+- **Fixed crowning slots (25 Oct 2026 change, effective Tue 27 Oct 2026 14:30 UTC):** titles change on Tuesdays
+  and Fridays at 14:30 UTC. Measurements continue automatically for reviewed entries and in the daily 12:00 UTC batch.
+  A challenger that completes its confirmations waits for the first slot at or after confirmation; its confirmation time,
+  pooled score and slot are published. It keeps the same displacement protection while waiting. At the slot it must still
+  be committed, eligible and above the current champion and parent bars in every confirming session. Its title score is
+  the lowest confirming score. Slot finalisation needs no GPU; a missed slot is finalised at the next worker cycle.
+  Decay, owner approval, the copy line, parent rule and co-champion bar are unchanged. The published calendar runs through
+  March 2027; after it ends, confirmations stay pending until a release extends the calendar. An empty slot calendar
+  restores immediate crowning.
 - **Frozen thresholds:** margin, min gain, agreement gate, distance budget, items, runs and confirmations live in one block, `src/reax_subnet/engthresholds.py`. Its sha256 is logged when the validator starts and written into the state file (`thresholds_sha256`); changing a value is a new release.
 - Each validator keeps its own champion state; Yuma consensus combines them (stake-weighted), as for serving scores.
 
@@ -132,6 +141,18 @@ Recombining what works is a legitimate way to make progress; repackaging is not.
      declared uid's hotkey used, read once and fixed. The set belongs to that one entry: another entry's label can never
      change it, and a uid that is re-registered later changes nothing. Naming an old or weak digest of the parent, or a parent
      whose latest run failed, does not lower it; the best score is kept even if the parent is measured again.
+   - **The parent is measured in the same session** (from Tue 27 Oct 2026 14:30 UTC; not
+     retroactive). Scores of one image move between sessions by about as much as the margin, so when a derived entry's session
+     clears the champion bar (less one margin of slack, for the champion's same-cycle re-measure; crowning itself uses the
+     real bars) but is below, or within the margin of, the stored parent line above, the validator measures the binding
+     parent image (the digest that gives that line) right after it: same machine, same reference, the same items. For that
+     session the line is `max(parent in this session, that image's lowest valid score) x (1 + margin)`. The floor is the
+     parent image's lowest **valid** score (ok and at least the gain threshold); a session of the parent that is merely ok
+     but not valid never lowers it, and a slow parent run cannot lower the line below it. Each confirming session measures
+     the parent again. If the parent image cannot be run (no hotkey commits it any more, not pullable, failed, over budget)
+     the stored line applies. Cost bounds: up to 3 parent runs per batch cycle, each limited to 20 minutes, and a parent
+     whose run failed or timed out earlier in the cycle is not run again in that cycle (stored line). This run is a reference only: it
+     never changes the parent's own score, title or ranking.
    - **No score, no crowning.** A declared parent with no valid score yet holds the entry (never crowned, never on a missing
      bar) until the parent has been measured.
    - **Only declared parents set bars.** The validators build the bar from the label alone. Reuse that review finds but the
@@ -411,3 +432,51 @@ an engine can read any path, which is why the review gate below exists.
 Claude review of the image and the record. Until then the digest is `awaiting review`: it is logged, not run, not recorded,
 no infrastructure attempt is counted, and later cycles leave it out so unreviewed submissions cannot use up
 `REAX_ENGINE_MAX_EVALS` slots. Outside release mode the static check runs and rejects, but no marker is needed.
+
+## Quantisation and repacking (25 October 2026 decision)
+
+Effective **27 October 2026 at 14:30 UTC** (`ENGINE_QUANT_RULE_START_UTC`), any re-encoding of the pinned model is
+allowed: FP8, INT8, NVFP4/MXFP4, mixed precision, lossless repacks, layout changes, fused or packed matrices, and an
+approximate path with an exact recheck. The following conditions apply:
+
+- Every tensor the engine uses must be derived at start inside the container from the read-only pinned `/model`, by
+  code shipped in the image whose source is published. No weight or calibration files may ship in the image.
+- The pre-run inventory screen checks every non-reference layer, including files overwritten in a later layer. It flags
+  `.pt`, `.pth`, `.safetensors`, `.bin`, `.npy`, `.npz`, `.gguf`, `.ckpt` and `.pkl` files, and any non-code file over
+  64 MiB. Only the reference's exact tokenizer filenames are exceptions (`tokenizer.json` for the pinned s1-fast manifest;
+  no binary tokenizer exception). Source files, shared libraries, CUDA kernels and small configuration formats are code
+  for this screen; `.so` and `.cubin` are exempt from the size rule. Source and rebuild review still applies.
+- Conversion must be calibration-free, or use only activations computed at start from the public seed set
+  (`0x52454158`). Shipped scales and calibration statistics count as weight-like data.
+- Start-up, including conversion, has the existing **15 minute** readiness budget; the complete evaluation has a
+  **45 minute** budget. The gates stay unchanged: mean distance ≤ 0.10, every item ≤ 1.0, top agreement ≥ 99 %, and
+  determinism within 0.05. A private 64-item holdout slice is planned for a separate release; this change does not add it.
+
+Current titles and awards stay valid. Existing entries have three days to submit a compliant version, until
+**30 October 2026 at 14:30 UTC** (`ENGINE_QUANT_CONVERSION_END_UTC`). From that slot on, only a digest explicitly in
+`TrackState.weights_ok` can take the title, including a challenger confirmed before the deadline. Missing compliance
+fails closed. Sandy populates that set from explicit compliance reviews; a copy-line `derived` marker alone does not
+establish weight compliance. The gate does not remove a sitting champion or reverse an award.
+
+For an offline inventory check, without starting the image:
+
+```bash
+python -m reax_subnet.engreview weights --inventory files-223.json
+```
+
+Input is a reviewer JSON path-to-metadata map, a layer-to-path-to-metadata map, a list of file rows, or a per-layer
+`inv-N.tsv` list (`sha256`, size, path). Supply all non-reference layers, rather than only a merged filesystem. The
+command emits JSON findings with reasons and exits 1 for findings, 0 for a clear screen, or 2 for invalid input.
+A clear static screen is not itself a compliance approval: published conversion code and calibration provenance still
+need review. These conditions make derivation reproducible instead of trusting a shipped file's claim to be the same model.
+
+A pending challenger is re-measured in later batches and keeps its place only while every measurement stays above every bar; the crown score is the lowest of its confirming measurements.
+
+The weight inventory screen must cover all non-reference layers. Its tokenizer exception is only
+`/model/tokenizer.json`, SHA256 `06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523`,
+at most 1.1 × 19,989,325 bytes. The digest is pinned by `src/reax_subnet/manifests/s1-fast-v1.json`;
+the size was verified from the corresponding read-only Plumb-4B revision cache (55de0378).
+Large JSON and numeric multipart groups above 64 MiB are screened, along with recognized weight suffixes.
+This filename screen still needs source/rebuild review: renamed small data, archive containers,
+non-numeric splits, hidden files and tensors embedded in source/native code can evade it.
+A clear screen alone does not certify calibration provenance or completeness of the supplied inventory.

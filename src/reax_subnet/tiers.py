@@ -48,7 +48,11 @@ TIER_ORDER = ("gpu", "small", "cpu")
 # before). Pay stays linear in verified throughput, so the change is sybil-neutral; s1-lite / s1-cpu keep their caps
 # (they sit deliberately near one small node). 1.0 reproduces the pre-v2 numbers exactly; 2.0 is the first enable, 4.0 follows
 # only after a live probe bench at the ramped load. Validators must agree on it.
-CAPACITY_CAP_MULTIPLIER = 2.0
+# The multiplier is per pool, both 4.0 since 1.2.0rc11.post7 (WEIGHTS_VERSION_KEY 1260): s1-fast 2560/s (2.0 = the 1280/s of
+# rc9..rc11.post6), s1-pro 640/s (2.0 = 320/s).
+CAPACITY_CAP_MULTIPLIER = 4.0
+S1_PRO_CAP_MULTIPLIER = 4.0
+CAPACITY_CAP_MULTIPLIERS = {"s1-fast": CAPACITY_CAP_MULTIPLIER, "s1-pro": S1_PRO_CAP_MULTIPLIER}
 # Cap of the GPU pools in units before the multiplier (the verified sample below is sized relative to it).
 BASE_GPU_MAX_FACTOR = 16.0
 # The verified sample above the old cap grows with (factor / 16) ** this exponent (x4: 40 -> 114 items for s1-fast,
@@ -195,29 +199,40 @@ class CapacityParams:
         return (1.0 - self.weight) + self.weight * self.factor(dps or 0.0)
 
 
+GPU_POOLS = ("s1-fast", "s1-pro")
 POOL_TIER = {"s1-fast": "gpu", "s1-pro": "gpu", "s1-lite": "small", "s1-cpu": "cpu"}
 # Within the gpu tier the existing 1.1 split applies.
 POOL_SHARE_IN_TIER = {"s1-fast": 0.35, "s1-pro": 0.65, "s1-lite": 1.0, "s1-cpu": 1.0}
 
 
-def capacity_table(cap_multiplier: float) -> dict[str, CapacityParams]:
-    """The pools' capacity parameters with the GPU pools' cap multiplied by ``cap_multiplier`` (tests build the x1 and
-    x4 tables from it; the release uses CAPACITY below)."""
+def capacity_table(cap_multiplier: float | Mapping[str, float]) -> dict[str, CapacityParams]:
+    """The pools' capacity parameters with the GPU pools' cap multiplied by ``cap_multiplier``: one number for both GPU
+    pools, or a mapping {"s1-fast": m, "s1-pro": m} (a missing pool gets 1.0). Tests build the x1 / x2 / x4 tables from
+    it; the release uses CAPACITY below."""
+    if isinstance(cap_multiplier, Mapping):
+        unknown = set(cap_multiplier) - set(GPU_POOLS)
+        if unknown:
+            raise ValueError(f"cap multiplier for non-GPU pool(s) {sorted(unknown)}")
+        mult = {p: float(cap_multiplier.get(p, 1.0)) for p in GPU_POOLS}
+    else:
+        mult = {p: float(cap_multiplier) for p in GPU_POOLS}
+    if not all(math.isfinite(m) and m >= 1.0 for m in mult.values()):
+        raise ValueError("cap multipliers must be finite and >= 1")
     return {
         # One unit = the throughput of a well-run node of the tier (DESIGN-POOLS.md section 6); pay is linear in verified
         # throughput up to max_factor units. In the GPU pools the cap is far above one machine (ANALYSIS: capacity v2), so
         # one hotkey per machine is never worse than several. inflight x items_per_request decisions in flight per UID cover the
         # round-trip time of a distant miner at the cap; the window keeps the counting error of the last request small.
         # Requests per probe at the cap stay within the miner's default limit per validator (config.py).
-        # Mechanism v2: the cap of s1-fast / s1-pro is BASE_GPU_MAX_FACTOR x cap_multiplier units (x1: 640/s and
+        # Mechanism v2: the cap of s1-fast / s1-pro is BASE_GPU_MAX_FACTOR x the pool's multiplier units (x1: 640/s and
         # 160/s; x4: 2560/s and 640/s). lane_latency_s is the answer time at which today's 16 lanes just carry the old cap
         # (16 x 16 / 640 = 0.4 s; 16 x 8 / 160 = 0.8 s), so a UID at a bigger budget gets proportionally more lanes.
         "s1-fast": CapacityParams(target_dps=40.0, window_s=5.0, items_per_request=16, inflight=16,
                                   lane_latency_s=0.4, max_inflight=64,
-                                  max_factor=BASE_GPU_MAX_FACTOR * cap_multiplier),
+                                  max_factor=BASE_GPU_MAX_FACTOR * mult["s1-fast"]),
         "s1-pro": CapacityParams(target_dps=10.0, window_s=8.0, items_per_request=8, inflight=16, verified_max=10,
                                  lane_latency_s=0.8, max_inflight=64,
-                                 max_factor=BASE_GPU_MAX_FACTOR * cap_multiplier),
+                                 max_factor=BASE_GPU_MAX_FACTOR * mult["s1-pro"]),
         # s1-lite / s1-cpu keep small requests: the reference runtimes answer one decision at a time in arrival order,
         # so the first request of a slow node (Orin ~0.7/s, a small CPU) must finish well inside the window.
         # Their cap sits near the best honest node of the tier (s1-lite 32/s = an RTX 5070 Ti at 33/s; s1-cpu 4/s), not
@@ -229,7 +244,7 @@ def capacity_table(cap_multiplier: float) -> dict[str, CapacityParams]:
     }
 
 
-CAPACITY = capacity_table(CAPACITY_CAP_MULTIPLIER)
+CAPACITY = capacity_table(CAPACITY_CAP_MULTIPLIERS)
 
 
 def pool_shares(pools: list[str], budgets: TierBudgets) -> dict[str, float]:
@@ -253,12 +268,16 @@ def compute_tiered_weights(
     burn_fraction: float = 0.0,
     coldkey_of: Optional[Mapping[int, str]] = None,
     now: Optional[datetime] = None,
+    score_multipliers: Optional[Mapping[str, Mapping[int, float]]] = None,
 ) -> dict[int, float]:
     """Weights over all UIDs. ``capacity_by_pool`` holds measured decisions/s (missing = never probed).
 
     ``coldkey_of`` (slot -> coldkey) and ``now`` switch on the per-coldkey diminishing returns from
     ``COLDKEY_DR_START_UTC`` (see the module docstring); without either, or before the date, the result is the
     unchanged brake rule.
+
+    ``score_multipliers`` (pool -> slot -> factor; eutier.py, Scheme A): multiplies a slot's in-pool score after the
+    capacity factor. None or empty = exactly the weights without it.
 
     An empty pool's share goes pro rata to the other pools (as in compute_pool_weights, never burned) and the
     owner UID gets only the burn fraction, or the whole miner part when no pool has an eligible miner; a tier whose own cap
@@ -281,6 +300,8 @@ def compute_tiered_weights(
         for uid, s in sorted(ema_by_pool[pool].items()):
             if uid != owner_uid and math.isfinite(s) and s >= min_ema:
                 v = s * cap.multiplier(caps.get(uid))
+                if score_multipliers:
+                    v *= score_multipliers.get(pool, {}).get(uid, 1.0)
                 if v > 0:
                     scores[pool][uid] = v
 

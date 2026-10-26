@@ -1,5 +1,207 @@
 # Changelog
 
+## 1.2.0rc11.post7 — s1-pro cap x4 (640/s) and s1-fast cap x4 (2560/s)
+Validator + miner release, `WEIGHTS_VERSION_KEY` 1260 (was 1250), shipped as its own consensus release after a live probe bench
+(Florian, card 17931 "All 3", board #21849; s1-fast x4: board #26839 "way higher caps"). Start: Tue 27 Oct 2026 16:00 UTC (dated #92 notice, >= 24 h). Rollback: `tiers.S1_PRO_CAP_MULTIPLIER = 2.0` and / or `tiers.CAPACITY_CAP_MULTIPLIER = 2.0` (+ key bump).
+- `tiers.S1_PRO_CAP_MULTIPLIER` 2.0 -> 4.0: s1-pro cap 640/s, 64 lanes, 704 requests per probe, verified sample 29.
+- `tiers.CAPACITY_CAP_MULTIPLIER` 2.0 -> 4.0 (s1-fast): cap 2560/s, 64 lanes (`max_inflight`), 864 requests per probe, verified sample 68 -> 114
+  at the cap (17 of 54 s1-fast slots sat at 1280/s on 25 Oct 2026, 25 % of the pool weight). s1-lite / s1-cpu: every number as before,
+  including their miner defaults (32 / 456 / 8, pending 64).
+- `s1validator.PROBE_MAX_PREPARED_REQUESTS` 90 000 -> 220 000 and `PROBE_PREPARE_BUDGET_S` 60 -> 180: worst case, every slot at its x4 cap
+  (55 s1-fast x 864 + 168 s1-pro x 704 + s1-lite / s1-cpu 16.2k = ~182k, x 1.2 growth margin = 218.5k) is prepared without scaling;
+  at 0.34-0.78 ms per request a full ceiling is 75-172 s. The budget only pads the probe's outer timeout (preparation +
+  window + references must fit in it with the rest of the probe's budget); it is not a per-phase limit, and the validator operator
+  can change it with `REAX_PROBE_PREPARE_BUDGET_S` (float > 0, validator-local). Re-size from the shadow bench (`prepbench`).
+- Miner defaults per model: s1-pro 64 / 728 / 16 (`REAX_PER_CALLER_CONCURRENCY` / `_PER_MINUTE` / `REAX_MAX_CONCURRENT`), s1-fast
+  64 / 888 / 16, `REAX_MAX_PENDING_PER_IP` 128. Miners that consolidated hotkeys can show up to 2560/s per s1-fast and 640/s per
+  s1-pro hotkey once the stake majority runs this release.
+
+## 1.2.0rc11.post6 (validator, operational)
+- Capacity probe verification off the round cadence (board #22 #26732). On mainnet a probe round took ~340 s instead of
+  ~120 s (~21.5 rounds/h instead of ~29.5): the probe's s1-cpu references (2 per slot, the floor, for ~162 slots = ~320
+  decisions, twice the pool's `REFERENCE_CAP`) ran on the single-lock llama.cpp runtime for ~130 s inside the round. Now
+  the window and the signature check stay in the round; the reference verification of the sampled answers and the
+  capacity fold run as one background task while the next rounds go on (`REAX_PROBE_BACKGROUND`, default on; `0` = the
+  synchronous probe of rc11.post5).
+  - Same items, same scoring, same fold: the sample is drawn before the task starts; budgets, scale and holds are those
+    of the probe; only the time of the fold moves (typically 1-3 rounds later). Its report (incl. probe strikes for the
+    EU ledger) appears in the summary of the first round after it finished.
+  - The rounds' own references go first: the probe's references go to a runtime in chunks (16 decisions for s1-cpu /
+    s1-lite, 256 for the GPU pools), and a chunk starts only while no round reference of that pool is in flight. The
+    reference budget counts the chunks' own time; the wall clock is bounded at 4x that budget (then that pool's slots
+    stay unmeasured by this probe, as after a reference timeout today).
+  - One verification at a time: a probe that falls due meanwhile runs in the first round after it (no probe is lost).
+    A slot whose hotkey or role changed, or that was dropped, before the fold is not folded.
+  - No scoring constant, `REFERENCE_CAP`, tiers constant or `WEIGHTS_VERSION_KEY` changed. Expected probe round at
+    today's slot counts ~215 s from the previous round's end (was ~340 s), ~25.5 rounds/h. tests/test_probe_cadence.py.
+
+## 1.2.0rc11.post5 (unreleased) — EU tier: Scheme A x1.5 + EU contract tier, INACTIVE (empty registry)
+- `eutier.py` + `eu_registry.json` (docs/EU-TIER.md): Scheme A (x1.5 on the in-pool score of verified EU hotkeys in
+  s1-fast / s1-pro, capped per operator at `cap_units`) and the EU contract tier (EUR 1.00 per verified GPU-hour,
+  `H_o = min(slots x 24, passed hours)`, daily alpha price, 5 % cap of the inference share with a pro rata cut, carved
+  out of the miner part, no double pay, daily public receipt). Fail closed: no operator with a signed contract + DPA,
+  no fresh EU verification, no price or no inference-share estimate -> no effect. The shipped registry lists nobody:
+  weights byte-identical to rc11.post4 (tests/test_eutier.py against a b510d79 golden). `WEIGHTS_VERSION_KEY` unchanged.
+- Vacant generalist track on eval v5.1 (#25186/#25193): with `CROWN_SLOTS_UTC` set, a v5.1 confirmation on a track without a
+  champion is stored for the next slot (`crown_pending`) instead of waiting for the cohort playoff (not wired for v5.1: the track
+  stayed uncrowned and blocked; a lone confirmation was crowned ad hoc). The slot crowns one entry alone or runs the v5.1 slot
+  rounds for several, as on an occupied v5.1 track. Rule A: a vacant-track confirmation taken under v4 that still waits for its
+  cohort after the flip restarts as a v5.1 first stage. Pre-flip (v4) vacant-track behaviour unchanged. tests/test_v51_vacant.py.
+- Engine copy line, parent measured in the same session (Florian 24 Oct 13:02Z, card 18502, option A;
+  `engcomp.ENGINE_PARENT_SESSION_START_UTC` = Tue 27 Oct 14:30Z, release constant): a derived entry whose session clears the
+  champion bar but is below, or within the margin of, its stored parent line gets the binding parent image measured right after
+  it (same box, same reference, the same items replayed via `engrunner.ItemTape`). That session's line =
+  `max(parent in session, parent image's lowest valid score) x (1 + margin)` (`parent_bar(..., session)`); no valid parent run =
+  the stored line. Reference runs never touch the parent's results/held score. New add-only state fields `low_scores`,
+  `parent_sessions` (absent while empty; rc11.post4 ignores them). Golden tests unchanged; tests/test_engine_parent_session.py.
+- Parent same-session fixes (parent-critic F3/F4/F5): the floor is the parent image's lowest VALID score (`hold(result, params)`
+  records `low_scores` for valid results only; a state without it: min(held best, latest valid result)); a parent run is also
+  due when the child scores >= `champion_bar / (1 + margin)` (slack for the champion's same-cycle re-measure; crowning uses the
+  real bars); at most `ENGINE_PARENT_RUNS_PER_CYCLE` = 3 parent runs per engine cycle, each limited to
+  min(`eval_budget_s`, `ENGINE_PARENT_RUN_BUDGET_S` = 1200 s), and a parent digest whose run failed or timed out earlier in the
+  cycle is not run again in that cycle. The parent is measured right after the child on the same machine with the same items.
+- New env (all optional): `REAX_EU_REGISTRY_FILE`, `REAX_EU_VERIFICATION_FILE`, `REAX_EU_MARKET_FILE`,
+  `REAX_EU_TIER_STATE_PATH`, `REAX_EU_TIER_RECEIPTS_DIR`; `tools/eu_tier_quote.py` writes the daily market file.
+
+## 1.2.0rc11.post4 — crowning slots on eval v5.1 from Thu 29 Oct; a shared group outlives its leader
+- post4 critic fixes: after a new champion is crowned, every entry that has not confirmed yet (pending with a first draw, or a queued close call) also restarts with a new first draw (SLOT-RULES s.2 / FAQ); eval v5.1 slot rounds never reuse items: when no disjoint draw is left the rounds end early and the slot is decided on the completed rounds (SLOT-RULES s.4).
+
+`WEIGHTS_VERSION_KEY` unchanged (1250). On top of rc11.post3 (slot rules + eval v5.1 armed for Mon 26 Oct 14:30Z).
+- v5 slot hook (rc11p3d item F, slot rules section 3): `slot_eval_ts(slot)` = slot - 1 s for every slot (the rc11.post3
+  `_v4_draw_now` pin is gone). The flip slot Mon 26 Oct 14:30Z (slot - 1 s before `EVAL_V5_START_UTC`) stays on v4 exactly as
+  in rc11.post3; every later slot (`_slot_v5`: from Thu 29 Oct) is decided on eval v5.1:
+  - each round is a v5.1 draw (`V5W.draw`: 540 T + 360 N + the public gap-check items, disjoint from the slot's earlier
+    rounds, least-used items logged if the pool cannot give that), served question by question (`V5W.flatten`, `_serve_v5`);
+  - `_slot_totals` returns the per-round S_v5.1 (`V5W.slot_context`: each member's absolute S_v5.1, no base, no reference)
+    and their mean; the gap penalty is retired; the v4-scale entry floor does not apply (rule 4.2 is a no-op on v5.1, as the
+    floor is in `_decide`);
+  - rule 4.5 uses `_slot_pair_se_v5` = `V5W.slot_pair_se`: the v5.1 paired bootstrap SE per round (`DrawContext.pair_se`),
+    pooled like the mean (`v5.pool_se`); margin = `required_margin` at `slot_eval_ts` (floor 1.0), G = 0.5 x that floor = 0.5;
+  - rule 4.3 (parents and twins) compares S_v5.1 with the v5.1 pair SE (`_playoff_short(pse=)`), as `_decide` does;
+  - members' scores, `by_tier {T, N}` (the v5.1 marker) and the slot `playoff` history rows carry `scoring_regime: "v5"`;
+  - a member with no finite S_v5.1 on a round counts as failed on its own side (rule 4.1);
+  - the evidence record says `evaluation: "v5.1"`, `pool_version` (v51.config.json), `panel` (panel stats version) and the
+    sha256 of the v5.1 T/N item ids.
+  - Fail closed (as rc11.post3's v5.1 arm): no usable v5.1 pool, config or panel stats -> no slot draw, nothing served,
+    decided or crowned, `eval v5.1 FAIL CLOSED at the slot` in the log; the stored crownings stay and the slot runs when the
+    pool is back (our side: slot rules section 7), also after the slot clock.
+  - A stored crowning earned under v4 is never measured in a v5.1 slot: it restarts as a v5.1 first stage (rule A). A v4 slot
+    still refuses entries decided under v5.1.
+- K1-a: the confirmations run before a slot are measured on the slot's evaluation (`slot_eval_ts`). At the flip slot the
+  rc11.post3 critic behaviour stays (M1): a due-but-unrun confirmation of a v4 first stage is not restarted by rule A while the
+  slot is open; it runs on v4 at `slot_eval_ts` and may join the slot. From Thursday (v5.1 at slot - 1 s and now) K1-a runs on
+  v5.1 and `_decide` keeps the `crown_pending` `k1a` marker; a v5.1-staged entry is never confirmed on v4.
+- Void round 1 (rc11.post3 critic S4) holds for v4 and v5.1 slots alike: a round 1 in which every member fails (on v5.1 also:
+  no finite S_v5.1 for any member) is void and re-run with the same entries, never released; after the slot clock an error is
+  logged.
+- CRITERIA 6 (rc11p3d section 4 item 3): a shared group crowned at a slot stays the champion when its leader withdraws or is
+  rejected while other members remain. Validator: `cochamp_members` keeps the group in force while the track has no champion
+  seat; worker: `_reanchor_cochamps` (after every sync and at the start of a track step) gives the seat to the first remaining
+  member (status champion, `champion_since_ts` = the group's crowning, history row `cochamp_reanchor`). The group keeps its
+  keys, so each member's part stays 1/n of the crowned group and a departed member's part goes to inference. The title is vacant
+  only when the last member has left (the set is then cleared). The hard-coded opening set (116/199/250) is unchanged. This
+  replaces the rc11.post3 critic's inline re-anchor in `_sync` (S1): one implementation, same result.
+- Slot rules section 2 ("if a new champion is crowned, it has to beat the new champion, starting with a new first draw"):
+  when a slot crowns (one champion or a shared group, also a single stored crowning), every entry of that slot that is not
+  crowned and every entry whose crowning is stored for a later slot is queued for a new first draw against the new title
+  holders (`_slot_restart`: stage dropped as for a requeue, history row `slot_restart`; history, commitment order and checks
+  kept, no recommit). Before, they kept their first draw and confirmed against the new champion. A slot that crowns nobody
+  changes nothing: its entries go back to the challenger path with their first draw, later-slot entries keep waiting. At the
+  flip slot the restart comes from the crowning, so rule A finds no v4 stage left on these entries (one restart, first draw
+  on v5.1). Payout effect: a requeued entry is QUEUED, so it no longer holds a pending-confirmation keep-alive.
+- Tests: `tests/test_slot_v5.py` (incl. a v5.1 void round 1); three tests of the v5.1 wiring written against rc11.post2 slot semantics now follow the
+  rc11.post3 rules (a slot entry not crowned goes back to the challenger path instead of not-better; an unloadable slot field
+  is recorded and stays pending).
+
+## 1.2.0rc11.post3 — crowning slot rules: clear winner or shared leading group (public slot rules, FAQ v2)
+
+`WEIGHTS_VERSION_KEY` unchanged (1250). Implements reax.co/competitions/faq/#slot-rules sections 1-9 (CRITERIA v2, Florian's
+decisions of 22 Oct: card 18227, tie-numbers-k). Every knob is one constant in `competition_split` (`SLOT_*`).
+- `CROWN_SLOTS_UTC`: every Monday and Thursday 14:30Z from Mon 26 Oct 2026, generated through 31 Mar 2027.
+- Slot rounds (worker): every confirmed entry is in (no budget cut). Up to `SLOT_MAX_ROUNDS` = 3 shared fresh rounds, all on the
+  slot's pinned evaluation time (`slot_eval_ts` = slot - 1 s). After every round, in this order: serving (a model failure is
+  retried once on the same items; a second failure while others were served: the entry leaves), entry floor (pooled mean at or
+  below it), parents/twins and one entry per holder (same coldkey or same HF account/org, transitively; best round-1 score
+  stays, exact tie: earlier commitment) on round 1 only, separation (leader ahead by at least `required_margin(pooled paired
+  SE)` = max(1.0, 2 SE) on v4). One entry left: clear winner, no further round. After round 3 (or fewer when the slot clock /
+  void retries / pool end the rounds): every remaining entry within G = 0.5 x margin floor of the leader (unrounded, no
+  chaining) shares; nobody within G: the leader alone (K8b). The rc11.post2 highest-mean tiebreak is removed.
+- A round where every member fails or a host fault is flagged is void and re-run on new items (rounds 2-3: at most
+  `SLOT_VOID_RETRIES` = 2 times; round 1: next cycle). Slot clock `SLOT_CLOCK_S` = 12 h.
+- K1-a: a confirmation due (first pass + confirmation delay) at or before slot - 1 h that has not run by the slot runs before
+  the slot rounds (the slot waits, up to the slot clock) and, if it passes, joins this slot (`crown_pending` row `k1a`).
+- Entries not crowned go back to the challenger path (they confirm against the new champion with the full margin); no place.
+  Nobody crowned: only the slot's own entries are released, entries stored for a later slot keep waiting. A field whose
+  every entry fails to load no longer blocks the track (rc11.post2 critic F2).
+- A shared group is stored in the state (`TrackState.cochamps`, `cochamps_since`; add-only, an older loader ignores it) and
+  is the co-champion set in force (served as the bar, best member on the challenger's draw; 1/n of rank 1 each). Beaten, it
+  becomes ONE former champion (`TrackState.former_sets`; validator `RankedLeaders.formsets`, 1/n of the place each).
+- Keep-share (slot rules section 8): for up to 48 h the beaten champion (or beaten set, in its own split) receives the parts
+  of rank 1 that belong to unapproved members, instead of its own place share. Fixes the rc11.post2 path that gave a beaten
+  set's whole keep-share to one member. The opening set at rank 1 keeps the rc11.post2 behaviour (no keep-share).
+- Public evidence per slot in `TrackState.slot_results` (aggregates only: entries, how each got in, round scores, pooled
+  means, gap / paired SE / margin against the leader, G, the rule each entry left by, draw ids, evaluation, release,
+  pool sha256, result, shares).
+
+## 1.2.0rc11.post2 — crown slot without freeze, slot playoff, the beaten co-champion set is one former champion
+
+`WEIGHTS_VERSION_KEY` unchanged (1250). Florian's rule A (22 Oct): an entry that confirms under the current evaluation before
+Mon 26 Oct 14:30Z is crowned at that slot as earned; afterwards titles are defended on v5. Ties: more draws, never commit order.
+- Worker, no freeze: a stored crowning (`crown_pending` history row) no longer stops the other challengers. Each keeps being
+  evaluated against the current bar (the best co-champion on its own draw); every entry that passes is stored. A stored entry is
+  not re-challenged and stays keep-alive eligible as a pending entry.
+- Worker, at the slot: one earned entry is crowned as earned. Several: a slot playoff on ONE shared fresh draw (the champion and
+  the co-champions are not in it), same preparation / budget / infra-abort / behaviour-twin rules as the cohort playoff, which
+  waits for the full budget. If the best two are within `PLAYOFF_MIN_GAP_SE` paired SE (pooled over the draws taken), the tied
+  group takes an extension draw, and again a second one; after three draws the highest mean wins. All three draws run in one
+  call. Every score and SE is in the public event log. Others are not better (served) or back on the challenger path.
+- Crowning a challenger makes all listed co-champions FORMER (not only the state champion).
+- Validator (`GENERALIST_CO_CHAMPIONS`): the beaten set is ONE former champion. It takes one former-champion place (ordered by
+  `GENERALIST_CO_CHAMPIONS_CROWNED`) and that place's share (17 % / 8 %) is split 1/3 over its committed, approved members
+  (`RankedLeaders.formset`, `rank_shares`); a dropped member's third is not redistributed. Also read from a state where only
+  the champion member is former and the others are still pending (rc11.post1 worker). Empty constant = unchanged.
+
+## Unreleased — eval v5.1 evaluator wiring (behind `EVAL_V5_START_UTC = None`, rc11 bit for bit while it is `None`)
+
+New `spec/v5wire.py`; `v5.EVALUATOR_WIRED = True` (the evaluator may start with the gate set). With the gate reached the generalist
+track draws 540 T + 360 N private items (+ 90 public items at weight 0) from `REAX_SPEC_V5_POOL_DIR`, serves the seated
+co-champions and every challenger's declared base on the same items (a base shared by entries once per draw), decides on S_v5.1
+against the best of them (D3), records S_v5.1 / T / N / the gap check in the history (`scoring_regime = "v5"`, no gap penalty),
+and starts the provisional half keep-alive at the on-chain commitment (D4). No new state field (an entry scored under v5 has `by_tier == {T, N}`).
+See docs/EVAL-V5.md, "Second serving slot and evaluator wiring".
+Transition rule A (Florian, 22 Oct): a v4 confirmation before the flip is crowned at the crown slot (not re-judged; crown first, then v5;
+several earned entries play the rc11.post2 slot playoff, which still draws under v4 at the flip slot: `_v4_draw_now`); v4 first
+stages unconfirmed at the flip restart as v5.1 first stages (`_v5_restart_v4_stages`, history row `v5_restart`). The v5.1 bar is the
+CURRENT title holders only (all seated co-champions while they hold the title; after a rule-A crowning the new champion alone) plus
+the challenger's own base. `v5.paired_s_se` is public.
+wiring-3: questions above 26 options are capped in the v5 draw (`v5wire.cap_item`: gold + 25 distractors from the draw seed, item id
+and question index, re-lettered A..Z, the option count in the task text replaced by 26; with IDK 25 + IDK; chance-correction uses the
+capped count); joint-readout packages go through `JointDockerBackend` on v5 draws (tests with fake backends); a crowning inside one
+`_decide` loop becomes part of the bar of the later challengers of the group; the v5 floor exemption needs the open gate and a v5
+marker that only challengers, the champion and the co-champions get (never a parent), `_big_ok` keeps its parameter checks; an
+unavailable or unservable base, or a non-finite S, holds back only its own challenger; the served-result cache is keyed by the item
+set and cleared every cycle; the v4 generalist floor still holds for entries without the v5 marker; the pool is sorted by id; the
+half keep-alive from the commitment needs a successful repo probe first (exists, public, revision, safetensors listed).
+
+## 1.2.0rc11.post1 — generalist opening co-champions 116 / 199 / 250 (validator + competition worker)
+
+`WEIGHTS_VERSION_KEY` is unchanged (1250). One source for the validator and the competition worker. Florian's decision
+(22 Oct 2026): uid 116, 199 and 250 are co-champions of the generalist opening, equal thirds of the champion share until a
+new entry beats the best of them; places 2 and 3 of the opening are uid 160 (17 %) and uid 113 (8 %) from 23 Oct 13:00 UTC.
+- `GENERALIST_CO_CHAMPIONS` (the three `hotkey|commitment` keys of the state) and `GENERALIST_CO_CHAMPIONS_CROWNED`: while the
+  generalist champion is one of them, each member that is still committed, not withdrawn or rejected and has its own owner
+  approval gets one third of rank 1's share (`rank_shares`, `RankedLeaders.cochamps`). An unapproved or dropped member's
+  third goes to the inference part. Members take no keep-alive slot while paid (an unapproved member keeps the champion-like
+  slot). Empty constant = the weights are exactly the rc11 ones.
+- Opening-playoff places 2 and 3 (rules v4, from T1) skip the co-champions: the next two in the playoff's own order.
+- Worker: a challenger's bar is the best co-champion on the challenger's own draw (all still-eligible members are served on
+  it; the extra serves count against `max_evals_per_hour`). Beating it, with the normal margin and confirmation, makes the
+  challenger champion and ends the set. Members are never served as challengers. The event log and the history rows show
+  "vs best co-champion uid X", the bar, the gain and the SE.
+- `CROWN_SLOTS_UTC` (ships empty; stored as a history row, no new state field): when set, a decision that would crown is stored (scores published, champion unchanged,
+  the track's challengers frozen) and finalised at the first slot instant at or after the decision.
+- `tools/cochamp_dryrun.py`: prints the generalist payout for a state file and a snapshot JSON.
+
 ## 1.2.0rc11 — rules v4 active from 23 Oct 2026 13:00 UTC; rc10.post2-5 hotfixes folded in (validator + competition worker)
 
 `WEIGHTS_VERSION_KEY` is unchanged (1250). One source for the validator and the competition worker. Release constants
@@ -35,6 +237,11 @@ each until 7 days after it lost the title); a uid paid anything gets none. Valid
 Validator + miner release. Both halves count only from release constants `elements.MULTIMODEL_START_BLOCK` /
 `DUALROLE_START_BLOCK` (None = held); before that every commitment is read exactly as today. `WEIGHTS_VERSION_KEY` 1250. Start block: <START_BLOCK>. Design: docs/DESIGN-MULTIROLE.md.
 
+* Cap multiplier per pool (`tiers.CAPACITY_CAP_MULTIPLIERS`): s1-fast stays x2 (1,280 decisions/s); s1-pro has its own
+  switch `tiers.S1_PRO_CAP_MULTIPLIER`, shipped at 2.0 (320/s, every weight identical to before) and flipped to 4.0 (640/s,
+  64 lanes, 704 requests per probe, verified sample 29) by the release owner after the shadow bench, with a
+  `WEIGHTS_VERSION_KEY` bump and a dated #92 notice. Miner defaults follow each model's own pool (`config.probe_defaults`):
+  s1-pro at x4 gives 64 / 728 / 16 (`REAX_PER_CALLER_CONCURRENCY` / `_PER_MINUTE` / `REAX_MAX_CONCURRENT`), s1-fast 32 / 456 / 8.
 * Commitments: up to two Raw fields, one inference element (`reax-s1/1`, or new `reax-s1m/1` for 2-4 models) and one
   competition element (`reax-spec/1`, `reax-eng/1`). Strict parser in `elements.py`; one-field commitments unchanged.
 * Validator: one scoring slot per (uid, model) (`uid + 65536 x model index`; s1-fast slot = uid) with the same cap per

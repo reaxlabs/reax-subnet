@@ -1,0 +1,22 @@
+--- a/competitions.js
++++ b/competitions.js
+@@ -618,6 +618,19 @@
+   if (indexPage) specialistsDone = setupIndex(indexPage, tracks);
+   if (!data) return;
+   const engineV2 = data.schema >= 2 && data.engine && data.engine.id === 'engine-speed' && Array.isArray(data.engine.leaderboard) ? data.engine : null;
++  // The engine state publishes the schedule; format in fixed UTC regardless of the browser's timezone.
++  if (engineV2 && engineV2.next_slot_utc) {
++    const at = new Date(engineV2.next_slot_utc);
++    const host = document.querySelector('[data-competition="engine-speed"]');
++    if (host && Number.isFinite(at.getTime())) {
++      const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric',
++        month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(at);
++      const part = (type) => parts.find((p) => p.type === type)?.value || '';
++      let note = host.querySelector('[data-engine-next-slot]');
++      if (!note) { note = el('p', 'small-note'); note.dataset.engineNextSlot = ''; host.appendChild(note); }
++      note.textContent = `Next engine crowning slot: ${part('weekday')} ${part('day')} ${part('month')} ${part('hour')}:${part('minute')} UTC`;
++    }
++  }
+   const legacy = [...(data.competitions || [])];
+   if (engineV2 && !legacy.some((item) => item.id === 'engine-speed')) legacy.push(engineV2);
+   for (const competition of legacy) {

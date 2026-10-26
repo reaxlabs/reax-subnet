@@ -339,6 +339,7 @@ async def test_unknown_image_and_dead_reference(dev_runner):
 
 
 # ------------------------------------------------------------------------------------------------ validator hook
+@pytest.mark.usefixtures("rules_v4_gates_off")
 async def test_validator_pays_the_champion_its_share(tmp_path, dev_runner, make_wallet, fake_chain_cls):
     from aiohttp import web
 
@@ -599,6 +600,7 @@ class _NoRunner:
     pass
 
 
+@pytest.mark.usefixtures("rules_v4_gates_off")
 async def test_confirmation_runs_in_the_same_cycle_in_a_fresh_session(tmp_path, monkeypatch):
     import reax_subnet.engvalidator as ev
 
@@ -617,6 +619,7 @@ async def test_confirmation_runs_in_the_same_cycle_in_a_fresh_session(tmp_path, 
     assert saved["thresholds_sha256"] == comp.thresholds_sha256
 
 
+@pytest.mark.usefixtures("rules_v4_gates_off")
 async def test_reference_resubmitted_as_a_candidate_is_never_crowned(tmp_path, monkeypatch):
     """Seeded measurement noise of 1 % (log-sd of one evaluation's median ratio; to be replaced by the measured
     spread of the new reference): 1000 rebuilt copies of the reference (true ratio 1.0), each also resubmitted

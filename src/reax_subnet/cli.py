@@ -282,6 +282,8 @@ def validator_main() -> None:
     except ConfigError as exc:
         sys.exit(f"configuration error: {exc}")
     setup_logging(cfg.common)
+    from .spec.review import log_config
+    log_config()
     try:
         wallet, hotkey = _wallet(cfg.common)
     except ConfigError as exc:

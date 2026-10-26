@@ -412,12 +412,11 @@ See [CONFIG.md](CONFIG.md). The ones s1 miners usually touch: `REAX_MECHANISM` (
 Capacity probes pay verified throughput linearly up to a cap far above one machine, so one hotkey per machine is the
 best setup: keep `REAX_PER_CALLER_CONCURRENCY` and `REAX_PER_CALLER_PER_MINUTE` at least at their defaults so a probe
 can measure your full speed, and raise `REAX_RUNTIME_INFLIGHT` (default 16) for a batched or multi-GPU runtime.
-**Currently x2 since 1.2.0rc9 (s1-fast 1280/s, s1-pro 320/s; 1.2.0rc8 ran x1 = 640/s, 160/s); x4 follows after a live probe bench with its own notice.** At x2 the effective miner defaults are
-`REAX_PER_CALLER_CONCURRENCY` 32, `REAX_PER_CALLER_PER_MINUTE` 456, `REAX_MAX_CONCURRENT` 8 and `REAX_MAX_PENDING_PER_IP` 64.
-The defaults follow the pools' cap (`CAPACITY_CAP_MULTIPLIER`): with the cap at 160/s (s1-pro) / 640/s (s1-fast) they
+**Currently s1-fast x4 (2560/s) and s1-pro x4 (640/s) since 1.2.0rc11.post7 (s1-fast was x2 = 1280/s since 1.2.0rc9, s1-pro x2 = 320/s in rc9..rc11.post6 and x1 = 160/s in 1.2.0rc8); the x4 enable has its own dated #92 notice.** The effective miner defaults are s1-fast `REAX_PER_CALLER_CONCURRENCY` 64, `REAX_PER_CALLER_PER_MINUTE` 888, `REAX_MAX_CONCURRENT` 16 and s1-pro 64 / 728 / 16; `REAX_MAX_PENDING_PER_IP` 128 (s1-lite / s1-cpu keep 32 / 456 / 8 and 64).
+The defaults are per model and follow that model's pool (since 1.2.0rc11.post7 both are x4: s1-fast 64 / 888 / 16, s1-pro 64 / 728 / 16; `REAX_MAX_PENDING_PER_IP` follows the widest model). The defaults follow the pools' cap (`CAPACITY_CAP_MULTIPLIER`): with the cap at 160/s (s1-pro) / 640/s (s1-fast) they
 are 16 / 240 / 8 (`REAX_PER_CALLER_CONCURRENCY` / `REAX_PER_CALLER_PER_MINUTE` / `REAX_MAX_CONCURRENT`); with the
-mechanism v2 cap x4 (640/s and 2560/s) they are 64 / 888 / 16, because a probe at the new cap sends up to 864 requests
-in 5 s over 64 parallel lanes (x2: 32 / 456 / 8). Also set `REAX_MAX_PENDING_PER_IP` to at least twice
+s1-pro cap at x4 (640/s) they are 64 / 728 / 16, because a probe at the new cap sends up to 704 requests
+in 8 s over 64 parallel lanes (s1-fast at x4, 2560/s: up to 864 requests in 5 s over 64 lanes, 64 / 888 / 16). Also set `REAX_MAX_PENDING_PER_IP` to at least twice
 `REAX_PER_CALLER_CONCURRENCY` (its default now follows it: 32 / 64 / 128): all lanes of one validator start within a few
 ms from one IP, and a refused lane ends for the whole probe (behind a reverse proxy all validators share one IP, so
 raise it further). A miner still on the old limits is measured at most what its limits allow (the probe's requests
@@ -430,8 +429,8 @@ can stand for a whole fleet: pay is linear in the verified throughput, so one ho
 hotkeys with one 160/s machine each earn, and uses one UID instead of four. The miner endpoint of that hotkey must
 spread the requests over all machines (the miner-side fan-out; see the miner fan-out section of this guide when it is
 released), and the per-validator limits above must be raised as described. Do not consolidate before the higher cap is
-live on the stake majority of validators (the release owner announces the date in #92; x1 in 1.2.0rc8, x2 from 1.2.0rc9, and
-x4 follows after a live probe bench): until then validators on the old cap pay a consolidated hotkey only up to the old
+live on the stake majority of validators (the release owner announces the date in #92; x1 in 1.2.0rc8, x2 from 1.2.0rc9, s1-fast and s1-pro x4 from
+1.2.0rc11.post7 after a live probe bench): until then validators on the old cap pay a consolidated hotkey only up to the old
 cap. Registering several hotkeys on one machine
 still gains nothing: probes hit all UIDs at the same moment and they share the machine. With `REAX_MECHANISM=s1` the model runs
 in the sidecar; `REAX_DEVICE`/`REAX_DTYPE` and `HF_HOME` only apply to the mpm1 (in-process) model.

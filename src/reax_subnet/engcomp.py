@@ -27,6 +27,7 @@ Rules (all from the validator's own measurements, nothing the engine reports is 
 from __future__ import annotations
 
 import hashlib
+import logging
 import math
 import re
 from dataclasses import asdict, dataclass, field
@@ -54,6 +55,27 @@ ENGINE_COPYLINE_PAUSE_AT_STRIKE = 2  # from the second detected undeclared reuse
 def copyline_active(now: datetime) -> bool:
     """True from ``ENGINE_COPYLINE_START_UTC`` on (the start instant itself counts); never while the constant is None."""
     return ENGINE_COPYLINE_START_UTC is not None and now >= ENGINE_COPYLINE_START_UTC
+
+
+# Parent measured in the same session (Florian 24 Oct 2026 13:02Z, card 18502, option A; docs/ENGINE-COMPETITION.md, "Reusing
+# other entries"). Release constant, no environment override. None = off: the parent line is the stored one (best valid score
+# ever), exactly the previous rule. From this instant on (and only while the copy line is active): when a derived entry's
+# session clears the champion bar but is below, or within the margin of, its stored parent line, the binding parent image is
+# measured right after it on the same box with the same items, and the line for that session is
+# max(parent in this session, the parent image's lowest valid score) x (1 + margin). Not retroactive.
+ENGINE_PARENT_SESSION_START_UTC: Optional[datetime] = datetime(2026, 10, 27, 14, 30, tzinfo=timezone.utc)
+assert ENGINE_PARENT_SESSION_START_UTC is None or ENGINE_PARENT_SESSION_START_UTC.tzinfo is not None
+PARENT_SESSIONS_MAX = 50
+# Cost bounds of the reference runs: at most this many per engine cycle (all tracks), each with at most this many seconds
+# (or the track's eval_budget_s when that is lower); a parent digest whose run failed or timed out earlier in the same
+# cycle is not run again in that cycle (the stored line applies).
+ENGINE_PARENT_RUNS_PER_CYCLE = 3
+ENGINE_PARENT_RUN_BUDGET_S = 1200.0
+
+
+def parent_session_active(now: datetime) -> bool:
+    """True from ``ENGINE_PARENT_SESSION_START_UTC`` on while the copy line is active; never while the constant is None."""
+    return copyline_active(now) and ENGINE_PARENT_SESSION_START_UTC is not None and now >= ENGINE_PARENT_SESSION_START_UTC
 PROTOCOL_ENG = "reax-eng/1"
 # Image references are kept short enough that the whole commitment fits the chain's 128-byte raw field.
 _COMMIT_RE = re.compile(
@@ -325,12 +347,25 @@ class TrackState:
     # between children); digest -> best valid score ever measured (survives re-measurement).
     derived_hk: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     held_scores: dict[str, float] = field(default_factory=dict)
+    # Parent measured in the same session (add-only like the copy-line fields): digest -> lowest valid score seen (the floor
+    # of a same-session parent line); child session id -> the binding parent's reference run right after that session
+    # ({"child", "parent", "ok", "score", "block", "session", "items"}). A reference run never touches ``results``,
+    # ``held_scores`` or ``low_scores``: it changes nothing about the parent's own standing.
+    low_scores: dict[str, float] = field(default_factory=dict)
+    parent_sessions: dict[str, dict[str, Any]] = field(default_factory=dict)
 
-    def hold(self, result: "EvalResult") -> None:
+    next_slot_utc: Optional[str] = None
+    slot_results: list[dict[str, Any]] = field(default_factory=list)
+    weights_ok: set[str] = field(default_factory=set)  # compliance-reviewed digests, supplied by Sandy
+
+    def hold(self, result: "EvalResult", params: Optional["TrackParams"] = None) -> None:
         """Copy line: remember the best valid score of a digest, so a parent's bar does not drop when it is measured again
-        (or fails later). Not called while the copy line is off."""
+        (or fails later), and the lowest VALID one (the floor of a same-session parent line: ok and at least the track's
+        gain threshold, ``valid_min``; without ``params`` no floor is recorded). Not called while the copy line is off."""
         if result.ok:
             self.held_scores[result.digest] = max(self.held_scores.get(result.digest, 0.0), result.score)
+            if params is not None and math.isfinite(result.score) and result.score >= valid_min(params):
+                self.low_scores[result.digest] = min(self.low_scores.get(result.digest, math.inf), result.score)
 
     def record_copy(self, hotkey: str, digest: str, block: int) -> int:
         """Count an undeclared reuse (once per digest) against ``hotkey``; the second one and every later one pauses the
@@ -362,14 +397,20 @@ class TrackState:
                              "dropped_results": len(self.results)})
         self.results, self.attempts = {}, {}
         self.held_scores = {}
+        self.low_scores, self.parent_sessions = {}, {}
         self.champion, self.challenger = None, None
         self.champion_invalid, self.champion_last_session = 0, ""
 
     def to_json(self) -> dict[str, Any]:
         return {
+            **({"next_slot_utc": self.next_slot_utc, "pending": pending_crown(self),
+                "crown_slots_utc": [s.isoformat() for s in _cs.ENGINE_CROWN_SLOTS_UTC]}
+               if _cs.ENGINE_CROWN_SLOTS_UTC else {}),
+            **({"slot_results": self.slot_results[-50:]} if self.slot_results else {}),
             "results": {d: r.to_json() for d, r in self.results.items()},
             "first_seen": {d: [b, h] for d, (b, h) in self.first_seen.items()},
             "champion": asdict(self.champion) if self.champion else None,
+            **({"weights_ok": sorted(self.weights_ok)} if self.weights_ok else {}),
             "challenger": self.challenger,
             "attempts": self.attempts,
             "not_owner": sorted(self.not_owner),
@@ -383,15 +424,23 @@ class TrackState:
             **({"derived": self.derived} if self.derived else {}),
             **({"derived_hk": self.derived_hk} if self.derived_hk else {}),
             **({"held_scores": self.held_scores} if self.held_scores else {}),
+            **({"low_scores": self.low_scores} if self.low_scores else {}),
+            **({"parent_sessions": self.parent_sessions} if self.parent_sessions else {}),
         }
 
     @classmethod
     def from_json(cls, raw: Mapping[str, Any]) -> "TrackState":
         st = cls()
+        approved = raw.get("weights_ok", [])
+        # Only a list of exact digest strings grants compliance; malformed input fails closed.
+        if isinstance(approved, list):
+            st.weights_ok = {d for d in approved if isinstance(d, str) and re.fullmatch(r"[0-9a-f]{64}", d)}
         st.results = {d: EvalResult.from_json(r) for d, r in raw.get("results", {}).items()}
         st.first_seen = {d: (int(v[0]), str(v[1])) for d, v in raw.get("first_seen", {}).items()}
         ch = raw.get("champion")
         st.champion = Champion.from_json(ch) if ch else None
+        st.next_slot_utc = raw.get("next_slot_utc")
+        st.slot_results = list(raw.get("slot_results", []))[-50:]
         st.challenger = raw.get("challenger")
         if st.challenger is not None and not isinstance(st.challenger, dict):
             raise ValueError("challenger must be an object")
@@ -408,7 +457,16 @@ class TrackState:
         st.derived_hk = {str(d): {str(p): [str(x) for x in hs] for p, hs in per.items()}
                          for d, per in raw.get("derived_hk", {}).items() if isinstance(per, dict)}
         st.held_scores = {str(d): float(v) for d, v in raw.get("held_scores", {}).items()}
+        st.low_scores = {str(d): float(v) for d, v in raw.get("low_scores", {}).items()}
+        st.parent_sessions = {str(k): v for k, v in raw.get("parent_sessions", {}).items() if _parent_entry_ok(v)}
         return st
+
+
+def _parent_entry_ok(v: Any) -> bool:
+    """A stored same-session parent run is used only when well formed; anything else is dropped (the stored line applies)."""
+    return (isinstance(v, dict) and isinstance(v.get("child"), str) and isinstance(v.get("parent"), str)
+            and isinstance(v.get("ok"), bool) and isinstance(v.get("score"), (int, float)) and not isinstance(v.get("score"), bool)
+            and math.isfinite(v["score"]))
 
 
 def effective_block(block: int) -> int:
@@ -526,13 +584,23 @@ def track_thresholds(params: TrackParams) -> dict[str, Any]:
     return {k: getattr(params, k) for k in _T}
 
 
+def valid_min(params: TrackParams) -> float:
+    """The lowest score that counts as valid on a track (the gain threshold over the reference)."""
+    return 1.0 + max(params.min_gain, required_engine_margin(params.reference_noise_std))
+
+
 def _valid(r: Optional[EvalResult], params: TrackParams) -> bool:
-    return r is not None and r.ok and r.score >= 1.0 + max(params.min_gain, required_engine_margin(params.reference_noise_std))
+    return r is not None and r.ok and r.score >= valid_min(params)
 
 
 def _mkey(m: Sequence[Any]) -> str:
     """Identity of one measurement: its session id (EvalResult.session), else the block it was taken at."""
     return str(m[2]) if len(m) > 2 and m[2] else f"block:{m[0]}"
+
+
+def _msession(m: Sequence[Any]) -> str:
+    """The session id of a challenger measurement ([block, score, session]); "" for an older two-field one."""
+    return str(m[2]) if len(m) > 2 and m[2] else ""
 
 
 def _pooled(measurements: Sequence[Sequence[Any]]) -> float:
@@ -559,14 +627,12 @@ def co_champion_set(ch: Optional["Champion"]) -> Optional[tuple[str, tuple[tuple
     return None
 
 
-def parent_bar(state: TrackState, digest: str, margin: float) -> float:
-    """Copy line: the score a derived entry must reach, ``(1 + margin) x`` the best valid score among the digests of its
-    declared parents; 0 for an entry without parents. A declared parent counts as its hotkey: the best valid score ever held
-    over ALL digests that hotkey committed (the committer; ``state.derived_hk[digest][parent]`` holds the declared uid's hotkey
-    only where the committer was unknown, per child), so naming a weak or
-    failed digest of the parent does not lower the bar. A declared parent with no valid score at all returns ``inf``: the
-    entry is held until the parent is measured, never crowned on a missing bar."""
-    bars = []
+def _parent_lines(state: TrackState, digest: str) -> list[tuple[float, Optional[str]]]:
+    """Per declared parent of ``digest``: (best valid score ever of the parent's family, the digest that holds it); (inf,
+    None) for a parent without any valid score. A declared parent counts as its hotkey: the family is every digest that
+    hotkey committed (the committer; ``state.derived_hk[digest][parent]`` holds the declared uid's hotkey only where the
+    committer was unknown, per child)."""
+    out = []
     for p in state.derived.get(digest, ()):
         hks = set(state.derived_hk.get(digest, {}).get(p, ()))
         first = state.first_seen.get(p)
@@ -575,16 +641,128 @@ def parent_bar(state: TrackState, digest: str, margin: float) -> float:
         if p in state.owners:
             hks.add(state.owners[p])
         fam = {p} | {d for d, (_, h) in state.first_seen.items() if h in hks} | {d for d, h in state.owners.items() if h in hks}
-        scores = [state.held_scores[d] for d in fam if d in state.held_scores]
-        scores += [state.results[d].score for d in fam if d in state.results and state.results[d].ok]
-        if not scores:
+        best: dict[str, float] = {}
+        for d in fam:
+            xs = ([state.held_scores[d]] if d in state.held_scores else []) + (
+                [state.results[d].score] if d in state.results and state.results[d].ok else [])
+            if xs:
+                best[d] = max(xs)
+        if not best:
+            out.append((math.inf, None))
+        else:
+            top = max(best, key=lambda d: (best[d], d))
+            out.append((best[top], top))
+    return out
+
+
+def parent_floor(state: TrackState, digest: str, floor_min: float = 0.0) -> float:
+    """The lowest valid score known for ``digest`` (``low_scores``, recorded for valid results only; a state written before
+    that field existed: the lower of the held best and the latest VALID result, i.e. ok and >= ``floor_min`` (the track's
+    ``valid_min``). That is never below the true lowest valid score, so the floor is never too low)."""
+    xs = [state.low_scores[digest]] if digest in state.low_scores else []
+    xs += [state.held_scores[digest]] if digest in state.held_scores else []
+    r = state.results.get(digest)
+    xs += [r.score] if r is not None and r.ok and r.score >= floor_min else []
+    return min(xs) if xs else 0.0
+
+
+def binding_parent(state: TrackState, digest: str) -> Optional[str]:
+    """The parent image that sets the stored parent line of ``digest`` (the best-scoring digest of the highest parent
+    family); None without parents or while a parent has no valid score (the entry is held anyway)."""
+    lines = _parent_lines(state, digest)
+    if not lines or any(d is None for _, d in lines):
+        return None
+    return max(lines, key=lambda x: (x[0], x[1]))[1]
+
+
+def parent_bar(state: TrackState, digest: str, margin: float, session: str = "", floor_min: float = 0.0) -> float:
+    """Copy line: the score a derived entry must reach, ``(1 + margin) x`` the best valid score among the digests of its
+    declared parents; 0 for an entry without parents. A declared parent counts as its hotkey: the best valid score ever held
+    over ALL digests that hotkey committed (``_parent_lines``), so naming a weak or failed digest of the parent does not lower
+    the bar. A declared parent with no valid score at all returns ``inf``: the entry is held until the parent is measured,
+    never crowned on a missing bar.
+
+    ``session``: the child's session id. When the binding parent image was measured right after that session
+    (``state.parent_sessions[session]``, a valid run of the same child), that parent's line for this session is
+    max(its score in this session, the image's lowest valid score ``parent_floor``) instead of its best ever. Without such a
+    run (none scheduled, parent not pullable, failed, or the binding image changed since) the stored line applies.
+    ``floor_min``: the track's ``valid_min``, for the floor of a state without ``low_scores``."""
+    lines = _parent_lines(state, digest)
+    if not lines:
+        return 0.0
+    run = state.parent_sessions.get(session) if session else None
+    if run is not None and not (run.get("child") == digest and run.get("ok") is True and _parent_entry_ok(run)):
+        run = None
+    bars = []
+    for best, top in lines:
+        if top is None:
             return math.inf
-        bars.append(max(scores))
-    return max(bars) * (1.0 + margin) if bars else 0.0
+        if run is not None and run["parent"] == top:
+            best = max(float(run["score"]), parent_floor(state, top, floor_min))
+        bars.append(best)
+    return max(bars) * (1.0 + margin)
+
+
+def champion_bar(state: TrackState, params: TrackParams) -> float:
+    """The score a challenger must reach against the sitting champion (its held score, or the opening co-champion bar,
+    x (1 + margin)); 0 without a champion. As in ``update_champion``, before the champion's latest session is applied."""
+    ch = state.champion
+    if ch is None:
+        return 0.0
+    held = ch.score
+    co = co_champion_set(ch)
+    if co is not None:
+        held = max(held, _cs.ENGINE_CO_CHAMPION_BAR.get(co[0], 0.0))
+    return held * (1.0 + max(params.margin, required_engine_margin(params.reference_noise_std)))
+
+
+def parent_reference_due(state: TrackState, digest: str, params: TrackParams) -> Optional[str]:
+    """The parent digest to measure right after ``digest``'s latest session, or None. Due when the entry is derived, its
+    latest result is valid and clears the champion bar less one margin of slack (score >= champion_bar / (1 + margin): the
+    champion's same-cycle re-measure may still lower the bar; crowning itself uses the real bars), and it is below, or
+    within the margin of, its stored parent line (score < stored line x (1 + margin)). Not for the sitting champion, nor
+    while a parent has no valid score."""
+    r = state.results.get(digest)
+    if not _valid(r, params) or not state.derived.get(digest):
+        return None
+    if state.champion is not None and state.champion.digest == digest:
+        return None
+    margin = max(params.margin, required_engine_margin(params.reference_noise_std))
+    stored = parent_bar(state, digest, margin)
+    if not (0.0 < stored < math.inf) or r.score < champion_bar(state, params) / (1.0 + margin) or r.score >= stored * (1.0 + margin):
+        return None
+    top = binding_parent(state, digest)
+    return top if top is not None and top != digest else None
+
+
+def prune_parent_sessions(state: TrackState) -> None:
+    """Keep the same-session parent runs that can still matter: those of the latest result of each digest and of the
+    pending challenger's measurements (newest PARENT_SESSIONS_MAX)."""
+    keep = {r.session for r in state.results.values() if r.session}
+    c = state.challenger
+    if isinstance(c, dict):
+        keep |= {str(m[2]) for m in c.get("measurements", []) if isinstance(m, (list, tuple)) and len(m) > 2 and m[2]}
+    items = [(k, v) for k, v in state.parent_sessions.items() if k in keep]
+    state.parent_sessions = dict(items[-PARENT_SESSIONS_MAX:])
+
+
+def blocked_noncompliant(state, digest, block):
+    reason = "digest absent from Sandy weights_ok"
+    logging.getLogger(__name__).info("engine contender %s blocked by weights_ok: %s", digest[:12], reason)
+    state.history.append({"event": "blocked_noncompliant", "digest12": digest[:12], "reason": reason, "block": block})
+
+
+def title_eligible(state: TrackState, digest: str, now: datetime) -> bool:
+    """May TAKE the title; never revokes a sitting title or a historical award.
+
+    Sandy supplies weights_ok from explicit compliance reviews, independently of
+    copy-line derived markers. Missing compliance fails closed after conversion.
+    """
+    return now < _cs.ENGINE_QUANT_CONVERSION_END_UTC or digest in state.weights_ok
 
 
 def update_champion(state: TrackState, eligible: Sequence[Submission], params: TrackParams, block: int,
-                    copyline: bool = False) -> Optional[Champion]:
+                    copyline: bool = False, now: datetime = datetime(1970, 1, 1, tzinfo=timezone.utc)) -> Optional[Champion]:
     """Apply the champion rule over the currently committed, eligible submissions.
 
     * A challenger needs ``confirmations`` separate sessions, each beating the champion's held score by ``margin``;
@@ -594,6 +772,10 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
       the same ``margin`` (and the champion bar). A near-copy that merely scores a little higher, or one that misses
       the champion bar, leaves its confirmations untouched.
     """
+    if now.tzinfo is None:
+        raise ValueError("now must be timezone-aware")
+    if _cs.ENGINE_CROWN_SLOTS_UTC:
+        state.next_slot_utc = next_engine_slot(now, state)
     live = {(s.digest, s.hotkey): s for s in eligible}  # an identical digest committed by a second hotkey is another entry
     ch = state.champion
     if ch is not None:
@@ -620,16 +802,24 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
     if co is not None:  # opening co-champions: the bar is the higher co-champion score (ENGINE_CO_CHAMPION_BAR)
         held = max(held, _cs.ENGINE_CO_CHAMPION_BAR.get(co[0], 0.0))
     bar = held * (1.0 + max(params.margin, required_engine_margin(params.reference_noise_std))) if ch is not None else 0.0
+    for sub in eligible:
+        if (ch is None or sub.digest != ch.digest) and not title_eligible(state, sub.digest, now) and (
+                _valid(state.results.get(sub.digest), params) or
+                (state.challenger or {}).get("digest") == sub.digest):
+            blocked_noncompliant(state, sub.digest, block)
     contenders = sorted(
-        (s for s in eligible if _valid(state.results.get(s.digest), params)),
+        (s for s in eligible if _valid(state.results.get(s.digest), params) and title_eligible(state, s.digest, now)),
         key=lambda s: (-state.results[s.digest].score, *seen_order(state, s)),
     )
     margin = max(params.margin, required_engine_margin(params.reference_noise_std))
-    def bar_of(digest: str) -> float:
-        # copy line: an entry whose review record was not read into ``derived`` is not crownable (fail closed)
+    def bar_of(digest: str, session: Optional[str] = None) -> float:
+        # copy line: an entry whose review record was not read into ``derived`` is not crownable (fail closed). The parent
+        # line is the one of the given session (default: the digest's latest result), see parent_bar.
         if not copyline:
             return bar
-        return math.inf if digest not in state.derived else max(bar, parent_bar(state, digest, margin))
+        if session is None:
+            session = state.results[digest].session if digest in state.results else ""
+        return math.inf if digest not in state.derived else max(bar, parent_bar(state, digest, margin, session, valid_min(params)))
 
     pool = [s for s in contenders if (ch is None or s.digest != ch.digest) and (ch is None or state.results[s.digest].score >= bar)
             and (not copyline or state.results[s.digest].score >= bar_of(s.digest))]
@@ -652,8 +842,8 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
                     c["measurements"].append([r.block, r.score, r.session])
                 else:
                     cand = None  # failed its confirmation against the current bar
-            if cand is not None and min(m[1] for m in c["measurements"]) < bar_of(cand.digest):
-                cand = None  # the bar rose (new champion score) above what it was measured at
+            if cand is not None and any(m[1] < bar_of(cand.digest, _msession(m)) for m in c["measurements"]):
+                cand = None  # the bar rose (new champion score) above what it was measured at (parent line: per session)
     if best is not None and (cand is None or best.digest != cand.digest):
         rb = state.results[best.digest]
         pooled = _pooled(c["measurements"]) if cand is not None else 0.0
@@ -665,8 +855,14 @@ def update_champion(state: TrackState, eligible: Sequence[Submission], params: T
     if cand is None:
         state.challenger = None
     else:
+        if _cs.ENGINE_CROWN_SLOTS_UTC:
+            c["uid"] = cand.uid
         state.challenger = c
-        if len(c["measurements"]) >= params.confirmations:
+        if len(c["measurements"]) >= params.confirmations and _cs.ENGINE_CROWN_SLOTS_UTC:
+            if not c.get("confirmed_at"):
+                c["confirmed_at"] = now.astimezone(timezone.utc).isoformat()
+                c["slot_utc"] = next_engine_slot(now, state)
+        elif len(c["measurements"]) >= params.confirmations:
             # Winner's curse: the title is held at the lowest of the confirming measurements.
             score = min(m[1] for m in c["measurements"])
             state.champion_invalid = 0
@@ -902,3 +1098,87 @@ def merge_weights(base: Mapping[int, float], comp: Mapping[int, float], share: f
         out[uid] = out.get(uid, 0.0) + share * miner_part * w
     norm = math.fsum(out.values())
     return {uid: w / norm for uid, w in sorted(out.items())}
+
+
+def next_engine_slot(now: datetime, state: Optional[TrackState] = None) -> Optional[str]:
+    """First configured UTC slot at or after now; None after the published calendar ends."""
+    if now.tzinfo is None:
+        raise ValueError("now must be timezone-aware")
+    used = {e.get("slot_utc") for e in state.slot_results} if state else set()
+    return next((s.isoformat() for s in _cs.ENGINE_CROWN_SLOTS_UTC if s >= now and s.isoformat() not in used), None)
+
+
+def pending_crown(state: TrackState) -> Optional[dict[str, Any]]:
+    c = state.challenger
+    if not c or not c.get("confirmed_at") or not c.get("slot_utc"):
+        return None
+    return {"uid": c.get("uid"), "digest12": c["digest"][:12], "digest": c["digest"],
+            "pooled_score": _pooled(c["measurements"]), "slot_utc": c["slot_utc"],
+            "confirmed_at": c["confirmed_at"]}
+
+
+def finalize_engine_slot(state: TrackState, eligible: Sequence[Submission], params: TrackParams,
+                         now: datetime, block: int) -> Optional[Champion]:
+    """Crown a due, still-valid confirmed challenger, without measurements or network calls.
+
+    Mutates state on a crown or records a blocked_noncompliant history event; returns the new champion or None.
+    A missed slot keeps its scheduled time in the receipt; decay starts at the supplied finalisation block.
+    """
+    if now.tzinfo is None:
+        raise ValueError("now must be timezone-aware")
+    c = state.challenger
+    if not _cs.ENGINE_CROWN_SLOTS_UTC or not c or not c.get("confirmed_at") or not c.get("slot_utc"):
+        return None
+    try:
+        slot = datetime.fromisoformat(c["slot_utc"].replace("Z", "+00:00"))
+        confirmed = datetime.fromisoformat(c["confirmed_at"].replace("Z", "+00:00"))
+        if slot.tzinfo is None or confirmed.tzinfo is None or slot not in _cs.ENGINE_CROWN_SLOTS_UTC:
+            return None
+        if now < slot or confirmed > slot or next_engine_slot(confirmed, state) != slot.isoformat():
+            return None
+        if any(e.get("slot_utc") == slot.isoformat() for e in state.slot_results):
+            return None
+        ms = c["measurements"]
+        if len(ms) < params.confirmations or len({_mkey(m) for m in ms}) != len(ms):
+            return None
+        if any(not math.isfinite(m[1]) or m[1] < valid_min(params) for m in ms):
+            return None
+        if any(b[0] - a[0] < params.confirm_gap_blocks for a, b in zip(ms, ms[1:])):
+            return None
+        sub = next((s for s in eligible if (s.digest, s.hotkey) == (c["digest"], c["hotkey"])), None)
+        if sub is None or not _valid(state.results.get(sub.digest), params):
+            return None
+        if not title_eligible(state, sub.digest, now):
+            blocked_noncompliant(state, sub.digest, block)
+            return None
+        if f"{sub.digest}:{sub.hotkey}" in state.not_owner or state.owners.get(sub.digest, sub.hotkey) != sub.hotkey:
+            return None
+        if state.champion and state.champion.digest == sub.digest:
+            return None
+        margin = max(params.margin, required_engine_margin(params.reference_noise_std))
+        bar = champion_bar(state, params)
+        cl = copyline_active(now)
+        if cl and (sub.digest not in state.derived or sub.digest in copy_digests(state)
+                   or state.copy_paused_until.get(sub.hotkey, 0) > block):
+            return None
+        def bar_for(session):
+            return max(bar, parent_bar(state, sub.digest, margin, session, valid_min(params))) if cl else bar
+        r = state.results[sub.digest]
+        if r.score < bar_for(r.session) or any(m[1] < bar_for(_msession(m)) for m in ms):
+            return None
+    except (ValueError, TypeError, KeyError, IndexError, OverflowError):
+        return None
+    score = min(m[1] for m in ms)
+    crown_block = block
+    ch = Champion(sub.digest, sub.hotkey, sub.uid, score, crown_block)
+    event = {"block": crown_block, "event": "crowned", "digest": sub.digest, "hotkey": sub.hotkey,
+             "score": round(score, 4), "pooled": round(_pooled(ms), 4), "sessions": len(ms),
+             "slot_utc": slot.isoformat()}
+    state.history.append(event)
+    state.slot_results.append(dict(event))
+    state.champion = ch
+    state.challenger = None
+    state.champion_invalid = 0
+    state.champion_last_session = r.session or f"block:{r.block}"
+    state.next_slot_utc = next_engine_slot(now, state)
+    return ch

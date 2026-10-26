@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reax-subnet"
-version = "1.2.0rc11"
+version = "1.2.0rc11.post7"
 description = "REAX Bittensor subnet: miners serve an approved decision model, validators verify fidelity"
 readme = "README.md"
 license = {text = "MIT"}
@@ -53,7 +53,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-reax_subnet = ["manifests/*.json", "selfcheck_data/*.json", "spec/ccfix/sitecustomize.py", "spec/templates/*.jinja"]
+reax_subnet = ["manifests/*.json", "eu_registry.json", "selfcheck_data/*.json", "spec/ccfix/sitecustomize.py", "spec/templates/*.jinja"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

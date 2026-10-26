@@ -1,0 +1,36 @@
+--- a/engbatch-auto.sh
++++ b/engbatch-auto.sh
+@@ -18,6 +18,33 @@
+   fi
+   exit 0
+ fi
++# Release calendar + Sandy receipts gate every mode, including daily. At 12:00Z the
++# daily run is outside the 75-minute window and proceeds normally. Fail closed.
++CHAIN_PY=${CHAIN_PY:-$J/repos/release-wt/.venv/bin/python}
++: "${CHAIN_SRC:?Set CHAIN_SRC to the reviewed release src}"
++if ! slot_gate=$("$CHAIN_PY" -I - "$CHAIN_SRC" "$H" <<'PYSLOT'
++import json,sys
++from datetime import datetime,timezone
++from pathlib import Path
++sys.path.insert(0,sys.argv[1])
++from reax_subnet.competition_split import ENGINE_CROWN_SLOTS_UTC
++now=datetime.now(timezone.utc)
++for slot in ENGINE_CROWN_SLOTS_UTC:
++    delta=(now-slot).total_seconds()
++    if not -75*60 <= delta < 4*3600:
++        continue
++    released=False
++    for p in Path(sys.argv[2]).glob('batches/engslot-*/receipt.json'):
++        try: r=json.loads(p.read_text())
++        except (ValueError,OSError): continue
++        if r.get('slot_utc') == slot.isoformat() and (r.get('published') is True or
++                (r.get('deferred') is True and r.get('exit_code') == 75)):
++            released=True; break
++    if not released:
++        print('deferred: engine slot '+slot.isoformat()); break
++PYSLOT
++); then log "slot gate failed"; exit 0; fi
++if [ -n "$slot_gate" ]; then log "$slot_gate"; exit 0; fi
+ # fresh chain list (the watcher's file if < 30 min old, else list now)
+ C=$J/watch/engcommits/latest.txt
+ if [ ! -s "$C" ] || [ $(( $(date +%s) - $(stat -c %Y "$C") )) -gt 1800 ]; then

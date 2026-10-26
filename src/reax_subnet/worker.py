@@ -293,6 +293,8 @@ def main(argv: Optional[list[str]] = None) -> None:
     from .cli import setup_logging
 
     setup_logging(wc.common)
+    from .spec.review import log_config
+    log_config()
     from .chain import SdkChain
 
     chain = SdkChain(wc.common.network, wc.common.netuid, None, commitments=True)  # read-only: no wallet

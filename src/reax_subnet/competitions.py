@@ -29,6 +29,10 @@ def _copy(r: Any) -> list:
     if isinstance(r, RankedLeaders):
         out = RankedLeaders(r)
         out.crowned = dict(r.crowned)
+        out.cochamps = dict(r.cochamps)
+        out.formset = dict(r.formset)
+        out.formsets = [dict(f) for f in getattr(r, "formsets", [])]
+        out.cochamps_dynamic = bool(getattr(r, "cochamps_dynamic", False))
         return out
     return list(r)
 

@@ -32,7 +32,7 @@ def test_x1_reproduces_the_pre_v2_numbers_exactly():
         for answered in (1, 3, 12, 100, 5000):
             for dps in (None, 1.0, cap.cap_dps):
                 assert cap.verified(answered, dps) == cap.verified(answered)
-    assert tiers.CAPACITY == capacity_table(tiers.CAPACITY_CAP_MULTIPLIER)
+    assert tiers.CAPACITY == capacity_table(tiers.CAPACITY_CAP_MULTIPLIERS)
 
 
 def test_only_the_gpu_pools_get_the_multiplier():
@@ -196,10 +196,11 @@ def test_the_live_size_x1_fleet_is_below_the_ceiling_and_unchanged():
 @pytest.mark.parametrize("mult", [2.0, 4.0])
 def test_a_ramped_fleet_is_scaled_to_the_ceiling_by_one_common_factor(mult):
     table = capacity_table(mult)
-    caps, budgets = _fleet(table, 146, 88, 16.0 * mult)  # every UID at the new cap
+    # x4 (both pools, 1.2.0rc11.post7): the live-size fleet fits (see below), so a bigger one (200 s1-pro + 130 s1-fast) shows the scaling
+    caps, budgets = _fleet(table, *((146, 88) if mult <= 2.0 else (200, 130)), 16.0 * mult)  # every UID at the new cap
     ceiling = s1validator.PROBE_MAX_PREPARED_REQUESTS
     if mult <= 2.0:
-        # lead review: the ceiling (90k) is sized so the live-size fleet fully ramped at x2 is prepared unscaled
+        # the live-size fleet fully ramped at x2 is prepared unscaled
         assert _total(caps, budgets) <= ceiling
         assert tiers.scale_budgets_to_ceiling(budgets, caps, ceiling) == budgets
         return
@@ -317,7 +318,7 @@ def test_capacity_recovers_within_a_bounded_number_of_probes_after_the_fleet_shr
     table = capacity_table(mult)
     cap = table["s1-fast"].cap_dps
     true = 0.75 * cap
-    swarm = {2000 + i: cap for i in range(500)}
+    swarm = {2000 + i: cap for i in range(1000)}  # 1000: deep over the 220k ceiling at x2 as well
     ema = {1: true}  # the honest UID was measured at its true capacity before the swarm came
     scale = _simulate_probes(table, {1: true, **swarm}, 20, ema, 1.0)
     assert scale < 1.0  # the ceiling really cut the budgets
@@ -335,7 +336,7 @@ def test_without_the_scale_handling_the_same_fleet_would_ratchet_down():
     table = capacity_table(2.0)
     cap = table["s1-fast"].cap_dps
     true = 0.75 * cap
-    swarm = {2000 + i: cap for i in range(1000)}   # 1000 (was 500 at the 60k ceiling): deep enough under 90k
+    swarm = {2000 + i: cap for i in range(3000)}   # 3000 (was 500 at the 60k ceiling, 1000 at 90k): deep enough under 220k
     ema = {1: true}
     _simulate_probes(table, {1: true, **swarm}, 20, ema, 1.0, divide=False)
     assert ema[1] < 0.5 * true
@@ -374,3 +375,127 @@ def test_a_held_average_lasts_at_most_three_scaled_probes_in_a_row():
     assert ema2 == pytest.approx(0.7 * 600.0 + 0.3 * 300.0) and held2 == held
     ema3, held3 = f(ema2, 300.0, 320.0, 1.0, 0.3, held2)   # unscaled probe: plain average, count reset
     assert held3 == 0 and ema3 == pytest.approx(0.7 * ema2 + 0.3 * 300.0)
+
+
+# --- per-pool multiplier: s1-pro x4 (640/s) with s1-fast staying x2 (1280/s) -------------------------------------
+PRO4 = capacity_table({"s1-fast": 2.0, "s1-pro": 4.0})
+
+
+def test_release_ships_both_gpu_pools_at_x4():
+    """The release constants of 1.2.0rc11.post7: s1-fast x4 (2560/s) and s1-pro x4 (640/s), WEIGHTS_VERSION_KEY 1260."""
+    assert (tiers.CAPACITY_CAP_MULTIPLIER, tiers.S1_PRO_CAP_MULTIPLIER) == (4.0, 4.0)
+    assert tiers.CAPACITY == X4 == capacity_table({"s1-fast": 4.0, "s1-pro": 4.0})
+    assert (tiers.CAPACITY["s1-fast"].cap_dps, tiers.CAPACITY["s1-pro"].cap_dps) == (2560.0, 640.0)
+    assert tiers.CAPACITY_CAP_MULTIPLIERS == {"s1-fast": 4.0, "s1-pro": 4.0}
+    # the previous release tables are still reproducible: the rollback targets (pro-only x4 release, then x2 / x2)
+    assert capacity_table({"s1-fast": 2.0, "s1-pro": 2.0}) == X2
+    assert tiers.CAPACITY["s1-fast"].cap_dps == 2 * PRO4["s1-fast"].cap_dps and tiers.CAPACITY["s1-pro"] == PRO4["s1-pro"]
+    assert tiers.CAPACITY["s1-pro"].cap_dps == 2 * X2["s1-pro"].cap_dps
+
+
+def test_s1_pro_x4_with_s1_fast_at_x2_is_the_rollback_table_and_leaves_the_small_pools_alone():
+    fast, pro = PRO4["s1-fast"], PRO4["s1-pro"]
+    assert (fast.cap_dps, pro.cap_dps) == (1280.0, 640.0)
+    assert (fast.max_factor, pro.max_factor) == (32.0, 64.0)
+    assert fast == X2["s1-fast"]
+    for pool in ("s1-lite", "s1-cpu"):
+        assert PRO4[pool] == X1[pool]
+    # lanes: s1-fast 32 at its cap, s1-pro 64 at its cap (640 x 0.8 s / 8 items)
+    assert fast.lanes_for(fast.cap_dps) == 32 and pro.lanes_for(pro.cap_dps) == 64
+    # probe sizes: 640 x 8 s / 8 + 64 = 704 requests; s1-fast unchanged 432
+    assert pro.max_requests == 704 and fast.max_requests == 432
+    assert pro.verified(5000, pro.cap_dps) == math.ceil(10 * 4 ** tiers.VERIFIED_EXPONENT) == 29
+
+
+def test_s1_fast_x4_numbers():
+    fast = tiers.CAPACITY["s1-fast"]
+    assert (fast.cap_dps, fast.max_factor) == (2560.0, 64.0)
+    assert fast.lanes_for(fast.cap_dps) == fast.max_inflight == 64  # 2560 x 0.4 s / 16 items = 64: the s1-pro ceiling
+    assert fast.max_requests == 864  # 2560 x 5 s / 16 + 64
+    assert fast.requests_for(fast.cap_dps) == 864
+    assert fast.verified(5000 * 16, fast.cap_dps) == math.ceil(40 * 4 ** tiers.VERIFIED_EXPONENT) == 114
+    for pool in ("s1-lite", "s1-cpu"):
+        assert tiers.CAPACITY[pool] == X1[pool]
+
+
+def test_capacity_table_validates_its_multipliers():
+    assert capacity_table({"s1-pro": 4.0})["s1-fast"].cap_dps == 640.0  # missing pool = x1
+    with pytest.raises(ValueError):
+        capacity_table({"s1-lite": 2.0})
+    with pytest.raises(ValueError):
+        capacity_table({"s1-pro": 0.5})
+    with pytest.raises(ValueError):
+        capacity_table(float("nan"))
+
+
+def test_miner_defaults_per_model_follow_the_pools_multiplier(monkeypatch):
+    from reax_subnet import config
+    # at the release (s1-fast x4, s1-pro x4)
+    assert config.probe_defaults("s1-fast") == (64, 888, 16)
+    assert config.probe_defaults("s1-pro") == (64, 728, 16)
+    assert config.probe_defaults("s1-lite") == (32, 456, 8)  # small pools: the s1-fast values (9f23128)
+    # the previous release table (x2 / x2): s1-pro needs only 352 + 24 requests per minute at 320/s
+    monkeypatch.setattr(config, "CAPACITY", X2)
+    assert config.probe_defaults("s1-pro") == (32, 376, 8)
+    assert config.probe_defaults("s1-lite") == (32, 456, 8)
+    monkeypatch.setattr(config, "CAPACITY", PRO4)
+    assert config.probe_defaults("s1-fast") == (32, 456, 8)      # the pro-only x4 release (rollback of s1-fast)
+    assert config.probe_defaults("s1-pro") == (64, 728, 16)      # 704 + 24 requests per minute
+    # small pools keep the s1-fast values, i.e. exactly the 9f23128 defaults (32 / 456 / 8, pending 64)
+    assert config.probe_defaults("s1-lite") == (32, 456, 8) == config.probe_defaults("s1-cpu")
+    # the queue (4 x max_concurrent + max_concurrent) holds the lanes of one probe
+    for model in ("s1-fast", "s1-pro"):
+        lanes, _, mc = config.probe_defaults(model)
+        assert 5 * mc >= lanes
+
+
+def test_load_miner_gives_each_model_its_own_defaults(monkeypatch):
+    from reax_subnet import config
+    monkeypatch.setattr(config, "CAPACITY", X4)
+    env = {"REAX_MECHANISM": "s1", "REAX_MODELS": "s1-fast,s1-pro"}
+    try:
+        cfg = config.load_miner(env)
+    except config.ConfigError:
+        pytest.skip("multi-model env needs runtime URLs here")
+    by = {m.model: m for m in cfg.models}
+    assert (by["s1-fast"].per_caller_concurrency, by["s1-fast"].per_caller_per_minute,
+            by["s1-fast"].max_concurrent) == (64, 888, 16)
+    assert (by["s1-pro"].per_caller_concurrency, by["s1-pro"].per_caller_per_minute,
+            by["s1-pro"].max_concurrent) == (64, 728, 16)
+    assert cfg.max_pending_per_ip == 128  # holds the lanes of the widest model
+
+
+def test_a_fully_ramped_live_size_fleet_with_both_gpu_pools_at_x4_fits_the_preparation_ceiling():
+    """Worst case, every slot at its cap at the 25 Oct 2026 counts (workers/cap-headroom Q2): 55 s1-fast slots x 864 = 47.5k,
+    168 s1-pro x 704 = 118.3k, plus s1-lite / s1-cpu at their caps (~16k): ~182k; the ceiling (220k) leaves >= 20 % growth
+    margin and is prepared without scaling."""
+    caps = ({i: X4["s1-pro"] for i in range(168)} | {1000 + i: X4["s1-fast"] for i in range(55)}
+            | {2000 + i: X4["s1-lite"] for i in range(148)} | {3000 + i: X4["s1-cpu"] for i in range(161)})
+    budgets = {u: c.cap_dps for u, c in caps.items()}
+    total = _total(caps, budgets)
+    assert 168 * 704 + 55 * 864 == 165_792
+    assert 165_792 < total < 190_000
+    ceiling = s1validator.PROBE_MAX_PREPARED_REQUESTS
+    assert ceiling == 220_000 and total * 1.2 <= ceiling
+    assert tiers.scale_budgets_to_ceiling(budgets, caps, ceiling) == budgets
+    # at 0.78 ms per request (slowest measured) a full ceiling must still fit the preparation budget
+    assert s1validator.PROBE_PREPARE_BUDGET_S >= ceiling * 0.78e-3 and s1validator.PROBE_PREPARE_BUDGET_S == 180.0
+
+
+def test_small_pool_miner_defaults_are_the_9f23128_ones(monkeypatch):
+    """s1-lite / s1-cpu miners: limits 8 / 32 / 456 and pending 64 per IP, as before s1-pro went to x4."""
+    from reax_subnet.config import load_miner
+    for pool in ("s1-lite", "s1-cpu"):
+        cfg = load_miner({"REAX_NETUID": "9", "REAX_NETWORK": "ws://127.0.0.1:9951", "REAX_ALLOW_DEV_MODELS": "1",
+                          "REAX_MODEL": pool})
+        assert (cfg.max_concurrent, cfg.per_caller_concurrency, cfg.per_caller_per_minute) == (8, 32, 456), pool
+        assert cfg.max_pending_per_ip == 64, pool
+
+
+def test_prepare_budget_env_override(monkeypatch):
+    f = s1validator._probe_prepare_budget_s
+    monkeypatch.delenv("REAX_PROBE_PREPARE_BUDGET_S", raising=False)
+    assert f() == s1validator.PROBE_PREPARE_BUDGET_S == 180.0
+    for raw, want in (("200", 200.0), ("0", 180.0), ("-5", 180.0), ("nan", 180.0), ("inf", 180.0), ("x", 180.0), ("", 180.0)):
+        monkeypatch.setenv("REAX_PROBE_PREPARE_BUDGET_S", raw)
+        assert f() == want, raw

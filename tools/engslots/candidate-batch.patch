@@ -1,0 +1,85 @@
+--- a/candidate-batch.sh
++++ b/candidate-batch.sh
+@@ -120,7 +120,7 @@
+ from reax_subnet.chain import SdkChain
+ from reax_subnet.engcomp import parse_engine_commitment
+ snap = SdkChain(sys.argv[2], int(sys.argv[3]), None, commitments=True).snapshot()
+-commits = {}
++commits, rows = {}, []
+ def eng(text):   # dual-role commitments (since DUALROLE_START_BLOCK) carry other role fields before the reax-eng/1 one
+     t = text if isinstance(text, str) else ""
+     i = t.find("reax-eng/1:")
+@@ -129,7 +129,8 @@
+     p = eng(n.commitment)
+     if p:
+         commits.setdefault(p[2], []).append([n.hotkey, n.commitment_block])
+-print(json.dumps({"block": snap.block, "commits": commits}))
++        rows.append({"uid": n.uid, "hotkey": n.hotkey, "block": n.commitment_block, "text": f"reax-eng/1:{p[0]}:{p[1]}@sha256:{p[2]}"})
++print(json.dumps({"block": snap.block, "commits": commits, "rows": rows}))
+ PY
+ }
+ sandy_chain_head() { sandy_chain_snapshot | python3 -I -c 'import json,sys; print(int(json.load(sys.stdin)["block"]))'; }
+@@ -499,6 +500,7 @@
+ 
+ # ------------------------------------------------------------------------------------------------ P6 collect (pull, hash, check)
+ phase_collect() {
++  if [ "$LIVE" = 1 ]; then exec 8>"$H/state/.engine-state.lock"; flock -w 180 8 || die "state publication locked"; fi
+   log "collect: state + review records + worker log tail, size-capped, hashed; all UNTRUSTED"
+   EU "head -c $MAX_STATE_BYTES /w/comp/state/engine-competition.json" | save "$UNTRUSTED/engine-competition.json" >/dev/null
+   EU 'nft list chain inet reaxcand forward 2>&1 | head -c 65536; nft list chain inet reaxcand output 2>&1 | head -c 65536' | save "$UNTRUSTED/nft-counters.txt" >/dev/null   # #22442 (2)
+@@ -565,10 +567,17 @@
+ # Everything it prints from the file is sanitised (digests ^[0-9a-f]+$ only, names [a-z0-9-]).
+ check_state() {
+   local commits="" rc=0
++  if ! "$CHAIN_PY" -I -c 'import sys; sys.path.insert(0, sys.argv[1]); import reax_subnet.engslot' "$CHAIN_SRC" 2>"$B/engslot-preflight.log"; then
++    receipt '{"phase":"engslot-preflight","verdict":"rejected","reason":"release import failed"}'
++    die "engine slot import failed; see engslot-preflight.log (check release CHAIN_PY/CHAIN_SRC)"
++  fi
+   chk_py() {
+-    python3 -I - "$1" "$2" "$SEED" "$REVIEWED" "$(cat "$B/created_at" 2>/dev/null || echo 1970-01-01T00:00:00Z)" "$MAX_STATE_BYTES" \
+-      "$(cat "$B/head_at_create" 2>/dev/null || true)" "$FIRST_SEEN_OLDER_OK" "$3" "$ENGINE_START_BLOCK" <<'PY'
++    "$CHAIN_PY" -I - "$1" "$2" "$SEED" "$REVIEWED" "$(cat "$B/created_at" 2>/dev/null || echo 1970-01-01T00:00:00Z)" "$MAX_STATE_BYTES" \
++      "$(cat "$B/head_at_create" 2>/dev/null || true)" "$FIRST_SEEN_OLDER_OK" "$3" "$ENGINE_START_BLOCK" "$CHAIN_SRC" "${SLOT_SNAPSHOT:-}" <<'PY'
+ import json, os, re, sys, time, datetime
++source_path, slot_snapshot = sys.argv[11:13]
++sys.path.insert(0, source_path)
++from reax_subnet.engslot import check_transition
+ path, kind, seed_path, reviewed_dir, created, cap, head_s, older_ok, commits_path, start_s = sys.argv[1:11]
+ def dg(d):   # an untrusted digest, printable only if it is hex (sha256: prefix stripped)
+     d = str(d).split(":")[-1]
+@@ -582,10 +591,16 @@
+ seed = json.load(open(seed_path, encoding="utf-8")) if os.path.exists(seed_path) else None
+ t0 = datetime.datetime.fromisoformat(created.replace("Z", "+00:00")).timestamp()
+ sa = new.get("saved_at")
+-if not isinstance(sa, int) or not (t0 - 600 <= sa <= time.time() + 600): fail("saved_at outside the batch window")
++if not isinstance(sa, int) or (kind != "weights" and not (t0 - 600 <= sa <= time.time() + 600)): fail("saved_at outside the batch window")
+ if seed:
+     for k in ("version", "thresholds_sha256", "context_sha256"):
+         if new.get(k) != seed.get(k): fail(f"{k} differs from the seed")
++try:
++    check_transition(seed or {"tracks": {}}, new, datetime.datetime.fromtimestamp(time.time(), datetime.timezone.utc),
++                     mode=kind, snapshot=json.load(open(slot_snapshot)) if kind == "slot" else None,
++                     created_at=datetime.datetime.fromtimestamp(t0, datetime.timezone.utc))
++except (ValueError, KeyError, TypeError, RuntimeError) as exc:
++    fail(str(exc))
+ reviewed = set(os.listdir(reviewed_dir)) if os.path.isdir(reviewed_dir) else set()
+ chain = None
+ if os.path.exists(commits_path):
+@@ -751,6 +766,9 @@
+   log "receipt appended to $H/batches.jsonl; summary to #22 @s1m-supervisor-20260927 is the lead's step"
+ }
+ 
++# Source only the definitions for the no-GPU slot wrapper; never dispatch a GPU phase.
++if [ "${CANDIDATE_BATCH_LIBRARY:-0}" = 1 ]; then return 0; fi
++
+ case "$MODE" in
+   plan)
+     log "PLAN ONLY (nothing is created, no ssh, no files written)"
+@@ -763,6 +781,7 @@
+   deadman) log "DEADMAN: cap of $CAP_H h reached"; phase_delete; phase_orphans; phase_receipt ;;
+   recheck)   # 20 Oct: re-run check_state on an already collected batch (box gone) and accept/publish like phase_collect
+     [ -s "$UNTRUSTED/engine-competition.json" ] || die "recheck: no collected state"
++    exec 8>"$H/state/.engine-state.lock"; flock -w 180 8 || die "state publication locked"
+     verdict=rejected; if check_state "$UNTRUSTED/engine-competition.json" final; then verdict=accepted; fi
+     receipt "{\"phase\":\"recheck\",\"state_sha256\":\"$(sha256sum "$UNTRUSTED/engine-competition.json" | cut -d' ' -f1)\",\"verdict\":\"$verdict\"}"
+     if [ "$verdict" = accepted ]; then

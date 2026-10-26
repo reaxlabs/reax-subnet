@@ -187,6 +187,7 @@ async def test_same_context_keeps_the_saved_champion_and_legacy_state_is_not_tru
     assert legacy.context_reset and legacy.states["s1-fast"].champion is None
 
 
+@pytest.mark.usefixtures("rules_v4_gates_off")
 async def test_reevaluation_after_a_context_change_needs_the_confirmations(tmp_path, monkeypatch):
     Runner, path, comp = _write(tmp_path)
     comp.states["s1-fast"].champion = Champion(DA, "owner", 2, 1.5, 100)

@@ -20,3 +20,6 @@ deploy/secrets/
 hotkeys/
 coldkey*
 .reax/
+
+*.orig
+*.rej

@@ -1,9 +1,8 @@
 # Eval v5.1 (generalist, HF Decision Index 0.4 structure) — build notes
 
-Status: the live validator (1.2.0rc11.post4) switches the generalist track to v5.1 at the crown slot 2026-10-26T14:30:00Z
-(`EVAL_V5_START_UTC`, transition rule A below); the first slot decided on v5.1 is Thu 29 Oct. This repository ships the format, the
-offline reference scorer (`tools/score_v5.py`) and the weight-0 dev set (`eval-v5/devset-v1/`); here `sampling.EVAL_V5_START_UTC`
-is `None`, so this code does not change live scoring. This replaces the earlier v5 M/P design (cap, D/SE_D).
+Status: built and tested offline behind `sampling.EVAL_V5_START_UTC = None` (off). Not activated, not wired into the evaluator's
+serving/decision path (`v5.EVALUATOR_WIRED = False`; `SpecEvaluator.__init__` raises if the gate is set). Spec: board #22
+`handoff/SPEC-DELTA-v5.1.md` and PROPOSAL §1.1–1.6 (sn92-eval-di-alignment-20261022). This replaces the v5 M/P design (cap, D/SE_D).
 
 ## Pieces
 | what | where |
@@ -99,7 +98,7 @@ field: an entry scored under v5 has `by_tier == {"T": .., "N": ..}` and its hist
   not fetched yet gets its window only after a repo probe succeeded (`SpecEvaluator._d4_probe`: the repo exists, is public, the
   committed revision is there and a `.safetensors` file is listed; metadata only, `WAIT_REPO_PROBES_PER_CYCLE` per track and cycle, a
   failed probe again after `RETRY_UNAVAILABLE_S`; the result is kept in memory, `provisional_since_ts` is the stored record). A
-  missing or dummy repo gets no slot.
+  missing or dummy repo gets no slot (critic F5).
 - **Options above 26** are capped in the draw (`v5wire.cap_item`, applied by `v5wire.draw`): every question with more than 26 options
   (25 with the IDK option, which is added when the item is served) keeps the gold option plus distractors sampled from
   `(draw seed, item id, question index)`, the keys re-lettered A..Z in their original order, and a number in the task text equal to
@@ -120,12 +119,17 @@ field: an entry scored under v5 has `by_tier == {"T": .., "N": ..}` and its hist
 - **Several crownings in one cycle.** An entry crowned earlier in a `_decide` loop is part of the bar of the later challengers of the
   group (max(reference, the new champion on this draw), SE against it, stage rows labelled with the extended reference so they are never
   pooled with draws against another reference): a weaker challenger cannot take the title from a stronger one crowned in the same cycle.
-- **Entries that straddle the gate**: an entry that passed its first stage under v4 before the gate is restarted by rule A
+- **Entries that straddle the gate** (critic F7): an entry that passed its first stage under v4 before the gate is restarted by rule A
   (below) unless it is confirmed; if it is somehow confirmed under v5 against a first stage measured under another reference, the
   stage rows are not pooled (different `inc_key`) and its confirmation must reach the crowning z on a single v5 draw: stricter, not
-  weaker. A vacant track under v5 leaves confirmed entries pending (the cohort playoff is not wired): do not set the gate while the
-  track is vacant.
-- Not wired: a vacant-track cohort playoff under v5 (it fails closed with a log line).
+  weaker.
+- **Vacant track on v5.1** (rc11.post5, #25186): with crowning slots configured, an entry that confirms on v5.1 on a track without
+  a champion (its bar: its declared base, by the margin, on both draws) is stored for the next slot (`crown_pending`) exactly as on an
+  occupied track; it is never crowned ad hoc. At the slot one such entry is crowned alone, several play the v5.1 slot rounds
+  (rounds 1-3, `slot_eval_ts`, separation by the margin, G test): the cohort wait is replaced by the slot. A vacant-track
+  confirmation taken under v4 that still waits for its cohort when the gate is open is restarted as a v5.1 first stage (rule A).
+- Not wired: a vacant-track cohort playoff under v5 (it fails closed with a log line). It is reached only without a slot ahead
+  (after the last instant of `CROWN_SLOTS_UTC`) or with `CROWN_SLOTS_UTC` empty: do not run v5.1 without slots on a vacant track.
 - Crowning slots on v5.1 (rc11.post4): every slot after the flip slot (from Thu 29 Oct; `slot_eval_ts(slot)` = slot - 1 s is at or
   after the gate) decides its rounds on v5.1: a v5.1 draw per round, each member's S_v5.1 per round (`v5wire.slot_context`), the
   pooled mean, the v5.1 paired SE pooled over the rounds (`v5wire.slot_pair_se`), margin floor 1.0 and G 0.5, no v4-scale entry
@@ -133,7 +137,7 @@ field: an entry scored under v5 has `by_tier == {"T": .., "N": ..}` and its hist
   A crowning earned under v4 is not measured in a v5.1 slot (rule A: it restarts as a v5.1 first stage); the flip slot itself
   stays v4 and refuses entries decided under v5.1.
 
-### Transition rule A (decided 22 Oct 2026, binding; `EVAL_V5_START_UTC` = the crown slot 2026-10-26T14:30:00Z)
+### Transition rule A (Florian, 22 Oct 2026, binding; `EVAL_V5_START_UTC` = the crown slot 2026-10-26T14:30:00Z)
 An entry that confirms under the current (v4) evaluation before the flip is crowned at the slot as earned; afterwards titles are
 defended on v5 and new entries are scored on v5. Wiring (all behind the gate, `evaluator.py`):
 - A v4 confirmation before the flip is stored as the existing `crown_pending` row (CROWN_SLOTS_UTC, rc11.post1). `_finalise_crown`
@@ -142,7 +146,8 @@ defended on v5 and new entries are scored on v5. Wiring (all behind the gate, `e
 - An entry whose v4 first stage (pending confirmation, or a queued v4 close call) has not confirmed and has no stored crowning at the
   flip is reset to QUEUED once (`_v5_restart_v4_stages`; history row `v5_restart`, log line, `close_draws`/`confirm_draws`/`draw1`/
   `confirm_after_ts` cleared) and takes a v5.1 first stage. The same for all entries; it never confirms under v4 after the flip.
-  A v5.1 stage (first-draw row with `scoring_regime == "v5"`) and a vacant-track confirmation are left alone.
+  A v5.1 stage (first-draw row with `scoring_regime == "v5"`) and a vacant-track confirmation taken on v5.1 are left alone; a
+  vacant-track confirmation taken under v4 (waiting for its cohort playoff) restarts too (rc11.post5).
 - After the flip every challenger draw uses v5.1 against the CURRENT title holders and the challenger's own base: while the seated
   co-champions hold the title, all of them (`cochamp_members`); after a rule-A crowning the new champion alone. The former champions
   (the co-champions are made FORMER by the crowning, rc11.post2) and the pending members are not in the bar and are drawable and

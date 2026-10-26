@@ -1,0 +1,249 @@
+{
+ "binds_hotkey": true,
+ "context": {
+  "chain": "finney:92",
+  "references": {
+   "s1-fast": "ghcr.io/reaxlabs/reax-engine-s1-fast@sha256:9bd41632e33bd90377f7e29bdb9410b18cfe1fb557200160b9ebe9222abcecea"
+  },
+  "thresholds": "c973e35f186a49e081322b0432f58d566f68c843030451c139266be4412eb320",
+  "tracks": [
+   "s1-fast"
+  ],
+  "weights": "f7c7b1b48c8ab11815666f1e209254bb6e94d1fff8dabd0977705196d03c34ea"
+ },
+ "context_sha256": "4616074fce11c4783a92ca582da4aa3a3d4f0b4d1607955581f3cbc4901857e0",
+ "saved_at": 1792528049,
+ "thresholds_sha256": "c973e35f186a49e081322b0432f58d566f68c843030451c139266be4412eb320",
+ "tracks": {
+  "s1-fast": {
+   "attempts": {
+    "32c9beb732d508944ed3fefd471b1a5af381770b67fe7511ad07a85079337e87": 1,
+    "64f16d0c4b5a3a659c89ccfdcf9bb69896d0da785138416181f230427f31f7ab": 2,
+    "81afe9e95c7b1042284777b9dc595201ae0fc7fe9b0d0609c645c9374b8dfd75": 1
+   },
+   "challenger": null,
+   "champion": {
+    "crowned_block": 9326968,
+    "digest": "576fea84b347fc85160f788d737db616be4b5ca4cde19268e0ce1d1f5cdfe12f",
+    "hotkey": "5FLhkmTrKBUCJWnmCEY7xzcuVe6Mpk7FUgLdwfj7SbH33wo2",
+    "score": 2.813648648180558,
+    "uid": 198
+   },
+   "champion_invalid": 0,
+   "champion_last_session": "48c364db71e04da5",
+   "cycle_events": [
+    {
+     "block": 9326684,
+     "evaluated": 0,
+     "event": "cycle_end",
+     "gate_open": true
+    },
+    {
+     "block": 9326880,
+     "evaluated": 0,
+     "event": "cycle_end",
+     "gate_open": true
+    },
+    {
+     "block": 9326968,
+     "evaluated": 7,
+     "event": "cycle_end",
+     "gate_open": true
+    }
+   ],
+   "first_seen": {
+    "092e86a012f070deefa424dd4d28082d8add113031f9ebc6c704f162476bf6fa": [
+     9326382,
+     "5FsCDGu1KWbRN4bY37dNmdhTmLwTwo62fw1QuZP7W4uBvuKF"
+    ],
+    "32c9beb732d508944ed3fefd471b1a5af381770b67fe7511ad07a85079337e87": [
+     9326382,
+     "5H4779QNmr3Z7A9vq47CF6svtG3ZFtWnKx6mwTbSHWWtWSdm"
+    ],
+    "551f6922a940db0cc00bc65130a708616a098a146fce1e8dd760b883026c9e32": [
+     9326967,
+     "5EnAHtNvRCg6mNPqUnnRrqBZ54xMiWRwPpYYHT2VHwVFRoqk"
+    ],
+    "5522db2b9d10c434231bc55bf617ba42827b48ba12f8f26d9c0d3d2e0d03cff9": [
+     9326382,
+     "5GYkg1bSEuo18hbA27y56LEFPBXBkeuvZBFcPfyjuqtWg11S"
+    ],
+    "576fea84b347fc85160f788d737db616be4b5ca4cde19268e0ce1d1f5cdfe12f": [
+     9326382,
+     "5FLhkmTrKBUCJWnmCEY7xzcuVe6Mpk7FUgLdwfj7SbH33wo2"
+    ],
+    "64f16d0c4b5a3a659c89ccfdcf9bb69896d0da785138416181f230427f31f7ab": [
+     9326436,
+     "5HT7NoKsqDiEBoyNsoUsiLScfgnyAkE6yhujro84cZVLraZf"
+    ],
+    "81afe9e95c7b1042284777b9dc595201ae0fc7fe9b0d0609c645c9374b8dfd75": [
+     9326517,
+     "5E72YjwM1oh5LgvXdJiLa5ArtbRD8N6tWXgJkvGnDprUtQ98"
+    ],
+    "97fbb00b978714ef00b0ef66bc7f486b398a22f4d7cbf9341e90fa87f58b12b1": [
+     9326520,
+     "5CATUpvKE1og2mv6vNn19KrBY7ViLw3eXr7BEsF1uTJ2g4nr"
+    ],
+    "abd6981dbcfa07ed5a2aa6d9bb14b45b534c976d21d7849a7c283623420437ee": [
+     9326382,
+     "5CK5gPtuvT3U3YDkVf58SGDxEnU6djXMTeMYjf93kexq3QGZ"
+    ],
+    "e911384d43522701a9814d382ff6b36781584ac27007cd778e207a3b3da8a4e4": [
+     9326959,
+     "5H4779QNmr3Z7A9vq47CF6svtG3ZFtWnKx6mwTbSHWWtWSdm"
+    ],
+    "ec2ee6ed3df69903bf9df5420cde8f869280647ce7d23a3837a2397b2ce34272": [
+     9326382,
+     "5H6iSGe3t74QSUq2RgKtA4sET9EauSYsNBkEjGynW4jJ9htc"
+    ]
+   },
+   "history": [
+    {
+     "block": 0,
+     "dropped_champion": null,
+     "dropped_results": 0,
+     "event": "context_changed",
+     "reason": "state file without a measurement context"
+    },
+    {
+     "block": 9326968,
+     "digest": "576fea84b347fc85160f788d737db616be4b5ca4cde19268e0ce1d1f5cdfe12f",
+     "event": "crowned",
+     "hotkey": "5FLhkmTrKBUCJWnmCEY7xzcuVe6Mpk7FUgLdwfj7SbH33wo2",
+     "pooled": 2.8185,
+     "score": 2.8136,
+     "sessions": 2
+    }
+   ],
+   "not_owner": [
+    "551f6922a940db0cc00bc65130a708616a098a146fce1e8dd760b883026c9e32:5EnAHtNvRCg6mNPqUnnRrqBZ54xMiWRwPpYYHT2VHwVFRoqk"
+   ],
+   "owners": {
+    "092e86a012f070deefa424dd4d28082d8add113031f9ebc6c704f162476bf6fa": "5FsCDGu1KWbRN4bY37dNmdhTmLwTwo62fw1QuZP7W4uBvuKF",
+    "5522db2b9d10c434231bc55bf617ba42827b48ba12f8f26d9c0d3d2e0d03cff9": "5GYkg1bSEuo18hbA27y56LEFPBXBkeuvZBFcPfyjuqtWg11S",
+    "576fea84b347fc85160f788d737db616be4b5ca4cde19268e0ce1d1f5cdfe12f": "5FLhkmTrKBUCJWnmCEY7xzcuVe6Mpk7FUgLdwfj7SbH33wo2",
+    "97fbb00b978714ef00b0ef66bc7f486b398a22f4d7cbf9341e90fa87f58b12b1": "5CATUpvKE1og2mv6vNn19KrBY7ViLw3eXr7BEsF1uTJ2g4nr",
+    "abd6981dbcfa07ed5a2aa6d9bb14b45b534c976d21d7849a7c283623420437ee": "5CK5gPtuvT3U3YDkVf58SGDxEnU6djXMTeMYjf93kexq3QGZ",
+    "e911384d43522701a9814d382ff6b36781584ac27007cd778e207a3b3da8a4e4": "5H4779QNmr3Z7A9vq47CF6svtG3ZFtWnKx6mwTbSHWWtWSdm",
+    "ec2ee6ed3df69903bf9df5420cde8f869280647ce7d23a3837a2397b2ce34272": "5H6iSGe3t74QSUq2RgKtA4sET9EauSYsNBkEjGynW4jJ9htc"
+   },
+   "results": {
+    "092e86a012f070deefa424dd4d28082d8add113031f9ebc6c704f162476bf6fa": {
+     "block": 9326968,
+     "determinism_max_distance": 0.0,
+     "digest": "092e86a012f070deefa424dd4d28082d8add113031f9ebc6c704f162476bf6fa",
+     "items": 512,
+     "latency_p50_s": 0.011580060000142112,
+     "max_distance": 0.0,
+     "mean_distance": 0.0,
+     "ok": true,
+     "probe_max_distance": 0.0,
+     "reason": "",
+     "ref_latency_p50_s": 0.015716754999971272,
+     "ref_throughput": 99.63819254300147,
+     "score": 1.744879480243643,
+     "session": "f9067663b3afcf39",
+     "throughput": 173.85933852257773,
+     "top_agreement": 1.0,
+     "track": "s1-fast"
+    },
+    "5522db2b9d10c434231bc55bf617ba42827b48ba12f8f26d9c0d3d2e0d03cff9": {
+     "block": 9326968,
+     "determinism_max_distance": 0.0,
+     "digest": "5522db2b9d10c434231bc55bf617ba42827b48ba12f8f26d9c0d3d2e0d03cff9",
+     "items": 512,
+     "latency_p50_s": 0.011443410000083531,
+     "max_distance": 0.2500003327170312,
+     "mean_distance": 0.058218915126104366,
+     "ok": true,
+     "probe_max_distance": 0.15625013245673103,
+     "reason": "",
+     "ref_latency_p50_s": 0.015187229999924057,
+     "ref_throughput": 99.61848245232122,
+     "score": 1.3031637413675035,
+     "session": "c63adc8258e5d156",
+     "throughput": 129.81928088326455,
+     "top_agreement": 1.0,
+     "track": "s1-fast"
+    },
+    "576fea84b347fc85160f788d737db616be4b5ca4cde19268e0ce1d1f5cdfe12f": {
+     "block": 9326968,
+     "determinism_max_distance": 0.0,
+     "digest": "576fea84b347fc85160f788d737db616be4b5ca4cde19268e0ce1d1f5cdfe12f",
+     "items": 512,
+     "latency_p50_s": 0.013404084999820043,
+     "max_distance": 0.0,
+     "mean_distance": 0.0,
+     "ok": true,
+     "probe_max_distance": 0.0,
+     "reason": "",
+     "ref_latency_p50_s": 0.015033764999998311,
+     "ref_throughput": 100.61912193911445,
+     "score": 2.813648648180558,
+     "session": "48c364db71e04da5",
+     "throughput": 283.1089366051525,
+     "top_agreement": 1.0,
+     "track": "s1-fast"
+    },
+    "97fbb00b978714ef00b0ef66bc7f486b398a22f4d7cbf9341e90fa87f58b12b1": {
+     "block": 9326968,
+     "determinism_max_distance": 0.0,
+     "digest": "97fbb00b978714ef00b0ef66bc7f486b398a22f4d7cbf9341e90fa87f58b12b1",
+     "items": 512,
+     "latency_p50_s": 0.014649069999961739,
+     "max_distance": 0.0,
+     "mean_distance": 0.0,
+     "ok": true,
+     "probe_max_distance": 0.0,
+     "reason": "",
+     "ref_latency_p50_s": 0.01512681999997767,
+     "ref_throughput": 100.16918964284578,
+     "score": 1.3146088222190193,
+     "session": "8f4d8d8aecdf2228",
+     "throughput": 131.68321916813892,
+     "top_agreement": 1.0,
+     "track": "s1-fast"
+    },
+    "abd6981dbcfa07ed5a2aa6d9bb14b45b534c976d21d7849a7c283623420437ee": {
+     "block": 9326968,
+     "determinism_max_distance": 0.0,
+     "digest": "abd6981dbcfa07ed5a2aa6d9bb14b45b534c976d21d7849a7c283623420437ee",
+     "items": 512,
+     "latency_p50_s": 0.012512319999984811,
+     "max_distance": 0.0,
+     "mean_distance": 0.0,
+     "ok": true,
+     "probe_max_distance": 0.0,
+     "reason": "",
+     "ref_latency_p50_s": 0.016091244999984156,
+     "ref_throughput": 100.41875895724738,
+     "score": 2.302432238349546,
+     "session": "bfae412112bc5c47",
+     "throughput": 231.20958690318324,
+     "top_agreement": 1.0,
+     "track": "s1-fast"
+    },
+    "ec2ee6ed3df69903bf9df5420cde8f869280647ce7d23a3837a2397b2ce34272": {
+     "block": 9326968,
+     "determinism_max_distance": 0.0,
+     "digest": "ec2ee6ed3df69903bf9df5420cde8f869280647ce7d23a3837a2397b2ce34272",
+     "items": 512,
+     "latency_p50_s": 0.009714879999933146,
+     "max_distance": 0.0,
+     "mean_distance": 0.0,
+     "ok": true,
+     "probe_max_distance": 0.0,
+     "reason": "",
+     "ref_latency_p50_s": 0.01495457000009992,
+     "ref_throughput": 100.47401003776191,
+     "score": 2.82332066708034,
+     "session": "cb2ded02cdb674e3",
+     "throughput": 283.65462862039806,
+     "top_agreement": 1.0,
+     "track": "s1-fast"
+    }
+   }
+  }
+ },
+ "version": 1
+}

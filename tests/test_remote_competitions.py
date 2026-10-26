@@ -491,6 +491,7 @@ def dev_map(tmp_path):
     return mapping
 
 
+@pytest.mark.usefixtures("rules_v4_gates_off")
 async def test_worker_runs_engine_and_spec_cycles_and_writes_both_files(tmp_path, dev_map):
     (tmp_path / "sealed").mkdir()
     env = worker_env(tmp_path, REAX_ENGINE_DEV_PARAMS=json.dumps({"track": {

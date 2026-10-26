@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Mapping, Optional
 
 from .scoring import ScoringParams
-from .tiers import CAPACITY
+from .tiers import CAPACITY, GPU_POOLS, capacity_table
 
 # Reserved features that are not part of this release.
 # Setting any of these to a true value aborts startup, so nobody can believe a
@@ -460,15 +460,31 @@ def load_common(env: Mapping[str, str] = os.environ) -> CommonConfig:
 
 
 # Miner limits that let a capacity probe show the full per-hotkey cap of the GPU pools (derived from tiers.CAPACITY, so
-# they follow CAPACITY_CAP_MULTIPLIER: x1 gives the old 16 / 240 / 8, x2 (later release) gives 32 / 456 / 8, x4 gives 64 / 888 / 16): one validator's probe sends
+# they follow CAPACITY_CAP_MULTIPLIER: x1 gives the old 16 / 240 / 8, x2 gives 32 / 456 / 8, s1-pro at x4 gives 64 / 728 / 16 and s1-fast at x4 gives 64 / 888 / 16; per model, see probe_defaults): one validator's probe sends
 # up to max_requests in its window and keeps lanes_for(cap) requests in flight; normal rounds add a few requests per
 # minute; the runtime queue (4 x max_concurrent + max_concurrent) must hold the lanes of one probe.
-_GPU_POOLS = ("s1-fast", "s1-pro")
+_GPU_POOLS = GPU_POOLS
+_SMALL_POOL_DEFAULT_TABLE = capacity_table(2.0)  # s1-lite / s1-cpu miners keep the x2 s1-fast limits (32 / 456 / 8)
+
+
+def probe_defaults(model: str) -> tuple[int, int, int]:
+    """(per-caller concurrency, per-caller requests per minute, max concurrent) that let a probe show the cap of this
+    model's pool. s1-fast and s1-pro follow their own pool's multiplier (1.2.0rc11.post7: both x4); the small pools
+    keep the x2 s1-fast values (32 / 456 / 8, pending 64), exactly as before the GPU pools went to x4 (their own caps
+    never needed more)."""
+    if model in _GPU_POOLS or not model:
+        pools = (model,) if model else _GPU_POOLS  # "": the widest (module DEFAULT_*)
+        table = CAPACITY
+    else:
+        pools, table = ("s1-fast",), _SMALL_POOL_DEFAULT_TABLE
+    lanes = max(table[p].lanes_for(table[p].cap_dps) for p in pools)
+    requests = max(table[p].max_requests for p in pools)
+    return lanes, requests + 24, max(8, -(-lanes // 4))
+
+
 PROBE_LANES_AT_CAP = max(CAPACITY[p].lanes_for(CAPACITY[p].cap_dps) for p in _GPU_POOLS)
 PROBE_REQUESTS_AT_CAP = max(CAPACITY[p].max_requests for p in _GPU_POOLS)
-DEFAULT_PER_CALLER_CONCURRENCY = PROBE_LANES_AT_CAP
-DEFAULT_PER_CALLER_PER_MINUTE = PROBE_REQUESTS_AT_CAP + 24
-DEFAULT_MAX_CONCURRENT = max(8, -(-PROBE_LANES_AT_CAP // 4))
+DEFAULT_PER_CALLER_CONCURRENCY, DEFAULT_PER_CALLER_PER_MINUTE, DEFAULT_MAX_CONCURRENT = probe_defaults("")
 
 
 def default_max_pending_per_ip(per_caller_concurrency: int) -> int:
@@ -534,8 +550,9 @@ def load_miner(env: Mapping[str, str] = os.environ) -> MinerConfig:
         # Integration of the two v2 changes: each default is the larger of what one probe at the pool cap needs (capx4)
         # and the old per-backend default times the number of runtime backends (minerfanout); x1 with one backend =
         # 8 / 16 / 240. Every model of a hotkey has its own lane with its own limits, sized by its own backends.
+        d_concurrency, d_per_minute, d_max_concurrent = probe_defaults(m)
         per_caller_concurrency = _int(env, "REAX_PER_CALLER_CONCURRENCY",
-                                      min(128, max(DEFAULT_PER_CALLER_CONCURRENCY, 16 * n_backends)), 1, 128)
+                                      min(128, max(d_concurrency, 16 * n_backends)), 1, 128)
         models.append(MinerModel(
             model=m,
             # Capacity probes offer up to PROBE_LANES_AT_CAP concurrent requests per validator and, at the pool cap,
@@ -544,10 +561,10 @@ def load_miner(env: Mapping[str, str] = os.environ) -> MinerConfig:
             # several runtime backends the defaults also grow with their number (docs/MINER.md, "Several GPUs or
             # machines").
             max_concurrent=_int(env, "REAX_MAX_CONCURRENT",
-                                min(256, max(DEFAULT_MAX_CONCURRENT, 8 * n_backends)), 1, 256),
+                                min(256, max(d_max_concurrent, 8 * n_backends)), 1, 256),
             per_caller_concurrency=per_caller_concurrency,
             per_caller_per_minute=_int(env, "REAX_PER_CALLER_PER_MINUTE",
-                                       min(6000, max(DEFAULT_PER_CALLER_PER_MINUTE, 240 * n_backends)), 1, 6000),
+                                       min(6000, max(d_per_minute, 240 * n_backends)), 1, 6000),
             workers_file=workers_file, workers=workers, workers_min_healthy=min_healthy,
         ))
     if several and not multinode:
@@ -569,7 +586,7 @@ def load_miner(env: Mapping[str, str] = os.environ) -> MinerConfig:
         per_caller_per_minute=first.per_caller_per_minute,
         body_timeout_s=_float(env, "REAX_BODY_TIMEOUT_S", 5.0, 0.5, 60.0),
         max_pending_per_ip=_int(env, "REAX_MAX_PENDING_PER_IP",
-                                default_max_pending_per_ip(first.per_caller_concurrency), 1, 1024),
+                                default_max_pending_per_ip(max(m.per_caller_concurrency for m in models)), 1, 1024),
         max_pending_total=_int(env, "REAX_MAX_PENDING_TOTAL", 4096, 16, 100_000),
         publish_commitment=_bool(env, "REAX_PUBLISH_COMMITMENT", True),
         multinode=multinode,

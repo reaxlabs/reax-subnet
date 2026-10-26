@@ -285,6 +285,10 @@ class HfFetcher:
         """Check public revision metadata only; no directory creation or model download."""
         await self._listing(commitment)
 
+    async def probe_listing(self, commitment: SpecCommitment) -> RepoListing:
+        """``probe`` that also returns the listing (D4: the keep-alive from a commitment wants safetensors listed)."""
+        return await self._listing(commitment)
+
     async def _listing(self, commitment: SpecCommitment) -> RepoListing:
         loop = asyncio.get_running_loop()
         listing = await loop.run_in_executor(None, self.hub.listing, commitment.repo, commitment.revision)

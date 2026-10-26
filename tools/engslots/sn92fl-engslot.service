@@ -1,0 +1,10 @@
+[Unit]
+Description=SN92 engine slot finalization with bounded retry
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/jobs/sn92-fast-launch-20261015/engbox/hardening/engslot-release.conf
+Environment=DRY_RUN=0
+ExecStart=%h/jobs/sn92-fast-launch-20261015/engbox/hardening/engslot-retry.sh
+TimeoutStartSec=4h5min
+MemoryMax=1G

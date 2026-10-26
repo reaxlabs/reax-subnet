@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "revision": "2026-10-23-empty",
+  "note": "EU tier registry (docs/EU-TIER.md). No operator is listed: Scheme A and the contract tier are inactive. An operator is entered only after a signed contract AND a DPA exist (ids below); entries are a reviewed, published revision.",
+  "scheme_a": {"operators": []},
+  "eu_contract_tier": {
+    "version": 1,
+    "eur_per_gpu_hour": 1.00,
+    "gpu_class": "rtx-pro-6000-96gb",
+    "cap_pct_of_inference_share": 5.0,
+    "review_due": "2026-11-22",
+    "operators": []
+  }
+}

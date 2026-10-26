@@ -271,6 +271,7 @@ async def test_a_clean_image_gets_a_record_and_no_gate_outside_release_mode(tmp_
     await r.start(CAND, "s1-fast", P)          # and the start works without a REVIEWED marker
 
 
+@pytest.mark.usefixtures("rules_v4_gates_off")
 async def test_obvious_violation_is_rejected_with_a_reason_and_recorded(tmp_path, monkeypatch):
     monkeypatch.setattr(ER, "_run", Docker(info=good_image(User="root", ExposedPorts={"80/tcp": {}})))
     r = runner_for(tmp_path)

@@ -1,0 +1,10 @@
+[Unit]
+Description=SN92 Tuesday and Friday engine slots
+
+[Timer]
+OnCalendar=Tue,Fri *-*-* 14:30:00 UTC
+Persistent=true
+Unit=sn92fl-engslot.service
+
+[Install]
+WantedBy=timers.target

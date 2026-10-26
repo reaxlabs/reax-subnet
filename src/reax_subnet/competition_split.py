@@ -22,7 +22,7 @@ import math
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Mapping, Optional, Protocol, Sequence
+from typing import Any, Callable, Mapping, Optional, Protocol, Sequence
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +36,9 @@ SPECIALIST_TRACKS_START_UTC = COMPETITIONS_START_UTC
 # 1.2.0rc9.post5: opens Tue 20 Oct 2026 18:00 UTC (DECISIONS 19 Oct 11:05Z; gates: runsc GO + calibration, FLA reference
 # 9bd41632, RUNBOOK-P re-review, candidate-box spend card 17879).
 ENGINE_TRACK_START_UTC: Optional[datetime] = datetime(2026, 10, 20, 18, 0, tzinfo=timezone.utc)
+# Quantisation Option A: announced switch and three-day conversion window (25 Oct decision).
+ENGINE_QUANT_RULE_START_UTC = datetime(2026, 10, 27, 14, 30, tzinfo=timezone.utc)
+ENGINE_QUANT_CONVERSION_END_UTC = datetime(2026, 10, 30, 14, 30, tzinfo=timezone.utc)
 # Generalist replaces all specialist slots at this exact instant. Only generalist gets the post6 open class.
 # Default target only: the release owner sets the agreed opening and notice times before shipping both images.
 GENERALIST_START_UTC = datetime(2026, 10, 21, 13, 0, tzinfo=timezone.utc)
@@ -295,19 +298,107 @@ OPENING_PLAYOFF_BASE_MARGIN = 1.5   # points above the declared base's floor
 
 
 
+# Generalist opening co-champions (1.2.0rc11.post1; Florian 22 Oct 2026 ~12:2xZ, DECISIONS): uid 116, 199 and 250 are
+# co-champions of the generalist opening, equal thirds of the champion's rank-1 share (TRACK_RANK_SPLIT[0]) until a new
+# entry beats the best of them (the worker's challenger bar is the best co-champion on the challenger's own draw,
+# spec.evaluator._decide). The listed keys are "hotkey|commitment text" of the submissions. While the state's generalist
+# champion is one of them each listed entry that is still committed (its hotkey holds a uid and commits exactly that text),
+# not withdrawn or rejected, and has its OWN owner approval (award_ok, per hotkey and submission) is paid one third of
+# rank 1's share; an unapproved or dropped member's third goes to the inference part, never to the other members. A
+# member takes no keep-alive slot while its third is paid (an unapproved one keeps the champion's protected slot). Once
+# a challenger holds the title the set ends and every entry is an ordinary one. The spec track has no champion decay,
+# so GENERALIST_CO_CHAMPIONS_CROWNED (the opening playoff's crowning) only starts the members' keep-alive window.
+# Empty = off: exactly the weights without this rule.
+GENERALIST_CO_CHAMPIONS: tuple[str, ...] = (
+    "5GNAwERfaf3Rd5bFrg2JJvyo6L53AovkAv2HEALLkGNDxGhF|reax-spec/1:generalist:Andrew93110/sn92-gen-v1@4d2a519d78377e63c46cbf35c26b09a71c28adf8",  # uid 116
+    "5CwV6dNFeyNqY6FQmZm9bQdta3qWe2xGuFWtXrS198N5K6r1|reax-spec/1:generalist:putty77/sn92-generalist-a@dbeec5635aa717e4654b8a719499a0ce80c370ea",  # uid 199
+    "5DUJxXJpZrFKrTLNAWw3H6FT1Du1z2zLNzEg3vzG32t6WTos|reax-spec/1:generalist:reax-knockout/sn92-gen-a1@d57f18b92547b9c669bf93fa74ee64443ddb45d8",  # uid 250
+)
+GENERALIST_CO_CHAMPIONS_TRACK = "generalist"   # the track the set belongs to (a constant so the tests can run it on a small track)
+GENERALIST_CO_CHAMPIONS_CROWNED: Optional[datetime] = datetime(2026, 10, 22, 9, 7, 25, tzinfo=timezone.utc)
+
+# Crown slots (1.2.0rc11.post1/post2). When non-empty, a challenger decision that would crown on a specialist track is stored as
+# "pending crown" (scores published, the champion unchanged; the other challengers keep being evaluated against the current
+# bar) and finalised at the first instant in this list that is >= the decision: one stored entry is crowned, several run a
+# slot playoff (spec.evaluator._run_playoff slot=True, up to three shared draws). A decision after the last instant crowns at
+# once. Empty = a decision crowns at once, as before.
+def _crown_slots(first: datetime, last: datetime, weekdays: tuple[int, ...] = (0, 3)) -> tuple[datetime, ...]:
+    """Every ``weekdays`` (0 = Monday, 3 = Thursday) at the time of day of ``first``, from ``first`` through ``last``."""
+    out, day = [], first
+    while day <= last:
+        if day.weekday() in weekdays:
+            out.append(day)
+        day += timedelta(days=1)
+    return tuple(out)
+
+
+# rc11.post3 (Florian #24089, slots-mon-thu-1430z): every Monday AND Thursday 14:30Z from Mon 26 Oct 2026 (26 Oct, 29 Oct,
+# 2 Nov, 5 Nov, ...), generated through 31 Mar 2027; the same rules at every slot. Fixed UTC (15:30 Berlin in winter time).
+CROWN_SLOTS_UTC: tuple[datetime, ...] = _crown_slots(datetime(2026, 10, 26, 14, 30, tzinfo=timezone.utc),
+                                                     datetime(2027, 3, 31, 23, 59, tzinfo=timezone.utc))
+
+
+# Engine titles change on Tuesday and Friday, independently of measurement batches. Empty = legacy instant crowns.
+ENGINE_CROWN_SLOTS_UTC: tuple[datetime, ...] = _crown_slots(
+    datetime(2026, 10, 27, 14, 30, tzinfo=timezone.utc),
+    datetime(2027, 3, 31, 23, 59, tzinfo=timezone.utc), weekdays=(1, 4))
+
+
+# Shared leading group at a crown slot (1.2.0rc11.post3; CRITERIA v2 and the public slot rules, reax.co/competitions/faq/#slot-rules;
+# Florian's decisions 22 Oct, card 18227 and DECISIONS tie-numbers-k). Every knob is ONE constant with the approved default, so a
+# change is a one-liner (it must be announced 48 h before the first slot it applies to, slot rules section 1).
+SLOT_MAX_ROUNDS = 3                 # shared rounds (fresh draws, the track's normal draw size: 900 items on v4) per slot
+SLOT_G_FLOOR_FRACTION = 0.5         # K8: G = this x the margin floor of the pinned evaluation (0.5 x 1.0 = 0.5 points on v4)
+SLOT_K8B_LEADER_ALONE = True        # K8b-a: not separated but every other member more than G behind -> the leader is crowned alone.
+                                    # False (K8b-b): nobody is crowned and the entries go back to the challenger path
+SLOT_OWNER_COLDKEY_OR_HF = True     # K4-a: one entry per holder = same coldkey OR same Hugging Face account/org; False = coldkey only (K4-b)
+SLOT_GROUP_CAP: Optional[int] = None  # K6: no cap on the shared group (an int n keeps the n best pooled means)
+SLOT_K1_A = True                    # K1-a: a confirmation due at or before slot - SLOT_K1_DUE_LEAD_S that has not run by the slot is
+                                    # run first, on the slot's evaluation, and joins the slot if it passes. False = K1-b
+SLOT_K1_DUE_LEAD_S = 3600.0         # "due" = first pass + CONFIRM_DELAY_S at or before slot - this (13:30:00Z for a 14:30Z slot)
+SLOT_CLOCK_S = 12 * 3600.0          # K7: everything of a slot (K1-a confirmations, rounds, retries) finishes by slot + this
+SLOT_VOID_RETRIES = 2               # K7: a round voided by our side (every member failed / host fault) is re-run on new items at most this often
+SLOT_SERVE_RETRIES = 1              # rule 4.1: a member whose model fails on a round is retried this often on the same items
+SLOT_STOP_WHEN_SEPARATED = True     # K2: stop as soon as one member is left (False: always run SLOT_MAX_ROUNDS rounds)
+SLOT_RESULTS_KEEP = 40              # slot result records kept in the state (TrackState.slot_results, newest last)
+
+
 class RankedLeaders(list):
     """``[(uid, score), ...]`` already in rank order, rank 1 first (docs/SPECIALIST-TRACKS.md, "Ranks"): the specialist
     evaluator's champion, then its former champions, most recently crowned first. ``track_payout`` pays it in this
     order and never re-sorts it by score; the scores come from different draws and are not comparable.
 
     ``crowned``: uid -> when that entry was crowned champion (unix seconds), for the entries that have such a time (the
-    champion; a former champion keeps the time it was crowned). Read only by the keep-share rule (``APPROVAL_GRACE_S``)."""
+    champion; a former champion keeps the time it was crowned). Read only by the keep-share rule (``APPROVAL_GRACE_S``).
+
+    ``cochamps``: uid -> the fraction of rank 1's share that uid is paid, for the members of the opening co-champion set
+    (``GENERALIST_CO_CHAMPIONS``) that are still committed (1/n each, n = the size of the set; a dropped member's fraction is
+    not listed and not redistributed). Empty = rank 1 is one entry. The first entry of the list is then a member.
+
+    ``formset`` (1.2.0rc11.post2): the same for the opening co-champion set AFTER a challenger beat it. The set is one former
+    champion: it takes ONE place in the list (its first committed member stands for it, placed by
+    ``GENERALIST_CO_CHAMPIONS_CROWNED``) and that place's share is split 1/n over ``formset`` (n = the size of the set; a
+    dropped member's fraction is not redistributed). Empty = no such set.
+
+    ``formsets`` (1.2.0rc11.post3): the same for every shared group crowned at a slot and later beaten (each its own
+    ``{uid: 1/n}``, n = the size of the group); each is ONE former champion with one place in the list. Empty = none.
+
+    ``cochamps_dynamic`` (1.2.0rc11.post3): True when ``cochamps`` is a shared group crowned at a slot (the state's
+    ``TrackState.cochamps``), False for the hard-coded opening set (no keep-share rule for it, as in rc11.post2)."""
 
     crowned: dict[int, float]
+    cochamps: dict[int, float]
+    formset: dict[int, float]
+    formsets: list[dict[int, float]]
+    cochamps_dynamic: bool
 
     def __init__(self, *args):
         super().__init__(*args)
         self.crowned = {}
+        self.cochamps = {}
+        self.formset = {}
+        self.formsets = []
+        self.cochamps_dynamic = False
 
 
 # Per track: [(uid, score)]. A ``RankedLeaders`` (what the specialist evaluator returns) is paid in its order; any
@@ -445,6 +536,46 @@ def keep_share_ranks(ranks: Mapping[int, float], crowned: Optional[Mapping[int, 
     return dict(ranks)
 
 
+def keep_share_set_ranks(ranks: Mapping[int, float], scores: Any, floor: Optional[float], now: float,
+                         approved: Callable[[int], bool]) -> dict[int, float]:
+    """The keep-share rule when rank 1 and/or a former-champion place is a shared group (rc11.post3; slot rules section 8,
+    CRITERIA 5.3). ``ranks`` = ``rank_shares(scores, floor)``; ``scores`` = the ``RankedLeaders`` (order, crowning times,
+    ``cochamps`` / ``formset`` / ``formsets``). A unit is one place: rank 1's group (``cochamps``) or its one entry, a beaten
+    group (ONE former champion) or one former champion. For up to ``APPROVAL_GRACE_S`` from rank 1's crowning, the part of
+    rank 1's share that belongs to its members NOT yet approved goes to the first later unit with an approved member,
+    split like that unit's own place (1/n per member of a group; the award gate still skips an unapproved member, whose
+    part stays with the inference part), INSTEAD of the unit's own place share (which goes to the inference part).
+    Unchanged when every member of rank 1 is approved, the crowning time is unknown / older than the grace / in the
+    future, or no later unit has an approved member. For a single champion beating a single champion this is exactly
+    ``keep_share_ranks``. Pure."""
+    items = list(track_payout(scores, floor).items())
+    co = getattr(scores, "cochamps", None) or {}
+    sets = [fs for fs in [getattr(scores, "formset", None), *(getattr(scores, "formsets", None) or [])] if fs]
+    order = [u for u, _ in scores] if not isinstance(scores, Mapping) else list(scores)
+    units: list[dict[int, float]] = []
+    for i, (rep, _) in enumerate(items):
+        if i == 0 and co and rep in co:
+            units.append({u: min(1.0, f) for u, f in co.items()})
+            continue
+        fs = next((f for f in sets if rep in f and next((u for u in order if u in f), None) == rep), None)
+        units.append({u: min(1.0, f) for u, f in fs.items()} if fs is not None else {rep: 1.0})
+    crowned = getattr(scores, "crowned", None)
+    if len(units) < 2 or crowned is None:
+        return dict(ranks)
+    pending = math.fsum(ranks.get(u, 0.0) for u in units[0] if not approved(u))
+    since = crowned.get(items[0][0])
+    if pending <= 0 or not isinstance(since, (int, float)) or not math.isfinite(since) or now - since >= APPROVAL_GRACE_S \
+            or since > now + CROWN_FUTURE_SLACK_S:
+        return dict(ranks)
+    for unit in units[1:]:
+        if any(approved(u) for u in unit):
+            out = {u: share for u, share in ranks.items() if u not in unit}
+            for u, frac in sorted(unit.items()):
+                out[u] = pending * frac
+            return out
+    return dict(ranks)
+
+
 def track_payout(scores: Mapping[int, float] | Sequence[tuple[int, float]],
                  floor: Optional[float] = None) -> dict[int, float]:
     """75/17/8 for ranks 1-3. A ``RankedLeaders`` keeps its order (a uid counts at its first place); anything else is
@@ -462,6 +593,35 @@ def track_payout(scores: Mapping[int, float] | Sequence[tuple[int, float]],
         best[uid] = float(s)
     ranked = list(best) if in_order else sorted(best, key=lambda u: (-best[u], u))
     return {uid: share for uid, share in zip(ranked[: len(TRACK_RANK_SPLIT)], TRACK_RANK_SPLIT)}
+
+
+def rank_shares(scores: Mapping[int, float] | Sequence[tuple[int, float]], floor: Optional[float] = None) -> dict[int, float]:
+    """``track_payout`` with the co-champion sets applied: rank 1's share is split over ``scores.cochamps`` (a
+    ``RankedLeaders``; empty = no set, exactly ``track_payout``), only when rank 1 is itself a listed member; the place of a
+    beaten set (``formset`` / ``formsets``, each ONE former champion) is split 1/n over its members."""
+    ranks = track_payout(scores, floor)
+    sets = [fs for fs in [getattr(scores, "formset", None), *(getattr(scores, "formsets", None) or [])] if fs]
+    reps: dict[int, Mapping[int, float]] = {}   # the beaten sets (rc11.post2/post3): one former-champion place, split 1/n
+    for fs in sets:
+        rep = next((u for u, _ in scores if u in fs), None)
+        if rep in ranks:
+            reps[rep] = fs
+    co = getattr(scores, "cochamps", None)
+    items = list(ranks.items())
+    co_on = bool(co) and bool(items) and items[0][0] in co
+    if not ranks or not (reps or co_on):
+        return ranks
+    out: dict[int, float] = {}
+    for i, (uid, share) in enumerate(items):
+        if i == 0 and co_on:
+            for m, frac in sorted(co.items()):
+                out[m] = out.get(m, 0.0) + share * min(1.0, frac)
+        elif uid in reps:
+            for m, frac in sorted(reps[uid].items()):
+                out[m] = out.get(m, 0.0) + share * min(1.0, frac)
+        else:
+            out[uid] = out.get(uid, 0.0) + share
+    return out
 
 
 def keepalive_uids(entries: Sequence[tuple[int, float]], floor: Optional[float] = None,
@@ -553,6 +713,10 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     claimed stays with ``serving``. The result is normalised to sum 1; an empty ``serving`` returns ``{}``.
     """
     prof = profile_for(profile, datetime.fromtimestamp(now, timezone.utc) if now is not None else None)
+    if floors is TRACK_ENTRY_FLOOR and now is not None and TRACK_ENTRY_FLOOR.get("generalist") is not None:
+        from .spec import sampling as _sampling    # eval v5: the generalist scores are S_v5.1 (DI scale); the v4-scale release floor is off
+        if _sampling.v5_active(now):
+            floors = {**TRACK_ENTRY_FLOOR, "generalist": None}
     base_total = math.fsum(w for w in serving.values() if w > 0)
     if base_total <= 0:
         return {}
@@ -576,7 +740,7 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             uids = keepalive_uids(entries, floors.get(track_id), owner_uid)
             if award_ok is not None and uids:
                 # an approved entry is paid by its rank: it does not also hold a keep-alive slot
-                ranked = track_payout(tracks.get(track_id, ()), floors.get(track_id))
+                ranked = rank_shares(tracks.get(track_id, ()), floors.get(track_id))
                 uids = [uid for uid in uids if not (uid in ranked and award_ok(track_id, uid))]
             if uids:
                 cand[track_id] = uids
@@ -590,7 +754,7 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                     ids.append(uid)
             if ids:
                 prov_cand[track_id] = ids
-    ranks_of = {t: track_payout(tracks[t], floors.get(t)) for t in tracks}
+    ranks_of = {t: rank_shares(tracks[t], floors.get(t)) for t in tracks}
 
     def cut(track_id: str, uids: list[int]) -> list[int]:
         # rc10.post5 (Florian via CoS #23485): protected uids (open opening-cohort entries of the vacant generalist track,
@@ -709,10 +873,16 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             rank_share -= each_prov * n_prov
             log.info("track %s: provisional keep-alive for uids %s, each %.5f of the miner part",
                      track_id, ids, each_prov)
-        ranked_pay = ranks_of.get(track_id) or track_payout(tracks.get(track_id, ()), floors.get(track_id))
+        ranked_pay = ranks_of.get(track_id) or rank_shares(tracks.get(track_id, ()), floors.get(track_id))
         if keep_share and award_ok is not None and now is not None:
-            ranked_pay = keep_share_ranks(ranked_pay, getattr(tracks.get(track_id), "crowned", None), now,
-                                          lambda u, t=track_id: award_ok(t, u))
+            tr = tracks.get(track_id)
+            if getattr(tr, "cochamps", None) and not getattr(tr, "cochamps_dynamic", False):
+                pass    # the opening co-champion set holds rank 1: no keep-share rule (as in rc11.post2)
+            elif getattr(tr, "cochamps", None) or getattr(tr, "formset", None) or getattr(tr, "formsets", None):
+                # a shared group at rank 1 or a beaten group as a former place (rc11.post3, slot rules section 8: pro rata)
+                ranked_pay = keep_share_set_ranks(ranked_pay, tr, floors.get(track_id), now, lambda u, t=track_id: award_ok(t, u))
+            else:
+                ranked_pay = keep_share_ranks(ranked_pay, getattr(tr, "crowned", None), now, lambda u, t=track_id: award_ok(t, u))
         for uid, share in ranked_pay.items():
             if award_ok is not None and not award_ok(track_id, uid):
                 continue

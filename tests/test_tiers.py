@@ -414,8 +414,9 @@ def test_probes_fit_the_miner_default_limits():
     from reax_subnet.config import load_miner
     from reax_subnet.s1protocol import MAX_DECISIONS
 
-    cfg = load_miner({**DEV})
     for pool, cap in tiers.CAPACITY.items():
+        # each model's miner default follows its own pool (s1-fast x2, s1-pro x4); the small pools get the widest GPU values
+        cfg = load_miner({**DEV, "REAX_MODEL": pool})
         assert cap.max_requests + 2 <= cfg.per_caller_per_minute, pool  # the round's own request, and a late one
         assert cap.items_per_request <= MAX_DECISIONS and cap.inflight <= cfg.per_caller_concurrency, pool
         assert cap.inflight <= cfg.max_concurrent * 5, pool  # running + queued (queue = 4 x max_concurrent)

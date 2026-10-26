@@ -606,7 +606,7 @@ def test_panel_stats_parsing_and_validation():
                 {"pool_version": "v", "T": {"mean": True, "sd": 1}}):
         with pytest.raises(ValueError):
             v5.panel_from_json(bad)
-    assert set(v5.PANEL_STATS) == {"v0.1"}        # pool v0.1 MAIN, stock panel at w_N 0.4
+    assert set(v5.PANEL_STATS) == {"v0.1"}        # pool v0.1 MAIN, stock panel at w_N 0.4 (round2-v5-monday ON-REPLY step 3)
     v01 = v5.PANEL_STATS["v0.1"]
     assert (v01.version, v01.t, v01.n, v01.pub) == ("v0.1", (58.443470442129176, 19.08197856407689),
                                                      (28.490328496088534, 8.20230568361892), (46.68485197351358, 19.22683663229349))
@@ -695,7 +695,6 @@ def test_type_cells_enforce_the_per_type_floor_and_cover_every_area():
     assert cells[("T", "k_plain")] == 12 and cells[("T", "k_gold")] > 30 and sum(cells.values()) == 200
 
 
-@pytest.mark.skip(reason="validator draw/wiring for v5 ships with the release that activates it; this release publishes the scorer only")
 def test_draw_composition():
     pool = v5_pool()
     rows, fresh = v5.draw_v5(pool, n=900, seed=7, use_counts={})
@@ -713,7 +712,6 @@ def test_draw_composition():
         v5.draw_v5(pool, n=300, seed=1, use_counts={})
 
 
-@pytest.mark.skip(reason="validator draw/wiring for v5 ships with the release that activates it; this release publishes the scorer only")
 def test_draw_with_public_items_for_the_gap_check():
     pool = v5_pool(pub=40)
     params = v5.V5Params(pub_items=60)
@@ -728,7 +726,6 @@ def test_draw_with_public_items_for_the_gap_check():
     assert not any(v5._row_part(r) == "old" for r in rows)
 
 
-@pytest.mark.skip(reason="validator draw/wiring for v5 ships with the release that activates it; this release publishes the scorer only")
 def test_draw_uses_least_used_first_exclude_and_retirement():
     pool = v5_pool(per_type=100, per_n=100)
     use = {r["id"]: 5 for r in pool if r["tier"] == "mirror" and r["id"].endswith("-0")}   # one used item per type
@@ -747,7 +744,6 @@ def test_draw_uses_least_used_first_exclude_and_retirement():
     assert v5.draw_v5(pool, n=900, seed=1, use_counts=heavy)[1] is False
 
 
-@pytest.mark.skip(reason="validator draw/wiring for v5 ships with the release that activates it; this release publishes the scorer only")
 def test_sampling_routes_by_gate(monkeypatch):
     pool = v5_pool(per_cat=40)
     now = T.timestamp()
@@ -789,7 +785,6 @@ def _digests(pool, monkeypatch):
     return out
 
 
-@pytest.mark.skip(reason="validator draw/wiring for v5 ships with the release that activates it; this release publishes the scorer only")
 def test_gate_defaults_to_none():
     assert S.EVAL_V5_START_UTC is None and v5.EVALUATOR_WIRED is True   # wired (tests/test_v5_wiring.py); the gate stays off
     assert not S.v5_active(10 ** 12) and v5.scoring_regime(10 ** 12) == "v4"
@@ -800,7 +795,6 @@ def test_gate_off_draws_equal_rc11_bit_for_bit(monkeypatch):
     assert _digests(_v4_pool(), monkeypatch) == V4_DIGESTS
 
 
-@pytest.mark.skip(reason="validator draw/wiring for v5 ships with the release that activates it; this release publishes the scorer only")
 def test_gate_off_ignores_mirror_rows_in_the_pool(monkeypatch):
     mixed = _v4_pool() + [r for r in v5_pool() if r["tier"] == "mirror"]
     assert _digests(mixed, monkeypatch) == V4_DIGESTS
@@ -808,7 +802,6 @@ def test_gate_off_ignores_mirror_rows_in_the_pool(monkeypatch):
     assert S.nonproc_draws_left(mixed, {}) == S.nonproc_draws_left(_v4_pool(), {})
 
 
-@pytest.mark.skip(reason="validator draw/wiring for v5 ships with the release that activates it; this release publishes the scorer only")
 def test_mirror_file_is_loaded_only_with_the_gate(tmp_path, monkeypatch):
     d = tmp_path / "generalist" / "sealed"
     d.mkdir(parents=True)
@@ -823,7 +816,6 @@ def test_mirror_file_is_loaded_only_with_the_gate(tmp_path, monkeypatch):
         S.load_pool(str(tmp_path), "generalist")
 
 
-@pytest.mark.skip(reason="validator draw/wiring for v5 ships with the release that activates it; this release publishes the scorer only")
 def test_evaluator_refuses_to_start_with_the_gate_set_while_not_wired(monkeypatch):
     monkeypatch.setattr(S, "EVAL_V5_START_UTC", T)
     monkeypatch.setattr(v5, "EVALUATOR_WIRED", False)

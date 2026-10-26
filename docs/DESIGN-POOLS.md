@@ -147,7 +147,9 @@ node is paid through its own hotkey. In s1-lite and s1-cpu the cap is 4 units (3
 of the tier (an RTX 5070 Ti runs s1-lite at 33/s): their small models run 10–100× faster on a big GPU, and a high cap
 there would let one GPU take most of a cheap pool.
 
-**Mechanism v2: higher cap for s1-fast and s1-pro (`tiers.CAPACITY_CAP_MULTIPLIER`; x2 first, x4 later).** **Currently x2 since 1.2.0rc9 (s1-fast 1280/s, s1-pro 320/s; 1.2.0rc8 shipped the plumbing at x1); x4 after a live probe bench, with its own dated #92 notice.** Effective miner defaults at x2: per-caller concurrency 32, 456 requests per minute, `REAX_MAX_CONCURRENT` 8, max pending per IP 64. Live data (17 Oct 2026) had 78 of
+**Per-pool multiplier (capx4pro).** `tiers.CAPACITY_CAP_MULTIPLIERS` = {s1-fast: `CAPACITY_CAP_MULTIPLIER`, s1-pro: `S1_PRO_CAP_MULTIPLIER`}. Since 1.2.0rc11.post7 (`WEIGHTS_VERSION_KEY` 1260) both are 4.0: s1-pro cap 640/s, 64 lanes, 704 requests per probe, miner defaults 64 / 728 / 16; s1-fast cap 2560/s, 64 lanes (the `max_inflight` ceiling), 864 requests, verified sample 114, miner defaults 64 / 888 / 16 (it was x2: 1280/s, 32 lanes, 432 requests, 32 / 456 / 8); 2.0 is the rollback value of each. Worst case, every slot at its cap (25 Oct 2026 counts: 55 s1-fast x 864 + 168 s1-pro x 704 + s1-lite / s1-cpu 16.2k = ~182k requests) is prepared unscaled under `PROBE_MAX_PREPARED_REQUESTS` 220k (20 % growth margin).
+
+**Mechanism v2: higher cap for s1-fast and s1-pro (`tiers.CAPACITY_CAP_MULTIPLIER`; x2 first, x4 later).** **Currently s1-fast x4 (2560/s) and s1-pro x4 (640/s) since 1.2.0rc11.post7 (s1-fast x2 since 1.2.0rc9; 1.2.0rc8 shipped the plumbing at x1); the x4 enable has its own dated #92 notice.** Effective miner defaults: s1-fast 64 / 888 / 16, s1-pro 64 / 728 / 16 (per-caller concurrency, requests per minute, `REAX_MAX_CONCURRENT`), max pending per IP 128. Live data (17 Oct 2026) had 78 of
 146 s1-pro hotkeys exactly at 160/s and 95 of 234 inference hotkeys as same-IP siblings of one operator: a multi-GPU
 box was split into several hotkeys only because one hotkey could not show more than the cap. The multiplier (a release
 constant, 1.0 = the numbers above) raises the cap of s1-fast and s1-pro to 1280/s and 320/s at x2 and to 2560/s and 640/s at x4, so one hotkey can
@@ -158,9 +160,9 @@ s1-lite and s1-cpu keep their caps. What scales with the cap:
   at most 64 (`max_inflight`; the cap itself needs 32 lanes at x2 and 64 at x4). This assumes answers take about
   0.4 s (s1-fast) / 0.8 s (s1-pro) per request: a miner with a longer round trip or slower batches shows less than the
   cap with the same lanes, as it does today. A new UID still gets 16 lanes; a UID measured above the old cap gets
-  more budget next probe and more lanes with it. At x4 the requests per probe at the cap are 864 and 704 (x2: 432
+  more budget next probe and more lanes with it. At x4 the requests per probe at the cap are 864 (s1-fast) and 704 (s1-pro), both live since 1.2.0rc11.post7 (x2: 432
   and 352).
-- **Preparation ceiling** (`s1validator.PROBE_MAX_PREPARED_REQUESTS`, 90 000: the live-size fleet fully ramped at x2 fits unscaled; re-size from a bench before x4): a probe prepares and serialises every
+- **Preparation ceiling** (`s1validator.PROBE_MAX_PREPARED_REQUESTS`, 220 000 since 1.2.0rc11.post7: the live-size fleet with every slot at its x4 cap (~182k) fits unscaled with a 20 % growth margin; it was 160 000 (s1-pro x4 only) and 90 000 for x2/x2; `PROBE_PREPARE_BUDGET_S` 180, the 220k ceiling at the slowest measured 0.78 ms per request): a probe prepares and serialises every
   request before the window (0.34-0.64 ms each). Today's fleet needs ~45k requests (~21 s of the 60 s preparation
   budget); a fully ramped x4 fleet would need ~179k (~84 s) and a swarm of junk-fast UIDs could force that. When the
   sum over all probed UIDs exceeds the ceiling, every UID's budget is scaled down by the same factor (never below its
@@ -189,7 +191,7 @@ s1-lite and s1-cpu keep their caps. What scales with the cap:
   uses the total lanes (`PROBE_LANES_PER_SHARD` 192). The probe response cap (32 KiB per answer) is unchanged.
 - **Miner defaults** (`config.py`) are derived from the table: per-validator concurrency = lanes at the cap, requests
   per minute = requests at the cap + 24, `REAX_MAX_CONCURRENT` so that the runtime queue (5 × this) holds one probe's
-  lanes. x1: 16 / 240 / 8 (unchanged); x2: 32 / 456 / 8; x4: 64 / 888 / 16. `REAX_MAX_PENDING_PER_IP` defaults to
+  lanes. x1: 16 / 240 / 8 (unchanged); x2: 32 / 456 / 8; x4: 64 / 888 / 16 for s1-fast, 64 / 728 / 16 for s1-pro (per model, `config.probe_defaults`). `REAX_MAX_PENDING_PER_IP` defaults to
   `max(32, 2 × REAX_PER_CALLER_CONCURRENCY)` (x2: 64, x4: 128), because all lanes of one probe start within a few
   ms from one validator IP and a refused lane ends for the whole probe. A miner on old limits is measured at most
   what its limits allow (a fast machine on the old 240 requests/min and 16 lanes can still show up to ~768/s on
@@ -202,7 +204,7 @@ and Yuma consensus clips it towards the stake-weighted median; rolling back afte
 (stored capacities above the lower cap are paid as the cap, so nothing breaks). Therefore: (1) ship the plumbing at
 x1 first (every number is identical to 1.2.0rc7.post4; this is 1.2.0rc8); (2) enable x2 as its own release with a
 `WEIGHTS_VERSION_KEY` bump by the release owner and a dated #92 notice; (3) x4 follows only after a live probe bench
-at the ramped load. Miners should not consolidate hotkeys before the enable is live on the stake majority.
+at the ramped load (done for s1-pro and s1-fast: 1.2.0rc11.post7). Miners should not consolidate hotkeys before the enable is live on the stake majority.
 
 ## 4. Anti-sybil and anti-copy
 

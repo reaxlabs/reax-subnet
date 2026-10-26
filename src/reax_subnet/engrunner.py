@@ -825,6 +825,43 @@ def fresh_decisions(n: int, model: str) -> list[Decision]:
     return out
 
 
+class ItemTape:
+    """The timed, probe and latency items of one session, so a second session can replay exactly the same items (the
+    declared parent's reference run right after a derived entry's session; docs/ENGINE-COMPETITION.md, "Reusing other
+    entries"). The first session records; ``replay()`` gives a reader that returns the recorded items in the same order
+    and falls back to fresh items once the recording runs out (a session that ended early)."""
+
+    def __init__(self) -> None:
+        self._calls: list[tuple[tuple[Any, ...], Any]] = []
+        self._pos: Optional[int] = None  # None: recording
+
+    def replay(self) -> "ItemTape":
+        out = ItemTape()
+        out._calls, out._pos = self._calls, 0
+        return out
+
+    @property
+    def recorded(self) -> int:
+        return len(self._calls)
+
+    def _take(self, key: tuple[Any, ...], make: Callable[[], Any]) -> Any:
+        if self._pos is None:
+            value = make()
+            self._calls.append((key, value))
+            return value
+        if self._pos < len(self._calls) and self._calls[self._pos][0] == key:
+            self._pos += 1
+            return self._calls[self._pos - 1][1]
+        self._pos = len(self._calls)  # out of step: everything from here on is fresh
+        return make()
+
+    def fresh(self, n: int, model: str) -> list[Decision]:
+        return self._take(("fresh", n, model), lambda: fresh_decisions(n, model))
+
+    def probes(self, pairs: int, model: str) -> tuple[list[Decision], list[Decision]]:
+        return self._take(("probes", pairs, model), lambda: probe_decisions(pairs, model))
+
+
 def probe_decisions(pairs: int, model: str) -> tuple[list[Decision], list[Decision]]:
     """Base items, then variants that reuse a base item's state with another item's question, or its question with
     another item's state. An engine that caches by state (or by question) answers the variant from its cache."""
@@ -932,6 +969,7 @@ async def evaluate(runner: Runner, reference_ref: str, candidate_ref: str, track
     image cannot be pulled or started for infrastructure reasons. Wrap it in ``asyncio.wait_for`` with
     ``params.eval_budget_s``. ``progress``: set to ``{"measuring": True}`` when the first timed request of the pair
     measurement starts, so a caller whose budget expires can tell "never got to measure" from "measured too slowly".
+    ``progress["items"]`` (optional ItemTape): the measured items are recorded on it, or replayed from it.
     """
     model = params.pool
     res = EvalResult(digest=digest or candidate_ref.rsplit(":", 1)[-1], track=track, ok=False, block=block)
@@ -1028,7 +1066,10 @@ async def _measure(ref: Engine, cand: Engine, params: TrackParams, res: EvalResu
                    baseline: Optional[float] = None, lat_baseline: Optional[float] = None,
                    progress: Optional[dict[str, Any]] = None) -> EvalResult:
     model = params.pool
-    warm = fresh_decisions(min(32, params.timed_items), model)
+    tape = (progress or {}).get("items")
+    if not isinstance(tape, ItemTape):
+        tape = ItemTape()  # records, nobody replays it
+    warm = tape.fresh(min(32, params.timed_items), model)
     async with _Solo(ref, cand, params.pause_idle) as c:
         await _answers(c, warm)
     async with _Solo(cand, ref, params.pause_idle) as c:
@@ -1037,7 +1078,7 @@ async def _measure(ref: Engine, cand: Engine, params: TrackParams, res: EvalResu
     ref_tp, cand_tp, ref_ans, cand_ans = [], [], {}, {}
     last_items: list[Decision] = []
     for run in range(params.runs):
-        items = fresh_decisions(params.timed_items, model)
+        items = tape.fresh(params.timed_items, model)
         order = [(ref, cand), (cand, ref)]
         if run % 2:
             order.reverse()  # ABBA: neither engine always runs first
@@ -1069,7 +1110,7 @@ async def _measure(ref: Engine, cand: Engine, params: TrackParams, res: EvalResu
         res.reason = f"correctness: {corr.reason}"
         return res
 
-    base, variants = probe_decisions(params.probe_pairs, model)
+    base, variants = tape.probes(params.probe_pairs, model)
     async with _Solo(ref, cand, params.pause_idle) as c:
         p_ref = await _answers(c, base + variants)
     if not _complete(p_ref):
@@ -1093,7 +1134,7 @@ async def _measure(ref: Engine, cand: Engine, params: TrackParams, res: EvalResu
                       f"> {params.determinism_tau}")
         return res
 
-    lat_items = fresh_decisions(params.latency_items, model)
+    lat_items = tape.fresh(params.latency_items, model)
     async with _Solo(ref, cand, params.pause_idle) as c:
         ref_lat, ref_l_ans = await latencies(c, lat_items)
     async with _Solo(cand, ref, params.pause_idle) as c:

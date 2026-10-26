@@ -33,11 +33,12 @@ from . import engcopyline, engreview
 from .engcomp import (
     EvalResult, RewardParams, Submission, TrackParams, TrackState, _valid, champion_fraction, competition_weights,
     co_champion_set, confirmation_due, copy_digests, former_ranks, needs_remeasurement, observe, parse_engine_commitment, pending,
-    protected_uids, track_thresholds, update_champion, waiting_uids, copyline_active,
+    finalize_engine_slot, next_engine_slot, protected_uids, track_thresholds, update_champion, waiting_uids, copyline_active, parent_reference_due,
+    parent_session_active, ENGINE_PARENT_RUNS_PER_CYCLE, ENGINE_PARENT_RUN_BUDGET_S, prune_parent_sessions,
 )
 from .spec.commitment import parse_commitment as parse_spec_commitment
 from .engthresholds import FROZEN_SHA256, thresholds_sha256
-from .engrunner import AwaitingReview, EngineError, InfraError, ReferenceError_, ReferenceFailedWithCandidate, ReferenceSelfCheckFailed, Runner, clean, evaluate, reference_alone_ok
+from .engrunner import AwaitingReview, EngineError, InfraError, ItemTape, ReferenceError_, ReferenceFailedWithCandidate, ReferenceSelfCheckFailed, Runner, clean, evaluate, reference_alone_ok
 
 log = logging.getLogger("reax.engcomp")
 
@@ -104,6 +105,9 @@ class EngineCompetition:
         self.state_path = state_path
         self._clock = clock
         self._last_cycle: Optional[float] = None
+        self._last_tape: Optional[tuple[str, ItemTape]] = None  # (digest, items) of the latest session, for a parent replay
+        self._parent_runs = 0  # parent reference runs started in this cycle (ENGINE_PARENT_RUNS_PER_CYCLE)
+        self._parent_failed: set[tuple[str, str]] = set()  # (track, parent digest) whose run failed in this cycle
         self.states: dict[str, TrackState] = {t: TrackState() for t in self.tracks}
         self.thresholds_sha256 = rules_sha256(self.tracks)
         self.state_thresholds_sha256: Optional[str] = None  # what the loaded state file was written under
@@ -166,6 +170,9 @@ class EngineCompetition:
                 pass
 
     def save(self) -> None:
+        if _csplit.ENGINE_CROWN_SLOTS_UTC:
+            for st in self.states.values():
+                st.next_slot_utc = next_engine_slot(self._utcnow(), st)
         directory = os.path.dirname(os.path.abspath(self.state_path))
         os.makedirs(directory, exist_ok=True)
         fd, tmp = tempfile.mkstemp(prefix=".engstate-", dir=directory)
@@ -250,7 +257,27 @@ class EngineCompetition:
     async def _run_cycle(self, snap: Snapshot, exclude: set[int],
                          between: Optional[Callable[[], Awaitable[object]]] = None) -> dict[str, list[dict]]:
         self._last_cycle = self._clock()
+        self._parent_runs, self._parent_failed = 0, set()
         report: dict[str, list[dict]] = {}
+        # Slot finalisation is independent of GPU preflight and runs even if this batch cannot measure.
+        if _csplit.ENGINE_CROWN_SLOTS_UTC:
+            slot_now = self._utcnow()
+            bind = bool(getattr(self.runner, "binds_hotkey", False))
+            for track, subs in self.submissions(snap, exclude).items():
+                st, params = self.states[track], self.tracks[track]
+                elig = observe(st, subs, snap.block, first_committer_only=not bind)
+                if bind:
+                    elig = [s for s in elig if st.owners.get(s.digest) == s.hotkey]
+                if copyline_active(slot_now):
+                    self._apply_copy_markers(st, elig, snap.block)
+                    self._refresh_derived(st, elig, snap, params)
+                    elig = self._unpaused(st, elig, snap.block)
+                before = st.champion.digest if st.champion else None
+                if finalize_engine_slot(st, elig, params, slot_now, snap.block):
+                    if st.champion.digest != before:
+                        log.info("engine competition [%s]: champion is now uid %d %s (%.3f)",
+                                 track, st.champion.uid, st.champion.digest[:12], st.champion.score)
+                    self.save()
         preflight = getattr(self.runner, "preflight", None)
         if preflight is not None:
             try:
@@ -275,7 +302,7 @@ class EngineCompetition:
             if cl:
                 await self._recheck_measured(st, eligible)
                 self._apply_copy_markers(st, eligible, snap.block)
-                self._refresh_derived(st, eligible, snap)
+                self._refresh_derived(st, eligible, snap, params)
             elig = self._unpaused(st, eligible, snap.block) if cl else eligible
             todo = pending(st, [s for s in elig if awaiting is None or not awaiting(s.ref)], self.max_evals)
             again = needs_remeasurement(st, elig)
@@ -289,9 +316,9 @@ class EngineCompetition:
             eligible = await self._owned(st, observe(st, subs, snap.block, first_committer_only=not bind), bind)
             if cl:  # the static check writes a new image's review record inside the session: read it before any crowning
                 self._apply_copy_markers(st, eligible, snap.block)
-                self._refresh_derived(st, eligible, snap)
+                self._refresh_derived(st, eligible, snap, params)
                 eligible = self._unpaused(st, eligible, snap.block)
-            ch = update_champion(st, eligible, params, snap.block, copyline=cl)
+            ch = update_champion(st, eligible, params, snap.block, copyline=cl, now=self._utcnow())
             # Confirmation = a second, fresh session (new containers, new secret items) right after the first, in
             # this cycle; the champion is measured again with the challenger, so the comparison stays paired.
             for _ in range(params.confirmations - 1):
@@ -300,8 +327,10 @@ class EngineCompetition:
                 stopped = await self._run_sessions(st, track, params, needs_remeasurement(st, eligible), snap,
                                                    report[track], between)
                 if cl:
-                    self._refresh_derived(st, eligible, snap)
-                ch = update_champion(st, eligible, params, snap.block, copyline=cl)
+                    self._refresh_derived(st, eligible, snap, params)
+                ch = update_champion(st, eligible, params, snap.block, copyline=cl, now=self._utcnow())
+            if cl:
+                prune_parent_sessions(st)
             if (ch.digest if ch else None) != before:
                 log.info("engine competition [%s]: champion is now %s", track,
                          f"uid {ch.uid} {ch.digest[:12]} score {ch.score:.3f}" if ch else "vacant")
@@ -361,14 +390,15 @@ class EngineCompetition:
                 st.history.append({"block": block, "event": "vacated", "digest": ch.digest, "hotkey": ch.hotkey})
                 st.champion, st.champion_invalid, st.champion_last_session = None, 0, ""
 
-    def _refresh_derived(self, st: TrackState, eligible: list[Submission], snap: Snapshot) -> None:
+    def _refresh_derived(self, st: TrackState, eligible: list[Submission], snap: Snapshot,
+                         params: Optional[TrackParams] = None) -> None:
         """Copy line: from each eligible image's review record set ``st.derived[digest]`` = the declared parents it must beat
         by the full margin, without the ones the same owner holds (same coldkey in the snapshot, or a valid signed ownership
         proof); ``[]`` = read, no parents. An entry is crownable only with a key here: a missing or unreadable record, a
         label with any problem, or an error while reading it leaves the key out (fail closed, that digest only; the cycle
         goes on). Also keeps the best valid score of every digest (``held_scores``). Recomputed from the record each time."""
         for r in st.results.values():
-            st.hold(r)
+            st.hold(r, params)
         review_dir = getattr(self.runner, "review_dir", "")
         if not review_dir:
             return
@@ -465,9 +495,16 @@ class EngineCompetition:
             if isinstance(res, EvalResult):
                 res.session = secrets.token_hex(8)  # identifies this measurement (confirmations never count one twice)
                 st.results[sub.digest] = res
+                if _csplit.ENGINE_CROWN_SLOTS_UTC:
+                    st.add_cycle_event({"event": "measurement", "digest": sub.digest, "block": res.block,
+                                        "score": res.score, "session": res.session, "ok": res.ok})
                 if copyline_active(self._utcnow()):
-                    st.hold(res)  # copy line: the best valid score survives a later re-measurement
+                    st.hold(res, params)  # copy line: the best valid score survives a later re-measurement
                 st.attempts.pop(sub.digest, None)
+                tape = self._last_tape[1] if self._last_tape and self._last_tape[0] == sub.digest else None
+                self._last_tape = None
+                if parent_session_active(self._utcnow()):
+                    await self._parent_reference(st, track, params, sub, res, snap, tape)
                 report.append({"uid": sub.uid, **res.to_json()})
                 log.info("engine competition [%s] uid %d %s: %s score %.3f (%.2f vs %.2f dec/s, mean_d %s)%s",
                          track, sub.uid, sub.digest[:12], "VALID" if res.ok else "REJECTED", res.score,
@@ -495,7 +532,9 @@ class EngineCompetition:
                         params.max_infra_attempts, reason)
             return fail(f"inconclusive {n} times: {reason}") if n >= params.max_infra_attempts else None
 
-        progress: dict[str, Any] = {}
+        tape = ItemTape()
+        self._last_tape = (sub.digest, tape)
+        progress: dict[str, Any] = {"items": tape}
         review_dir = getattr(self.runner, "review_dir", "")
         if review_dir and copyline_active(self._utcnow()) and engreview.copy_marker(review_dir, sub.digest):
             # review found undeclared reuse (COPY/<digest>): not evaluated; a strike (the second pauses the hotkey)
@@ -571,6 +610,73 @@ class EngineCompetition:
         except Exception as exc:  # noqa: BLE001 - a submission must never stop the validator
             log.warning("engine competition: evaluation of uid %d crashed: %r", sub.uid, exc)
             return inconclusive(f"internal: {type(exc).__name__}")
+
+    async def _parent_reference(self, st: TrackState, track: str, params: TrackParams, sub: Submission, res: EvalResult,
+                                snap: Snapshot, tape: Optional[ItemTape]) -> None:
+        """Parent measured in the same session (engcomp.ENGINE_PARENT_SESSION_START_UTC): when ``sub``'s session just made it
+        a near-miss of its stored parent line (engcomp.parent_reference_due), measure the binding parent image right after
+        it on this box, against the same reference, with the same items (``tape`` replayed; fresh items when the session
+        recorded none) and store the run under the child's session id (``st.parent_sessions``). A reference run only: it
+        never writes ``results``, ``held_scores``, ``attempts`` or strikes. Every failure (image not committed by anyone any
+        more, not pullable, not reviewed, failed, over budget, gate closed) stores a failed run: the stored line applies."""
+        if not res.ok or not res.session:
+            return
+        try:  # the child's record may have been written in this very session
+            self._refresh_one(st, sub, snap)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("engine competition: copy-line record of %s unreadable (%r)", sub.digest[:12], exc)
+        parent = parent_reference_due(st, sub.digest, params)
+        if parent is None:
+            return
+        entry: dict[str, Any] = {"child": sub.digest, "parent": parent, "ok": False, "score": 0.0, "block": snap.block,
+                                 "session": "", "items": "same" if tape is not None and tape.recorded else "fresh"}
+        # the image name comes from the parent's own committer (verified owner, else first sighting): anybody can commit the
+        # same digest under another name, and that name must not decide whether the reference run can pull the image
+        owner_hk = st.owners.get(parent) or st.first_seen.get(parent, (0, ""))[1]
+        ref = next((f"{img}@sha256:{d}" for n in snap.neurons if owner_hk and n.hotkey == owner_hk
+                    for t, img, d in [parse_engine_commitment(n.commitment) or ("", "", "")]
+                    if t == track and d == parent), None)
+        reason = ""
+        if ref is None:
+            reason = "parent image not committed by its owner"
+        elif not self.gate_open():
+            reason = "cycle gate closed"
+        elif (track, parent) in self._parent_failed:
+            reason = "parent run failed earlier in this cycle"
+        elif self._parent_runs >= ENGINE_PARENT_RUNS_PER_CYCLE:
+            log.info("engine competition [%s] uid %d %s: no parent run (cap of %d per cycle reached); the stored line applies",
+                     track, sub.uid, sub.digest[:12], ENGINE_PARENT_RUNS_PER_CYCLE)
+            return
+        else:
+            self._parent_runs += 1
+            progress: dict[str, Any] = {"items": tape.replay() if tape is not None and tape.recorded else ItemTape()}
+            try:
+                pr = await asyncio.wait_for(evaluate(self.runner, self.reference_refs[track], ref, track, params,
+                                                     block=snap.block, digest=parent, progress=progress),
+                                            min(params.eval_budget_s, ENGINE_PARENT_RUN_BUDGET_S))
+                good = bool(pr.ok) and math.isfinite(pr.score)  # a non-finite score is no run (it would read as 0.0)
+                entry.update(ok=good, score=float(pr.score) if good else 0.0, session=secrets.token_hex(8))
+                reason = "" if good else clean(pr.reason or "non-finite score")
+            except Exception as exc:  # noqa: BLE001 - a reference run never stops the cycle; the stored line applies
+                reason = clean(f"{type(exc).__name__}: {exc}")
+        if reason:
+            entry["reason"] = reason
+            if ref is not None:
+                self._parent_failed.add((track, parent))
+        st.parent_sessions[res.session] = entry
+        st.add_cycle_event({"event": "parent_reference", **{k: v for k, v in entry.items() if k != "items"},
+                            "child_session": res.session, "child_score": round(res.score, 4)})
+        log.info("engine competition [%s] uid %d %s: parent %s measured in the same session: %s%s", track, sub.uid,
+                 sub.digest[:12], parent[:12], f"score {entry['score']:.3f}" if entry["ok"] else "no valid run",
+                 f" ({reason})" if reason else "")
+        self.save()
+
+    def _refresh_one(self, st: TrackState, sub: Submission, snap: Snapshot) -> None:
+        review_dir = getattr(self.runner, "review_dir", "")
+        if not review_dir:
+            return
+        self._derive_one(st, sub, review_dir, {n.hotkey: n.coldkey for n in snap.neurons},
+                         {n.uid: n.hotkey for n in snap.neurons})
 
     # ------------------------------------------------------------------ weights
     def weights(self, base: Mapping[int, float], snap: Snapshot, exclude: set[int],

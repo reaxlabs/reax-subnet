@@ -279,6 +279,7 @@ class Sketch:
     deltas: dict[str, np.ndarray]   # per compared tensor: sampled model values rounded to the base dtype - base values
     changed: bool                   # any sampled value differs from the base before the rounding
     seed_id: str = ""
+    review: tuple[str, ...] = ()    # rc11.post5: reparametrisation flags (lineage.plan, the raw delta's size); () = none
 
 
 def delta_sketch_ex(model_dir: str, base_dir: str, stride: int = STRIDE, seed: "bytes | None" = None) -> Sketch:
@@ -290,23 +291,48 @@ def delta_sketch_ex(model_dir: str, base_dir: str, stride: int = STRIDE, seed: "
     saved in BF16, and an F32 parent rounded to BF16 by a copier has exactly the delta of the parent rounded the same
     way. The values are sampled at positions only the seed's owner knows (``sample_positions``).
     Two sketches taken with the same seed and stride estimate the cosine and relative L2 distance of the full deltas, so
-    the near-duplicate check works against earlier submissions whose weights are no longer on disk."""
+    the near-duplicate check works against earlier submissions whose weights are no longer on disk.
+
+    rc11.post5: the model is first mapped back onto the base's parametrisation (``lineage.plan``: exact power-of-two
+    channel rescales, hidden-unit permutations, value/output head scaling, RMSNorm folding), so a function-preserving
+    rewrite of a copy has the copy's delta. The positions do not move, only the values read at them. An honest fine-tune
+    has an empty plan and the same sketch as before. ``review`` lists what was found, and ``delta_norm`` when the raw
+    delta of the recognised blocks is larger than any plausible fine-tune (``lineage.DELTA_REL_FLAG`` of the base)."""
+    from . import lineage as L
     seed = _PROCESS_SEED if seed is None else seed
     model, base = _canonical(read_model(model_dir)), _canonical(read_model(base_dir))
+    try:
+        plan = L.plan(model, base, model_dir, base_dir)
+    except Exception as exc:    # noqa: BLE001 - an odd layout or a hostile declared base (config, shapes) must not abort the
+        # track's cycle at this entry every time; it keeps the raw delta and is held for a reviewer (fail closed, visible)
+        plan = L.Plan(flags=[f"plan_error:{type(exc).__name__}"])
     out: dict[str, np.ndarray] = {}
     changed = False
+    raw2 = base2 = 0.0
     for name in sorted(model):
         em, eb = model[name], base.get(name)
         if eb is None or em.shape != eb.shape or em.dtype not in FLOAT_DTYPES or eb.dtype not in FLOAT_DTYPES:
             continue
         idx = sample_positions(seed, name, eb.numel, stride)
         vm, vb = _sample_float(em, stride, idx), _sample_float(eb, stride, idx)
-        changed = changed or bool(np.any(vm != vb))
         # a small tensor sampled more densely than 1/stride is down-weighted, so that every tensor holds the share of the
         # sketch its elements hold of the full delta (cosine and L2 stay estimates of the full deltas)
         w = 1.0 if len(idx) <= -(-eb.numel // stride) else math.sqrt(eb.numel / (len(idx) * stride))
+        tf = plan.transforms.get(name)
+        if tf is not None:
+            raw = (as_dtype(vm, eb.dtype).astype(np.float64) - vb) * w
+            raw2 += float(raw @ raw)
+            vm = L.canonical_values(em, eb, tf, idx)
+        changed = changed or bool(np.any(vm != vb))
         out[name] = (as_dtype(vm, eb.dtype).astype(np.float64) - vb) * w
-    return Sketch(out, changed, seed_id(seed))
+        if name in plan.examined:
+            if tf is None:
+                raw2 += float(out[name] @ out[name])
+            base2 += float(vb.astype(np.float64) @ vb) * w * w
+    review = list(plan.flags)
+    if base2 > 0 and math.sqrt(raw2 / base2) > L.DELTA_REL_FLAG:
+        review.append(f"delta_norm:{math.sqrt(raw2 / base2):.2f}")
+    return Sketch(out, changed, seed_id(seed), tuple(review))
 
 
 def delta_sketch(model_dir: str, base_dir: str, stride: int = STRIDE, seed: "bytes | None" = None) -> dict[str, np.ndarray]:

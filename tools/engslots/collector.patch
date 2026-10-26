@@ -1,0 +1,154 @@
+--- a/collector/collect.py
++++ b/collector/collect.py
+@@ -33,6 +33,7 @@
+ CONTAINER = "nodes-validator-1"
+ STATE_FILE = "/var/lib/docker/volumes/nodes_state/_data/validator-state.json"
+ SPEC_STATE_FILE = "/w/comp/state/spec-state.json"  # written by the competition worker (remote mode)
++ENGINE_STATE_FILE = "/w/comp/state/engine-competition.json"
+ RAW_KEEP_S = 48 * 3600
+ HOURLY_KEEP_S = 30 * 86400
+ DAY = 86400
+@@ -200,6 +201,7 @@
+     since_arg = f"--since {int(since)}" if since else ""
+     remote = (
+         f"cat {STATE_FILE}; echo; echo '#SPEC#'; cat {SPEC_STATE_FILE} 2>/dev/null; echo; "
++        f"echo '#ENGINE#'; cat {ENGINE_STATE_FILE} 2>/dev/null; echo; "
+         f"echo '#APPROVALS#'; cat {APPROVALS_FILE} 2>/dev/null; echo; echo '#LOGS#'; "
+         f"docker logs {since_arg} {CONTAINER} 2>&1 | "
+         "grep -E '\"msg\": \"(uid [0-9]+ \\[|round [0-9]+ at block|weights set at block|REAX validator )' | gzip -c"
+@@ -212,6 +214,7 @@
+         raise RuntimeError(f"ssh failed rc={res.returncode}")
+     head, _, tail = res.stdout.partition(b"#LOGS#\n")
+     head, _, approvals_raw = head.partition(b"#APPROVALS#\n")
++    head, _, engine_raw = head.partition(b"#ENGINE#\n")
+     head, _, spec_raw = head.partition(b"#SPEC#\n")
+     state = json.loads(head.decode())
+     try:
+@@ -222,6 +225,10 @@
+         state["_approvals"] = json.loads(approvals_raw.decode()) if approvals_raw.strip() else None
+     except ValueError:
+         state["_approvals"] = None
++    try:
++        state["_engine"] = json.loads(engine_raw.decode()) if engine_raw.strip() else None
++    except ValueError:
++        state["_engine"] = None
+     lines = []
+     if tail:
+         for raw in gzip.decompress(tail).decode(errors="replace").splitlines():
+@@ -507,7 +514,7 @@
+     files["network.json"] = {"schema": 1, "generated_at": iso(now), "hourly": [
+         {"t": iso(x[0]), "rounds": x[1], "miners_queried_mean": r(x[2], 2), "answered_share": r(x[3]),
+          "latency_p50_s": r(x[4], 3), "score_mean": r(x[5]), "neurons": x[6]} for x in net]}
+-    files["competitions.json"] = competitions_doc(state.get("_spec"), now, state.get("_approvals"))
++    files["competitions.json"] = competitions_doc(state.get("_spec"), now, state.get("_approvals"), state.get("_engine"))
+     return {k: json.dumps(v, separators=(",", ":")).encode() for k, v in files.items()}
+ 
+ 
+@@ -619,7 +626,7 @@
+     return {"entries": entries, "crowns": crowns}
+ 
+ 
+-def competitions_doc(spec: dict | None, now: float, approvals: dict | None = None) -> dict:
++def competitions_doc(spec: dict | None, now: float, approvals: dict | None = None, engine: dict | None = None) -> dict:
+     """Public competitions file (schema 2) from the worker's spec-state.json: no draws, item ids, seeds or hashes."""
+     tracks = []
+     raw_tracks = (spec or {}).get("tracks", {}) if isinstance(spec, dict) else {}
+@@ -676,11 +683,29 @@
+                        "co_champions": co_champions or None, "pools": pools, "history": track_history(st)})
+     # engine track open since 20 Oct 2026 18:00 UTC (block 9326382); results/leaderboard live on /competitions/live/
+     eng_status = "live" if now >= 1792519200 else "preparing"
++    eng_track = ((engine or {}).get("tracks") or {}).get("s1-fast") or {} if isinstance(engine, dict) else {}
++    pending = eng_track.get("pending")
++    # Only the public summary leaves the collector; no sessions, image labels or parent runs.
++    pending = {k: pending.get(k) for k in ("uid", "digest12", "pooled_score", "slot_utc")} if isinstance(pending, dict) else None
++    # Advance the display even when a slot had no winner and the no-GPU finaliser correctly left state unchanged.
++    # The calendar is exported from the worker's one release constant; the collector does not duplicate it.
++    used_slots = {e.get("slot_utc") for e in eng_track.get("slot_results", [])}
++    future_slots = []
++    for value in eng_track.get("crown_slots_utc", [eng_track.get("next_slot_utc")]):
++        try:
++            at = datetime.fromisoformat(value.replace("Z", "+00:00"))
++            if at.tzinfo is not None and at.timestamp() >= now and value not in used_slots:
++                future_slots.append((at.timestamp(), value))
++        except (ValueError, TypeError, AttributeError):
++            continue
++    next_slot = min(future_slots)[1] if future_slots else None
++    eng = {"id": "engine-speed", "status": eng_status, "leaderboard": [],
++           "next_slot_utc": next_slot, "pending": pending}
+     legacy = [{"id": "engine-speed", "status": eng_status, "leaderboard": []},
+               {"id": "specialists", "status": "live" if any(t["status"] == "live" for t in tracks) else "upcoming",
+                "leaderboard": []}]
+     return {"schema": 2, "generated_at": iso(now), "state_saved_at": iso((spec or {}).get("saved_at")) if spec else None,
+-            "tracks": tracks, "engine": {"id": "engine-speed", "status": eng_status, "leaderboard": []},
++            "tracks": tracks, "engine": eng,
+             "competitions": legacy}
+ 
+ 
+--- a/collector/test_collect.py
++++ b/collector/test_collect.py
+@@ -317,5 +317,65 @@
+         self.assertFalse([u for u, v in f.items() if not v["role"] and any(int(k) % 65536 == u and int(k) >= 65536 and raw[k]["role"] for k in raw)])
+ 
+ 
++
++
++class EngineSlots(unittest.TestCase):
++    def test_engine_slot_and_pending_are_public(self):
++        slot = "2026-10-27T14:30:00+00:00"
++        pending = dict(uid=7, digest12="a"*12, pooled_score=2.0, slot_utc=slot,
++                       secret_session="must not leave collector", digest="a"*64)
++        state = {"tracks": {"s1-fast": {"next_slot_utc": slot, "pending": pending}}}
++        out = collect.competitions_doc(None, 1793100000, engine=state)["engine"]
++        self.assertEqual(out["next_slot_utc"], slot)
++        self.assertEqual(out["pending"], {k: pending[k] for k in ("uid", "digest12", "pooled_score", "slot_utc")})
++        self.assertNotIn("secret_session", str(out))
++
++    def test_old_or_missing_engine_state(self):
++        for state in (None, {}, {"tracks": {"s1-fast": {}}}):
++            out = collect.competitions_doc(None, 1793100000, engine=state)["engine"]
++            self.assertIsNone(out["next_slot_utc"])
++            self.assertIsNone(out["pending"])
++
++    def test_build_outputs_wires_engine_state(self):
++        import json
++        c = sqlite3.connect(":memory:")
++        c.executescript(Path(collect.__file__).read_text().split('c.executescript("""')[1].split('""")')[0])
++        state = {"miners": {}, "_engine": {"tracks": {"s1-fast": {"next_slot_utc": "2026-10-27T14:30:00Z"}}}}
++        out = collect.build_outputs(c, state, None, 1793100000)
++        self.assertEqual(json.loads(out["competitions.json"])["engine"]["next_slot_utc"], "2026-10-27T14:30:00Z")
++
++class EngineSlotDisplayAdvance(unittest.TestCase):
++    def test_no_winner_slot_advances_display_from_exported_calendar(self):
++        tue, fri = "2026-10-27T14:30:00+00:00", "2026-10-30T14:30:00+00:00"
++        from datetime import datetime
++        now = datetime.fromisoformat(tue).timestamp() + 1
++        state = {"tracks": {"s1-fast": {"next_slot_utc": tue, "crown_slots_utc": [tue, fri]}}}
++        out = collect.competitions_doc(None, now, engine=state)["engine"]
++        self.assertEqual(out["next_slot_utc"], fri)
++        state["tracks"]["s1-fast"].pop("crown_slots_utc")
++        self.assertIsNone(collect.competitions_doc(None, now, engine=state)["engine"]["next_slot_utc"])
++
++
++class EngineSlotFetch(unittest.TestCase):
++    def test_fetch_keeps_spec_engine_and_approvals_separate(self):
++        import json
++        from types import SimpleNamespace
++        from unittest.mock import patch
++        spec = {"tracks": {"generalist": {}}}
++        engine = {"tracks": {"s1-fast": {"next_slot_utc": "2026-10-27T14:30:00Z"}}}
++        approvals = {"approved": []}
++        payload = (json.dumps({"miners": {}}) + "\n#SPEC#\n" + json.dumps(spec)
++                   + "\n#ENGINE#\n" + json.dumps(engine) + "\n#APPROVALS#\n" + json.dumps(approvals)
++                   + "\n#LOGS#\n").encode()
++        with patch.object(Path, "read_text", return_value="22 test-node"), patch.object(
++                collect.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout=payload)) as run:
++            state, lines = collect.fetch_node(None)
++        self.assertEqual(state["_spec"], spec)
++        self.assertEqual(state["_engine"], engine)
++        self.assertEqual(state["_approvals"], approvals)
++        self.assertEqual(lines, [])
++        self.assertIn(collect.ENGINE_STATE_FILE, run.call_args.args[0][-1])
++
++
+ if __name__ == "__main__":
+     unittest.main()

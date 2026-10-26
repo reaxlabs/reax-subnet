@@ -20,6 +20,9 @@ async def scripted_states(tmp_path):
         for ts in raw['tracks'].values():
             # Generalist diagnostics are add-only defaults, empty on the legacy specialist path.
             assert ts.pop('item_categories', {}) == {}
+            # 1.2.0rc11.post3: the shared slot group fields are add-only defaults, empty without a crown slot
+            for field, default in (('cochamps', []), ('cochamps_since', None), ('former_sets', []), ('slot_results', [])):
+                assert ts.pop(field, default) == default
             for draw in ts['draws'].values():
                 assert draw.pop('item_categories', {}) == {}
                 assert draw.pop('x_shortfall', {}) == {}

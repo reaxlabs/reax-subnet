@@ -1,4 +1,4 @@
-"""Eval v5.1: the HF Decision Index 0.4 structure (docs/EVAL-V5.md).
+"""Eval v5.1: the HF Decision Index 0.4 structure (docs/EVAL-V5.md; spec: handoff/SPEC-DELTA-v5.1.md, PROPOSAL.md 1.1-1.6).
 
 Everything here is behind ``sampling.EVAL_V5_START_UTC`` (``None`` = off: rules v4 bit for bit). The module is pure and
 importable without chain, validator state or GPU, so the same ``score_v5`` runs offline on a rented pod.
@@ -58,8 +58,8 @@ PUB_TIERS = ("same_family", "proc_sealed")                 # v4-format public ti
 OLD_TIERS = ("new_family", "new_domain", S.X_TIER)         # v4-format old own-authored tiers (weight 0, reported)
 OMNISCIENCE_MODES = ("aa_index", "half_half")
 WILDGUARD_MODES = ("const_corrected", "raw")
-MIRROR_MAX_USES = 12   # an item retires after 12 uses
-MIN_TYPE_ITEMS = 12    # at least 12 items per task type per draw
+MIRROR_MAX_USES = 12   # PROPOSAL 1.6: an item retires after 12 uses
+MIN_TYPE_ITEMS = 12    # PROPOSAL 1.4: at least 12 items per task type per draw
 DI_MEAN = 23.4973      # mB: DI's public-scale constants (SPEC-DELTA 3)
 DI_SD = 16.539081      # sB
 
@@ -111,7 +111,7 @@ def panel_from_json(obj: Any) -> PanelStats:
     return PanelStats(obj.get("pool_version"), ms("T"), ms("N"), ms("Pub"))
 
 
-# Pool v0.1 MAIN (stock panel at w_N 0.4; decided 23 Oct 2026). The evaluator takes the stats
+# Pool v0.1 MAIN (round2-v5-monday ON-REPLY step 3, stock panel at w_N 0.4; Florian GO 23 Oct 2026). The evaluator takes the stats
 # of the pool version named in ``<v5 pool dir>/v51.config.json`` and decides nothing without them (``v5wire.active_panel``).
 PANEL_STATS["v0.1"] = panel_from_json({"pool_version": "v0.1", "T": {"mean": 58.443470442129176, "sd": 19.08197856407689},
                                        "N": {"mean": 28.490328496088534, "sd": 8.20230568361892},
@@ -120,7 +120,7 @@ PANEL_STATS["v0.1"] = panel_from_json({"pool_version": "v0.1", "T": {"mean": 58.
 
 @dataclass(frozen=True)
 class V5Params:
-    """Weights, gap allowance and scale constants are parameters, fixed at the validation gate."""
+    """Weights, gap allowance and scale constants are parameters, fixed at the validation gate (PROPOSAL 1.1-1.5)."""
     w_n: float = 0.4                    # weight of N; 0 = the twins-only fallback (T = 1.0)
     a_floor: float = 1.5
     a_se_mult: float = 2.0
@@ -924,7 +924,7 @@ def score_v5_detail(responses: Mapping[str, Any], items: Sequence[Mapping[str, A
         gs[r] = g if g is not None else 0.0
     se_g = float(gs.std(ddof=1)) if has_pub else None
     allowance = max(params.a_floor, params.a_se_mult * se_g) if has_pub else None
-    # G compares Pub with S, so it is only meaningful when both are on the same scale (both scaled by
+    # critic r1 F1 / spec owner #23830: G compares Pub with S, so it is only meaningful when both are on the same scale (both scaled by
     # the stock panel, or both raw); with a panel but no Pub stats G mixes units: reported, but gap_flag is None and gap_scaled False
     gap_scaled = params.panel is None or bool(params.panel.pub)
     gap_flag = bool(pt["G"] > allowance) if has_pub and gap_scaled else None

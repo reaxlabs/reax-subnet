@@ -49,10 +49,6 @@ X_TIERS = frozenset({X_TIER, "award_realdata"})
 X_TIER_MODES = ("off", "shadow", "scored", "binding")
 X_TIER_MODE = "off"
 X_TIER_SHARE = 0.20
-# Eval v5.1 (docs/EVAL-V5.md): typed rows carry tier "mirror"; the offline scorer tools/score_v5.py needs only these two
-# names here. The switch time stays None in this release (no change to live scoring).
-MIRROR_TIER = "mirror"
-EVAL_V5_START_UTC = None
 
 
 GENERALIST_CATEGORIES = (
@@ -79,6 +75,27 @@ def v4_active(now: Union[float, datetime, None]) -> bool:
             now = now.replace(tzinfo=timezone.utc)
         return now >= DRAWS_V4_START_UTC
     return float(now) >= DRAWS_V4_START_UTC.timestamp()
+
+
+# Eval v5 (docs/EVAL-V5.md): from this instant a generalist draw is 540 mirror items (M) + 360 held-out items (P), scored by
+# ``v5.score_v5``. None = off: every function behaves bit for bit as under rules v4. No env override.
+# Armed for Mon 26 Oct 2026 14:30Z with pool v0.1 MAIN (Florian GO 23 Oct, DECISIONS v5-monday-go-despite-gate2); the crown slot
+# at that instant still crowns on the current eval (rule A, ``SpecEvaluator._v4_draw_now``). The evaluator refuses to start with
+# the gate set unless it is wired (``v5.EVALUATOR_WIRED``).
+EVAL_V5_START_UTC: Optional[datetime] = datetime(2026, 10, 26, 14, 30, tzinfo=timezone.utc)
+MIRROR_TIER = "mirror"
+MIRROR_FILE = "sealed.mirror.jsonl"
+
+
+def v5_active(now: Union[float, datetime, None]) -> bool:
+    """True from ``EVAL_V5_START_UTC`` on. ``now`` None or the gate off: False."""
+    if now is None or EVAL_V5_START_UTC is None:
+        return False
+    if isinstance(now, datetime):
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        return now >= EVAL_V5_START_UTC
+    return float(now) >= EVAL_V5_START_UTC.timestamp()
 
 
 def generalist_per_category(now: Union[float, datetime, None] = None) -> int:
@@ -108,6 +125,11 @@ def load_pool(sealed_dir: str, category: str) -> list[dict[str, Any]]:
                 for line in fh:
                     if line.strip():
                         rows.append(json.loads(line))
+            if category == "generalist" and EVAL_V5_START_UTC is not None:   # eval v5: the private mirror file, if mounted
+                mirror = os.path.join(base, MIRROR_FILE)
+                if os.path.exists(mirror):
+                    with open(mirror, encoding="utf-8") as fh:
+                        rows += [json.loads(line) for line in fh if line.strip()]
             if category == "generalist":
                 _validate_generalist(rows)
             return rows
@@ -168,7 +190,7 @@ def x_draws_left(pool: Sequence[dict[str, Any]], use_counts: Mapping[str, int], 
 def nonproc_draws_left(pool: Sequence[dict[str, Any]], use_counts: Mapping[str, int], sample_size: int = SAMPLE_SIZE) -> float:
     """Draws of ``sample_size`` the LLM-written tiers can still fill: their remaining uses (``ITEM_MAX_USES`` minus the
     uses so far, per item) over the non-proc part of one draw."""
-    left = sum(max(0, ITEM_MAX_USES - use_counts.get(r["id"], 0)) for r in pool if r.get("tier") != "proc_sealed" and r.get("tier") not in X_TIERS)
+    left = sum(max(0, ITEM_MAX_USES - use_counts.get(r["id"], 0)) for r in pool if r.get("tier") not in ("proc_sealed", MIRROR_TIER) and r.get("tier") not in X_TIERS)
     per_draw = (1.0 - TIER_MIX.get("proc_sealed", 0.0)) * sample_size
     return left / per_draw if per_draw > 0 else float("inf")
 
@@ -193,6 +215,9 @@ def draw(pool: Sequence[dict[str, Any]], *, n: int, seed: int, use_counts: Mappi
     ``generalist``: exactly ``generalist_per_category(now)`` items in each category (``now``: the draw's time, unix seconds
     or datetime; None = the old 30 per category), so ``n`` must be ``draw_size(SAMPLE_SIZE, True, now)``. ``per_category``
     overrides that size (the release dry-run tool only; the evaluator never sets it)."""
+    if generalist and v5_active(now):
+        from . import v5
+        return v5.draw_v5(pool, n=n, seed=seed, use_counts=use_counts or {}, exclude=exclude)
     if generalist:
         per_cat = per_category or generalist_per_category(now)
         if n != per_cat * len(GENERALIST_CATEGORIES):
@@ -260,6 +285,13 @@ def draw(pool: Sequence[dict[str, Any]], *, n: int, seed: int, use_counts: Mappi
 def _validate_generalist(rows: Sequence[dict]) -> None:
     ids: set[str] = set()
     for row in rows:
+        if row.get("tier") == MIRROR_TIER:   # eval v5 mirror rows have no category and their own schema
+            from . import v5
+            v5.validate_mirror_row(row)
+            if row["id"] in ids:
+                raise SampleError(f"duplicate generalist item id {row['id']!r}")
+            ids.add(row["id"])
+            continue
         if row.get("category") not in GENERALIST_CATEGORIES:
             raise SampleError(f"invalid or missing generalist category on {row.get('id')!r}")
         if row.get("id") in ids:
@@ -323,7 +355,7 @@ def _draw_generalist(pool: Sequence[dict], seed: int, use: Mapping[str, int], ex
     _validate_generalist(pool)
     rng = random.Random(seed)
     usable = [r for r in sorted(pool, key=lambda r: r["id"])
-              if r["id"] not in exclude and use.get(r["id"], 0) < ITEM_MAX_USES
+              if r.get("tier") != MIRROR_TIER and r["id"] not in exclude and use.get(r["id"], 0) < ITEM_MAX_USES
               and (r["tier"] not in X_TIERS or x_mode in ("scored", "binding"))]
     chosen: list[dict] = []
     targets = generalist_tier_quotas(x_mode, x_share, per_cat)

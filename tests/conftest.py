@@ -105,6 +105,14 @@ def _wall_clock_before_the_open_class(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _synchronous_probe(monkeypatch):
+    """Probe tests written before 1.2.0rc11.post6 read a probe's capacities right after ``run_round``: they run the
+    synchronous probe (REAX_PROBE_BACKGROUND=0). tests/test_probe_cadence.py runs the background probe (the release
+    default) and checks that its later fold equals the synchronous one."""
+    monkeypatch.setenv("REAX_PROBE_BACKGROUND", "0")
+
+
+@pytest.fixture(autouse=True)
 def _no_fla_checksum_on_fake_docker(request, monkeypatch):
     """Runner tests drive fake docker/nvidia-smi without the published config files on disk; tests marked
     ``fla_checksum`` (tests/test_engfla_publish.py) run the real engconfigs.verify_published_configs."""
@@ -113,3 +121,41 @@ def _no_fla_checksum_on_fake_docker(request, monkeypatch):
     from reax_subnet import engrunner
 
     monkeypatch.setattr(engrunner, "verify_published_configs", lambda gpu_class, host_dir: None)
+
+
+# rc11.post1: the release ships CROWN_SLOTS_UTC = (Mon 26 Oct 2026 14:30Z,) (Florian #23798). Tests that crown on a crowned track run
+# with "now" before that slot, so every test sees the pre-slot behaviour (crown at once) unless it sets the constant itself.
+from reax_subnet import competition_split as _CS_RELEASE   # noqa: E402
+RELEASE_CROWN_SLOTS_UTC = _CS_RELEASE.CROWN_SLOTS_UTC
+RELEASE_ENGINE_CROWN_SLOTS_UTC = _CS_RELEASE.ENGINE_CROWN_SLOTS_UTC
+
+
+@pytest.fixture(autouse=True)
+def _no_crown_slots_unless_set(monkeypatch):
+    monkeypatch.setattr(_CS_RELEASE, "CROWN_SLOTS_UTC", ())
+    monkeypatch.setattr(_CS_RELEASE, "ENGINE_CROWN_SLOTS_UTC", ())
+
+
+# The release arms eval v5.1 (sampling.EVAL_V5_START_UTC = Mon 26 Oct 2026 14:30Z, pool v0.1). Tests run with the gate off unless
+# they set it themselves, as with the crown slots above: fake clocks (and the real one after Monday) would otherwise cross it in
+# tests written for the rules before it. tests/test_v5_arm.py checks the armed release value and the behaviour around it.
+from reax_subnet.spec import sampling as _S_RELEASE   # noqa: E402
+RELEASE_EVAL_V5_START_UTC = _S_RELEASE.EVAL_V5_START_UTC
+
+
+@pytest.fixture(autouse=True)
+def _v5_gate_off_unless_set(monkeypatch):
+    monkeypatch.setattr(_S_RELEASE, "EVAL_V5_START_UTC", None)
+
+
+# rules-v4 (rc11): the gates below switched on at 2026-10-23 13:00Z. Tests written for the rules before them request this
+# fixture (``@pytest.mark.usefixtures("rules_v4_gates_off")``) so that they do not depend on the wall clock; the gate behaviour
+# itself is tested in test_coldkey_dr / test_draws_v4 / test_confirm_before_close / test_engine_copyline / test_opening_playoff_slots.
+@pytest.fixture
+def rules_v4_gates_off(monkeypatch):
+    from reax_subnet import competition_split, engcomp, tiers
+    from reax_subnet.spec import machine, sampling
+    for mod, name in ((tiers, "COLDKEY_DR_START_UTC"), (sampling, "DRAWS_V4_START_UTC"),
+                      (machine, "CONFIRM_BEFORE_CLOSE_START_UTC"), (engcomp, "ENGINE_COPYLINE_START_UTC"),
+                      (competition_split, "OPENING_PLAYOFF_SLOTS_START_UTC")):
+        monkeypatch.setattr(mod, name, None)

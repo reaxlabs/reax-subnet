@@ -244,3 +244,141 @@ def copy_marker(review_dir: str, digest: str) -> bool:
         return stat.S_ISREG(os.lstat(os.path.join(review_dir, "COPY", digest)).st_mode)
     except OSError:
         return False
+
+
+# Option A (25 Oct 2026): inventory ONLY layers not shared with the pinned reference.
+# Exact tokenizer names come from manifests/s1-fast-v1.json weights.files. There are
+# no .bin/.pt/etc tokenizer exceptions in that reference. Do not allow arbitrary
+# 'tokenizer.bin' or 'vocab.pt' names. compare_files still checks tokenizer identity.
+REFERENCE_TOKENIZER_FILES = frozenset({"tokenizer.json"})
+# s1-fast-v1.json, weights.files + read-only pinned cache inventory:
+# plumb-4b@55de037801a8a9b9de3db5c0e16cef86210c2186/tokenizer.json.
+# Reference runtime mounts this directory at /model (runtimes/s1-fast/Dockerfile).
+REFERENCE_TOKENIZER_PATH = "/model/tokenizer.json"
+REFERENCE_TOKENIZER_SIZE = 19989325
+REFERENCE_TOKENIZER_SHA256 = "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523"
+WEIGHT_FILE_SUFFIXES = frozenset({".pt", ".pth", ".safetensors", ".bin", ".npy", ".npz", ".gguf", ".ckpt", ".pkl", ".onnx", ".h5", ".tflite", ".msgpack", ".pte"})
+_CODE_SUFFIXES = frozenset({".py", ".pyc", ".so", ".cu", ".cubin", ".ptx", ".c", ".cc", ".cpp", ".cxx",
+                            ".h", ".hpp", ".json", ".txt", ".md", ".toml", ".yaml", ".yml", ".sh",
+                            ".ini", ".cfg", ".conf", ".jinja", ".jinja2"})
+
+
+def inventory_files(inventory: Any) -> list[dict[str, Any]]:
+    """Normalize reviewer JSON: path->metadata, layer->path->metadata, or rows.
+
+    Layer inventories preserve overwritten files too; a merged filesystem alone
+    cannot establish absence of weight files in earlier image layers.
+    """
+    rows: list[dict[str, Any]] = []
+    if isinstance(inventory, list):
+        for row in inventory:
+            if not isinstance(row, dict) or "path" not in row:
+                raise ValueError("inventory rows must be objects with path and size")
+            rows.append(dict(row))
+    elif isinstance(inventory, dict):
+        for key, value in inventory.items():
+            if not isinstance(value, dict):
+                raise ValueError("inventory metadata must be an object")
+            if "size" in value:
+                rows.append({**value, "path": key})
+            else:
+                for row in inventory_files(value):
+                    rows.append({"layer": key, **row})
+    else:
+        raise ValueError("inventory must be a JSON object or list")
+    for row in rows:
+        if not isinstance(row.get("path"), str) or not row["path"]:
+            raise ValueError("inventory path must be a nonempty string")
+        if type(row.get("size")) is not int or row["size"] < 0:
+            raise ValueError("inventory size must be a nonnegative integer")
+    return rows
+
+
+def weight_file_screen(file_list: Any) -> list[dict[str, Any]]:
+    """Find weight-like files in NON-reference layer inventories, without I/O.
+
+    Extension checks apply at any path, regardless of text metadata or size.
+    Unknown text files do not become code merely by being marked is_text.
+    Source/native-code exemptions are filename classifications, not proof that
+    code contains no embedded tensors; source/rebuild review remains mandatory.
+    """
+    from pathlib import PurePosixPath
+    findings = []
+    rows = inventory_files(file_list)
+    parts = {}
+    for row in rows:
+        path = PurePosixPath(row["path"])
+        suffix = path.suffix.lower()
+        reasons = []
+        if suffix in WEIGHT_FILE_SUFFIXES or re.search(r"\.(?:safetensors|pt)\.", path.name.lower()):
+            reasons.append("weight-like file extension " + suffix)
+        code = suffix in _CODE_SUFFIXES or bool(re.search(r"\.so(?:\.\d+)+$", path.name))
+        tokenizer = (row["path"] == REFERENCE_TOKENIZER_PATH and
+                     row["size"] * 10 <= REFERENCE_TOKENIZER_SIZE * 11 and
+                     row.get("sha256") == REFERENCE_TOKENIZER_SHA256)
+        if path.name.lower() == "tokenizer.json" and not tokenizer:
+            reasons.append("tokenizer differs from pinned reference path/size/sha256")
+        if suffix == ".json":
+            code = False
+        if row["size"] > MAX_CHECKED_FILE_BYTES and not code and not tokenizer:
+            reasons.append("non-code file exceeds 64 MiB")
+        part = re.match(r"^(.*?)(?:[._-](?:part[._-]?)?)(\d+)(?:[._-]of[._-]?\d+)?$", str(path), re.I)
+        if part:
+            parts.setdefault(part[1], []).append(row)
+        if reasons:
+            findings.append({**row, "reason": "; ".join(reasons)})
+    for group in parts.values():
+        if len({r["path"] for r in group}) >= 2 and sum(r["size"] for r in group) > MAX_CHECKED_FILE_BYTES:
+            for row in group:
+                findings.append({**row, "reason": "numeric multipart group exceeds 64 MiB"})
+    return sorted(findings, key=lambda r: (r["path"], str(r.get("layer", "")), r.get("sha256", "")))
+
+
+def load_inventory(path: str) -> list[dict[str, Any]]:
+    """Read reviewer JSON or inv-N.tsv (sha256, size, path; symlink rows skipped)."""
+    with open(path, encoding="utf-8") as fh:
+        data = fh.read()
+    if data.lstrip().startswith(("{", "[")):
+        return inventory_files(json.loads(data))
+    # Early reviewer exports have a header (layer, path, size, sha256, type, ...).
+    if data.startswith("layer\tpath\tsize\tsha256\t"):
+        import csv
+        rows = []
+        for item in csv.DictReader(data.splitlines(), delimiter="\t"):
+            if item["sha256"] == "SYMLINK" or item["size"] in ("LINK", "WHITEOUT"):
+                continue
+            if not valid_digest(item["sha256"]):
+                raise ValueError("invalid inventory sha256")
+            rows.append({"path": item["path"], "size": int(item["size"]),
+                         "sha256": item["sha256"], "layer": item["layer"]})
+        return inventory_files(rows)
+    rows = []
+    for line in data.splitlines():
+        if not line.strip():
+            continue
+        sha, size, name = line.split("\t", 2)
+        if sha == "SYMLINK":
+            continue
+        if not valid_digest(sha):
+            raise ValueError("invalid inventory sha256")
+        rows.append({"path": name, "size": int(size), "sha256": sha})
+    return inventory_files(rows)
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    import argparse
+    parser = argparse.ArgumentParser(description="Static engine review tools (no image execution)")
+    sub = parser.add_subparsers(dest="command", required=True)
+    weights = sub.add_parser("weights", help="screen NON-reference layers for shipped weights")
+    weights.add_argument("--inventory", required=True, help="reviewer files-*.json or inv-N.tsv")
+    args = parser.parse_args(argv)
+    try:
+        findings = weight_file_screen(load_inventory(args.inventory))
+    except (OSError, ValueError, TypeError) as exc:
+        parser.error(str(exc))
+    print(json.dumps({"compliant": not findings, "findings": findings}, indent=2, sort_keys=True))
+    return 1 if findings else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

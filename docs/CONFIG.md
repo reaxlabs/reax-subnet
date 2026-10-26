@@ -34,9 +34,9 @@
 | `REAX_SERVE_AXON` | `1` | publish the endpoint on start if it changed |
 | `REAX_MIN_VALIDATOR_STAKE` | `1000` | minimum `total_stake` of a validator hotkey before the miner answers it |
 | `REAX_METAGRAPH_REFRESH_S` | `300` | how often the validator list is refreshed |
-| `REAX_MAX_CONCURRENT` | `8` (1.2.0rc2: 4; follows the pool cap: 16 at the v2 cap x4) | requests passed to the runtime at once; more wait in a queue of 4x this size, served round-robin per validator (one validator's burst cannot starve another's capacity probe) |
-| `REAX_PER_CALLER_CONCURRENCY` | `16` (1.2.0rc2: 2; 64 at the v2 cap x4) | parallel requests per validator. Capacity probes offer up to this many (16, v2 cap x4: up to 64); a lower value caps how fast this hotkey can be measured |
-| `REAX_PER_CALLER_PER_MINUTE` | `240` (1.2.0rc2: 20; 888 at the v2 cap x4) | requests per validator per minute (a capacity probe at the pool cap sends about 216; at the v2 cap x4 up to 864) |
+| `REAX_MAX_CONCURRENT` | `8` (1.2.0rc2: 4; follows the pool cap per model: s1-fast 16 and s1-pro 16 at x4) | requests passed to the runtime at once; more wait in a queue of 4x this size, served round-robin per validator (one validator's burst cannot starve another's capacity probe) |
+| `REAX_PER_CALLER_CONCURRENCY` | `16` (1.2.0rc2: 2; per model since 1.2.0rc11.post7: s1-fast 64 and s1-pro 64 at x4) | parallel requests per validator. Capacity probes offer up to this many (16 at x1; both GPU pools at x4: up to 64); a lower value caps how fast this hotkey can be measured |
+| `REAX_PER_CALLER_PER_MINUTE` | `240` (1.2.0rc2: 20; per model since 1.2.0rc11.post7: s1-fast 888 and s1-pro 728 at x4) | requests per validator per minute (a capacity probe at the pool cap sends about 216 at x1; s1-fast at x4 864, s1-pro at x4 704) |
 | `REAX_RUNTIME_INFLIGHT` | `16` | decisions in flight to the runtime sidecar at once; raise it for a batched or multi-GPU runtime behind one hotkey |
 | `REAX_BODY_TIMEOUT_S` | `5` | deadline for receiving a request body |
 | `REAX_MAX_PENDING_PER_IP` | `max(32, 2 × REAX_PER_CALLER_CONCURRENCY)`: 32 (1.2.0rc2: 8); 64 at the v2 cap x2, 128 at x4 | unfinished request bodies per remote IP; keep it at twice the parallel requests per validator, a refused probe lane ends for the whole probe |
@@ -50,6 +50,10 @@
 | `REAX_ROUND_INTERVAL_S` | `120` | seconds between round starts |
 | `REAX_MAX_PARALLEL` | `256` | concurrent miner requests (256 = every UID at once) |
 | `REAX_STATE_PATH` | `~/.reax/validator-state.json` | persisted scores |
+| `REAX_EU_REGISTRY_FILE` | the packaged `eu_registry.json` (no operator) | EU tier registry (docs/EU-TIER.md), reloaded every round; invalid = empty registry, logged at ERROR |
+| `REAX_EU_VERIFICATION_FILE` | none (nobody EU-verified) | EU probe results per hotkey (RTT + ASN checks, valid 6 h); without it Scheme A pays x1.0 and the contract tier counts no hours |
+| `REAX_EU_MARKET_FILE` | none (no price: the contract tier pays nothing) | daily alpha/TAO and TAO/EUR quotes + inference-share estimate (`tools/eu_tier_quote.py`) |
+| `REAX_EU_TIER_STATE_PATH` / `REAX_EU_TIER_RECEIPTS_DIR` | `eu-tier-state.json` / `eu-tier-receipts/` next to `REAX_STATE_PATH` | contract-tier hour ledger and the public daily receipts (written only while an operator is active) |
 | `REAX_SET_WEIGHTS` | `1` | `0` = shadow mode |
 | `REAX_WEIGHTS_INTERVAL_BLOCKS` | `360` | minimum blocks between weight submissions (the chain rate limit also applies) |
 | `REAX_ALLOW_PRIVATE_IPS` | `0` | local test networks only; link-local addresses stay blocked |
