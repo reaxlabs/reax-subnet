@@ -107,9 +107,11 @@ def _s1_next_backend(common: CommonConfig, model: str):
 def _s1_backend(common: CommonConfig, model: str):
     from .s1backends import load_s1_backend
 
+    kind, served_model, timeout_s = dict(common.runtime_backends).get(model, ("sidecar", "", 60.0))
     endpoints = tuple((u, _read_token(tf)) for u, tf in dict(common.runtime_endpoints).get(model, ()))
     return load_s1_backend(model, common.runtime_url(model), _runtime_token(common), common.allow_dev_models,
-                           common.runtime_inflight, endpoints)
+                           common.runtime_inflight, endpoints,
+                           kind=kind, served_model=served_model, timeout_s=timeout_s)
 
 
 def _worker_backend(model: str):
@@ -163,15 +165,15 @@ async def _multinode_backend(cfg, served=None):
 
 
 async def _single_machine_backend(cfg, model: str):
-    """The runtime sidecar(s) of one model on this machine: authenticated test decision, pool identity, readmission."""
+    """One model's runtime source(s): test decision, pool identity, readmission."""
     try:
         backend = _s1_backend(cfg.common, model)
     except ValueError as exc:
         sys.exit(f"configuration error: {exc}")
     urls = ", ".join(u for u, _t in cfg.common.endpoints(model))
     if not await backend.probe():
-        sys.exit(f"the {model} runtime at {urls} did not answer an authenticated test decision (is it "
-                 "running, and do both sides use the same token? With several backends every one must answer; "
+        sys.exit(f"the {model} runtime at {urls} did not answer a test decision (check the "
+                 "endpoint, served model and runtime authentication settings; every configured backend must answer; "
                  "the log names the failing one)")
     if getattr(backend, "size", 1) > 1:
         from .selfcheck import check_backend_identity, check_pool_identity
