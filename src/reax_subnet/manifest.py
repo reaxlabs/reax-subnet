@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,27 @@ RELEASE_MANIFESTS = {"s1-fast": "s1-fast-v1.json", "s1-pro": "s1-pro-v1.json",
                      # Tiered pools (REAX_FEATURE_TIERED_POOLS, on in 1.2; docs/DESIGN-POOLS.md).
                      "s1-lite": "s1-lite-v1.json", "s1-cpu": "s1-cpu-v1.json"}
 TIERED_MODELS = ("s1-lite", "s1-cpu")
+
+
+@dataclass(frozen=True)
+class PoolSwitch:
+    """A timed manifest switch of one pool (release 1.2.0rc11.post8.1). Before ``at`` the pool's manifest is
+    ``RELEASE_MANIFESTS[model]``; from ``at`` on it is ``manifest_name``. A miner still committed to the previous
+    manifest is held (not struck, not reset, not paid) until ``at + grace``."""
+    model: str
+    at: datetime
+    manifest_name: str
+    grace: timedelta = timedelta(hours=24)
+
+    @property
+    def grace_end(self) -> datetime:
+        return self.at + self.grace
+
+
+# s1-pro: Rune -> mammoth-1, binding Fri 30 Oct 2026 09:00 UTC (Florian GO board #29579, joint plan #29586 / #29702).
+POOL_MANIFEST_SWITCH: dict[str, PoolSwitch] = {
+    "s1-pro": PoolSwitch("s1-pro", datetime(2026, 10, 30, 9, 0, tzinfo=timezone.utc), "s1-pro-v2-mammoth.json"),
+}
 
 
 def canonical(obj: Any) -> bytes:
@@ -44,10 +66,23 @@ class Manifest:
         return dict(self.data["weights"]["files"])
 
 
-def load_manifest(model: str) -> Manifest:
+def manifest_name(model: str, now: datetime | None = None, switches: dict[str, PoolSwitch] | None = None) -> str:
+    """The manifest file that is current for ``model`` at ``now`` (default: the wall clock)."""
     name = RELEASE_MANIFESTS.get(model)
     if name is None:
         raise ValueError(f"no manifest for model {model!r}")
+    sw = (POOL_MANIFEST_SWITCH if switches is None else switches).get(model)
+    if sw is not None and (now or datetime.now(timezone.utc)) >= sw.at:
+        return sw.manifest_name
+    return name
+
+
+def load_manifest(model: str, now: datetime | None = None, *, name: str | None = None,
+                  switches: dict[str, PoolSwitch] | None = None) -> Manifest:
+    """The manifest current for ``model`` at ``now`` (before a pool's switch time: the release manifest, as always);
+    ``name`` loads one specific manifest file of the model."""
+    if name is None:
+        name = manifest_name(model, now, switches)
     data = json.loads(resources.files("reax_subnet.manifests").joinpath(name).read_text(encoding="utf-8"))
     if data.get("model") != model or data.get("schema") != "reax-s1-manifest/1":
         raise ValueError(f"manifest {name} is not a reax-s1 manifest for {model}")

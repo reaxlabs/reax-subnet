@@ -146,6 +146,38 @@ image-to-hotkey label binding, review gate, owner-signed award approval, winner-
 (`composite_rules_sha256`) into the validator's `thresholds_sha256` and the state file, as v1 does with
 `engthresholds.py`. v1's `FROZEN_SHA256` is unchanged.
 
+**Per-slot answer gates (v2.0; `engcomposite._DEFAULT_SLOTS`).** The v1 defaults in `engthresholds.py` (mean 0.10,
+item 1.0, top 99 %, determinism 0.05) are NOT what v2 applies: every slot replaces them with values measured on our own
+reference against itself (a fresh start of the same image), with headroom. The same values apply to the timed items, the
+anti-cache probes (no top-choice rate there), the concurrency-1 latency items and the reference self-check; the determinism
+re-run compares the candidate with its own timed answers. Distances are the logit distance at the slot temperature.
+
+| Slot | T | Timed items per run | Mean | Item | Top choice | Determinism |
+|---|---|---|---|---|---|---|
+| mammoth | 1.0 | 1024 | 0.17 | 1.1 | 97 % | 1.1 |
+| blink | 1.3 | 256 | 0.08 | 1.6 | 97 % | 0.05 |
+| reax1 | 1.9754 | 1024 | 0.19 | 1.6 | 98 % | 1.15 |
+| jeffan | 1.0 | 1024 | 0.13 | 1.1 | 98 % | 0.8 |
+| vision | 1.3 | 256 | 0.05 | 1.0 | 99 % | 0.05 |
+| d3 (fallback v20-d3) | 1.0 | 1024 | 0.17 | 1.1 | 97 % | 1.1 |
+
+Why these sizes: mammoth, reax1 and d3 are not batch-invariant (c1 is bit-identical across processes, c8/c16 answers move
+with the batch: worst identical-engine values mammoth mean 0.087 / item 0.333 / top 99.4 % / probe 0.32 / determinism 0.39;
+reax1 item 1.325 in an identical-image session). Blink text (CUDA graphs + torch.compile) autotunes a compiled kernel per
+start, so two starts of the same image can differ (measured on 256 items: mean 0.042, item 1.125, top 98.83 %; a raw pair of
+fresh starts on a second host: mean 0.033, item 0.469, top 98.44 %); the Blink gates were widened to the values above on
+26 Oct (hotfix, before the first v2 crowning; before: 0.05 / 1.0 / 99 %). The
+vision reference runs eager (`--enforce-eager`) and is bit-identical across starts, so it keeps the strict values.
+
+**Exact prefix reuse is allowed; cached answers are not.** "Caching across requests" in the v1 rules means caching answers
+or anything that depends on the question. Reusing the exact model state of an identical token prefix (system prompt +
+state) across requests is allowed: vLLM prefix caching in the Blink, vision and Jeffan references does exactly that, and
+under `prefix_bidir` (d3-turbo, mammoth-1) the state block attends only to itself and the system prompt, never to the
+question, so its per-layer results for identical tokens are the same whichever question follows. Every question must
+be computed; the answer gates and the anti-cache probes (same state + another question, same question + another state)
+apply as always. It does not change the timed score: every timed item's state starts with a fresh secret record id, so
+no timed item shares more than the system prompt with another timed item (the anti-cache probes reuse a state on purpose; they are checked for correctness, not timed).
+
 **Release guard.** `CompositeTrack.release_ready()` lists every slot that is not calibrated on the release
 reference image; the track must not open while it is non-empty (sn92 wires this into the start constant check).
 
@@ -226,7 +258,7 @@ served through `/v1/systemone`, see R6): `jobs/reax1-everywhere-20261021/workers
 | pplx v1.1 (FP8) | 33.9 / 67.7 | 175 / 248 | 12 / 48 / 60 | 1.8 % / 7.6 % | 0.089 / 0.53, ≥ 98.05 % (c8) | max 0.44 (c1 vs c16) |
 | d3 (FP8) | 34.5 / 69.0 | 177 / 461 | 12 / 48 / 58 | 4.6 % / 9.0 % | 0.043 / 0.24, ≥ 99.6 % (c8) | max 0.30 (c1 vs c16) |
 
-What follows from it (all in `engcomposite._DEFAULT_SLOTS`):
+What followed from it on 20 Oct (historical; the gates in force are the per-slot table in section 3, recalibrated 23-26 Oct):
 - **The v1 gates do not fit d3/pplx.** d3 and pplx FP8 are not batch-invariant: an exact copy of our own pplx engine
   would fail v1's 99 % top-choice gate (98.05 %) and come close to its mean-distance cap (0.089 vs 0.10). REAX 1 is the same
   kind of engine (c16 across processes: top choice down to 96.5 %).

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reax-subnet"
-version = "1.2.0rc11.post8"
+version = "1.2.0rc11.post8+hotfix.1"
 description = "REAX Bittensor subnet: miners serve an approved decision model, validators verify fidelity"
 readme = "README.md"
 license = {text = "MIT"}
@@ -64,5 +64,6 @@ markers = [
     "localnet: needs a running local subtensor (scripts/localnet)",
     "fla_checksum: runs the real published-FLA-config checksum verification",
     "gpu: needs Docker, the NVIDIA runtime, a GPU and a model directory (REAX_SPEC_TEST_MODEL); skipped by default",
+    "real_switch: keep the release pool manifest switch (manifest.POOL_MANIFEST_SWITCH) instead of switching it off",
     "real_opening: keep the release engine opening block (competition_split.ENGINE_TRACK_START_BLOCK) instead of switching it off",
 ]

@@ -467,3 +467,24 @@ def test_beaten_set_gate_off_and_formset_survive_the_copy(monkeypatch):
     monkeypatch.setattr(CS, "GENERALIST_CO_CHAMPIONS", ())
     off = leaders(st, (1, 2, 3, 4, 5, 6, 7))
     assert off.formset == {} and rank_shares(off) == {u: s for u, s in zip([u for u, _ in off][:3], (0.75, 0.17, 0.08))}
+
+
+def test_unrevealed_private_member_has_no_third_but_keeps_its_keepalive_until_the_deadline(monkeypatch):
+    """#29731 (critic-reveal F1): a non-public co-champion before its reveal deadline: no share, still prune protection."""
+    st = case(monkeypatch)
+    m = st.tracks[TRACK].submissions[key_of(5)]
+    m.nonpublic, m.reveal_due_ts = True, NOW + 3600.0
+    res = leaders(st)
+    assert 5 not in res.cochamps and 5 not in [u for u, _ in res]
+    m.revealed_ts = NOW - 1.0
+    assert 5 in leaders(st).cochamps
+    from test_keepalive import NOW as KNOW, _snap, _sub
+    GEN = "generalist"
+    st = ST.SpecState()
+    subs = [_sub(st, 1, ST.CHAMPION, 40.0, nonproc=70.0, block=1, track=GEN),
+            _sub(st, 2, ST.PENDING_CONFIRM, 40.0, nonproc=71.0, block=2, track=GEN)]
+    monkeypatch.setattr(CS, "GENERALIST_CO_CHAMPIONS", tuple(s.key for s in subs))
+    monkeypatch.setattr(CS, "GENERALIST_CO_CHAMPIONS_CROWNED", datetime.fromtimestamp(KNOW - 3600.0, timezone.utc))
+    subs[1].nonpublic, subs[1].reveal_due_ts = True, KNOW + 3600.0
+    ka = lambda now: [u for u, _ in compute_keepalive(st, [GEN], _snap(subs), {GEN: 0.0}, now=now)[GEN]]
+    assert 2 in ka(KNOW) and 2 not in ka(KNOW + 7200.0)

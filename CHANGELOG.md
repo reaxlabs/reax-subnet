@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.0rc11.post8.1 - validator release: s1-pro pool switch to mammoth-1 + commit-reveal keep-alive deadline
+- Engine rules v2.0 hotfix (published FAQ v3.0): Blink text answer gates 0.08 / 1.6 / 97 % (were 0.05 / 1.0 / 99 %; vision keeps strict gates); rules sha v20 ff53976e, v20-d3 6595f17d (cherry-picked fcd6fcc, 1ef212d, a3ee234).
+Validator release for Wed 28 Oct 2026 12:00 UTC on top of post8 (engine v2 + v1 bridge pin 1faccee3, unchanged). Exactly three changes:
+- CHANGELOG post8 miner-side release note (6ac9d9b; no code change, same tree as the published v1.2.0-rc11.post8 otherwise).
+- Timed s1-pro manifest switch Rune -> mammoth-1 (from rc11p73-poolswitch b98d222): new `manifest.POOL_MANIFEST_SWITCH`; the s1-pro pool
+  switches from the Rune manifest (`5b11440bf57b5434`) to the mammoth-1 manifest (`s1-pro-v2-mammoth.json`, id `3f3558e583b0a1d6`,
+  reference runtime ref-mammoth `3080a593`) at **Fri 30 Oct 2026 09:00 UTC** (Florian GO board #29579, plan #29586 / #29702). Before that
+  time the behaviour is that of post8; `POOL_MANIFEST_SWITCH = {}` removes the switch.
+  From the switch the validator accepts only the new manifest, asks the new reference runtime (`REAX_S1_PRO_NEXT_RUNTIME_URL`, a separate
+  loopback URL; without it or while it is down the pool is left unscored) and uses `s1validator.POOL_SWITCH_PARAMS` (temperature 1.0;
+  tolerances 0.20 / 0.50 / 2.0; capacity unit and cap unchanged). Grace: from the switch until +24 h a slot still committed to the old
+  manifest is held (not queried, EMA frozen, no weight, no strike, no reset); after that normal stale-manifest handling applies.
+  No state field is added. Miners: `load_manifest(model)` follows the clock (docs/MINER.md, docs/hardware.md).
+- Commit-reveal keep-alive deadline (from ka-reveal-deadline 27fba7e, 3c54fd2, 46796ac; #29724/#29731): a non-public entry keeps its
+  keep-alive until its reveal deadline (`reveal_allows_keepalive` on the keep-alive, provisional and committed-waiting paths); share paths
+  keep `reveal_allows_payment`.
+- `WEIGHTS_VERSION_KEY` stays 1270. Runtime version `1.2.0rc11.post8.1`; Python distribution version `1.2.0rc11.post8+hotfix.1`.
+
 ## 1.2.0rc11.post8 - engine competition v2.0 (`dm-all`): fusion package a1de327 merged onto post7.2
 Miner-side release of engine v2.0, published Tue 27 Oct 2026. REAX validators switch with post8.1 on Wed 28 Oct 2026 12:00 UTC;
 the first `dm-all` crowning is Fri 30 Oct 2026 14:30 UTC. Miners can measure a `dm-all` engine locally now:

@@ -52,10 +52,12 @@ def test_public_entry_and_legacy_fields_are_paid():
     assert ST.reveal_allows_payment(s, NOW) and ST.reveal_allows_payment(object(), NOW)
 
 
-def test_unrevealed_private_champion_is_not_paid_leaders_or_keepalive():
+def test_unrevealed_private_champion_gets_no_share_but_keepalive_until_the_deadline():
     st = ST.SpecState()
     s = _private(st, 1, ST.CHAMPION, 40.0, reveal_due_ts=DUE)
-    assert _pay(st, [s]) == ([], [])
+    lead, ka = _pay(st, [s])
+    assert lead == [] and [u for u, _ in ka] == [1]  # #29731: prune protection stays until reveal_due_ts
+    assert _pay(st, [s], now=DUE + 1) == ([], [])
     s.revealed_ts = NOW - 10.0                      # the receipt is what counts, not the clock
     lead, ka = _pay(st, [s], now=DUE + 5)
     assert [u for u, _ in lead] == [1] and [u for u, _ in ka] == [1]
@@ -112,9 +114,13 @@ def test_provisional_and_mark_provisional_need_the_reveal_receipt(monkeypatch):
     st = ST.SpecState()
     s = _prov(st, 1, nonpublic=True, reveal_due_ts=DUE)
     snap = _snapr([s])
+    assert E.compute_provisional(st, [DF], snap, now=NOW)[DF] == [1]    # before the deadline: prune protection (#29731)
+    s.reveal_due_ts = NOW - 1.0
     assert E.compute_provisional(st, [DF], snap, now=NOW)[DF] == []
     s.provisional_since_ts = None
     assert E.mark_provisional(st, [DF], snap, NOW) is False and s.provisional_since_ts is None
+    s.reveal_due_ts = DUE
+    assert E.mark_provisional(st, [DF], snap, NOW) is True and s.provisional_since_ts is not None   # deadline ahead
     s.revealed_ts, s.provisional_since_ts = NOW - 5.0, NOW - 3600.0
     assert [u for u in E.compute_provisional(st, [DF], snap, now=NOW)[DF]] == [1]
     s.reveal_void = True
@@ -129,7 +135,8 @@ def test_committed_waiting_keepalive_before_the_slot_is_paid_after_a_deadline_it
     s.provisional_since_ts = None
     assert E._committed_waiting(st, [DF], snap, NOW)[DF] == [1]       # waiting keep-alive before the slot: paid
     s.reveal_due_ts = DUE
-    assert E._committed_waiting(st, [DF], snap, NOW)[DF] == []        # slot played, no receipt: not paid
+    assert E._committed_waiting(st, [DF], snap, NOW)[DF] == [1]       # slot played, deadline ahead: still protected
+    assert E._committed_waiting(st, [DF], snap, DUE + 1)[DF] == []    # deadline passed, no receipt: not paid
     s.revealed_ts = NOW - 1.0
     assert E._committed_waiting(st, [DF], snap, NOW)[DF] == [1]
     s.public_lost_ts = NOW
@@ -179,8 +186,27 @@ def test_compute_provisional_on_the_waiting_hotfix_path_is_gated_too():
     from test_provisional_ka import _snapr
     assert CS.WAITING_KA_HOTFIX is True
     st = ST.SpecState()
-    s = _prov(st, 1, nonpublic=True, reveal_due_ts=DUE)
+    s = _prov(st, 1, nonpublic=True, reveal_due_ts=NOW - 1.0)
     snap = _snapr([s], cblocks={1: 19990})
     assert E.compute_provisional(st, [DF], snap, now=NOW)[DF] == []
-    s.revealed_ts = NOW - 5.0
+    s.reveal_due_ts = DUE
     assert E.compute_provisional(st, [DF], snap, now=NOW)[DF] == [1]
+    s.reveal_due_ts, s.revealed_ts = NOW - 1.0, NOW - 5.0
+    assert E.compute_provisional(st, [DF], snap, now=NOW)[DF] == [1]
+
+
+def test_private_entry_pending_confirmation_after_its_slot_is_protected_until_the_deadline():
+    """#29724/#29731: uid-162 shape with commit-reveal: first draw played, waiting for the confirmation draw."""
+    st = ST.SpecState()
+    s = _private(st, 1, ST.PENDING_CONFIRM, 30.0, reveal_due_ts=DUE)
+    assert not ST.reveal_allows_payment(s, NOW) and ST.reveal_allows_keepalive(s, NOW)
+    lead, ka = _pay(st, [s])
+    assert lead == [] and [u for u, _ in ka] == [1]
+    assert _pay(st, [s], now=DUE + 1) == ([], [])
+    s.revealed_ts = DUE + 1                         # a late receipt does not buy protection
+    assert not ST.reveal_allows_keepalive(s, DUE + 2)
+    s.revealed_ts, s.public_lost_ts = NOW - 1.0, NOW  # revealed, then gated again: stops at once
+    assert not ST.reveal_allows_keepalive(s, NOW)
+    s.public_lost_ts, s.reveal_void = None, True
+    assert not ST.reveal_allows_keepalive(s, NOW)
+    assert not ST.reveal_allows_keepalive(_private(st, 2, ST.PENDING_CONFIRM, 30.0, reveal_due_ts=float("nan")), NOW)

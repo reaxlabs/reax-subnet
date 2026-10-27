@@ -143,6 +143,24 @@ def reveal_allows_payment(sub: Any, now: float | None = None) -> bool:
     return getattr(sub, "public_lost_ts", None) is None
 
 
+def reveal_allows_keepalive(sub: Any, now: float | None = None) -> bool:
+    """Prune protection of a non-public entry between its slot and its reveal deadline (design owner #29731).
+
+    Shares (leaders, champion, co-/former champion) keep ``reveal_allows_payment``. The keep-alive paths (keep-alive,
+    provisional, committed-waiting) also pay an unrevealed entry while ``now <= reveal_due_ts``, so an honest private
+    entry waiting for its confirmation is not pruned (Florian 26 Oct: no dereg just for waiting). After the deadline
+    without a receipt, void, or re-gated after a reveal: 0 as before.
+    """
+    if reveal_allows_payment(sub, now):
+        return True
+    if getattr(sub, "reveal_void", False) or getattr(sub, "revealed_ts", None) is not None:
+        return False
+    due = getattr(sub, "reveal_due_ts", None)
+    t = time.time() if now is None else now
+    return (isinstance(due, (int, float)) and math.isfinite(due) and isinstance(t, (int, float)) and math.isfinite(t)
+            and t <= due)
+
+
 @dataclass
 class Draw:
     draw_id: str

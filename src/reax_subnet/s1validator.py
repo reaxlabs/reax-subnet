@@ -34,9 +34,10 @@ from multidict import CIMultiDict
 from . import auth, elements, eutier, probeshard
 from .chain import Neuron, Snapshot
 from .elements import MODEL_INDEX, MODEL_ORDER, SLOT_STRIDE, slot_key, slot_uid
-from .manifest import load_manifest, parse_commitment
+from . import manifest as manifest_mod
+from .manifest import RELEASE_MANIFESTS, PoolSwitch, load_manifest, parse_commitment
 from .protocol import ProtocolError
-from .s1backends import S1Backend
+from .s1backends import S1Backend, UnavailableBackend
 from .s1contract import Decision, parse_decision
 from .s1items import generate_s1_items
 from .s1protocol import MAX_RESPONSE_BYTES, S1_DECIDE_PATH, S1Request, parse_s1_request, parse_s1_response
@@ -64,6 +65,17 @@ POOL_PARAMS: dict[str, PoolParams] = {
                           items_per_round=4, verified_per_round=4, latency_fast_s=1.0, latency_slow_s=12.0),
     "s1-cpu": PoolParams("s1-cpu", temperature=1.0, tau_mean=0.20, tau_strike=0.50, tau_item=2.0,
                          items_per_round=4, verified_per_round=4, latency_fast_s=2.0, latency_slow_s=30.0),
+}
+# Pool parameters from a timed manifest switch (manifest.POOL_MANIFEST_SWITCH) on, per pool. s1-pro -> mammoth-1:
+# temperature 1.0 (the model's own readout temperature, docs/hardware.md; Rune read at 2.0). Tolerances unchanged
+# (0.20 / 0.50 / 2.0 in logit units, now at T = 1.0, i.e. half as wide in raw logit differences than for Rune): the
+# calibration of the reference ref-mammoth 3080a593 (gpucheck-lineup-b, 26 Oct 2026) measured honest batch drift at
+# mean 0.087 / item 0.33 and a restart drift of 0.39 at most (same engine at concurrency 1 = bit-identical), so the
+# serving tolerance keeps 2.3x / 5x headroom over the largest honest distance. Items, verified sample and latency
+# curve unchanged (the reference answers in ~0.35 s p95 at the production rate).
+POOL_SWITCH_PARAMS: dict[str, PoolParams] = {
+    "s1-pro": PoolParams("s1-pro", temperature=1.0, tau_mean=0.20, tau_strike=0.50, tau_item=2.0,
+                         items_per_round=8, verified_per_round=3, latency_fast_s=1.0, latency_slow_s=12.0),
 }
 TIERED_POOLS = ("s1-lite", "s1-cpu")
 SHARES_FAST_ONLY = {"s1-fast": 1.0}
@@ -241,7 +253,11 @@ def s1_endpoint_url(ip: str, port: int) -> str:
 class S1Validator(Validator):
     def __init__(self, cfg, wallet, chain, backends: Mapping[str, S1Backend],
                  pools: Optional[Mapping[str, PoolParams]] = None, shares: Optional[Mapping[str, float]] = None,
-                 engine: Optional[Any] = None, competitions: Optional[Any] = None):
+                 engine: Optional[Any] = None, competitions: Optional[Any] = None,
+                 switches: Optional[Mapping[str, PoolSwitch]] = None,
+                 next_backends: Optional[Mapping[str, S1Backend]] = None,
+                 next_pools: Optional[Mapping[str, PoolParams]] = None,
+                 clock: Optional[Callable[[], datetime]] = None):
         super().__init__(cfg, wallet, chain, backend=None)  # type: ignore[arg-type]
         self.tiered = bool(getattr(cfg, "tiered_pools", False))
         # Development networks may probe more often (localnet runs last minutes, not hours).
@@ -266,7 +282,17 @@ class S1Validator(Validator):
         if missing:
             raise ValueError(f"no reference runtime for enabled pool(s): {', '.join(missing)}")
         self.backends = dict(backends)
-        self.manifests = {m: load_manifest(m) for m in self.pools}
+        # Timed manifest switches (manifest.POOL_MANIFEST_SWITCH; none configured = exactly the release manifests as
+        # before): from the switch time on a pool's accepted manifest, reference runtime and parameters are the new
+        # ones, applied at the start of a round (_apply_pool_switches); until switch + grace a miner still committed
+        # to the previous manifest is held, not struck and not reset (_grace_slots).
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self.switches = {m: sw for m, sw in dict(manifest_mod.POOL_MANIFEST_SWITCH if switches is None else switches).items()
+                         if m in self.pools}
+        self._next_backends = dict(next_backends or {})
+        self._next_pools = dict(POOL_SWITCH_PARAMS if next_pools is None else next_pools)
+        self._old_manifests: dict[str, Any] = {}
+        self.manifests = {m: load_manifest(m, name=RELEASE_MANIFESTS[m]) for m in self.pools}
         self.last_round: dict[str, Any] = {}
         self._role_pending: dict[int, str] = {}
         self._unconfirmed_streak: dict[int, int] = {}
@@ -312,6 +338,42 @@ class S1Validator(Validator):
             self.eu = eutier.EUTier.from_env(os.environ, getattr(cfg, "state_path", "") or "~/.reax/validator-state.json")
         except Exception:
             log.exception("EU tier could not start: off (no multiplier, no contract pay)")
+        self._apply_pool_switches(self._clock())
+
+    # ---------------------------------------------------- timed manifest switch
+    def _apply_pool_switches(self, now: datetime) -> None:
+        """One way, idempotent: a pool whose switch time has come takes the new manifest, the new reference runtime
+        (its ``next_backends`` entry; none = a placeholder that fails every decision, so the pool is left unscored
+        instead of scored against the wrong runtime) and the new pool parameters."""
+        for model, sw in self.switches.items():
+            if model in self._old_manifests or now < sw.at:
+                continue
+            self._old_manifests[model] = self.manifests[model]
+            new = load_manifest(model, name=sw.manifest_name)
+            self.manifests[model] = new
+            if model in self._next_pools:
+                self.pools[model] = self._next_pools[model]
+            old_backend = self.backends.get(model)
+            nxt = self._next_backends.get(model)
+            self.backends[model] = nxt if nxt is not None else UnavailableBackend(
+                model, new, f"no reference runtime for manifest {new.manifest_id} (REAX_{model.upper().replace('-', '_')}"
+                            "_NEXT_RUNTIME_URL is not set)")
+            if nxt is None:
+                log.error("%s switched to manifest %s at %s but no reference runtime is configured for it: the pool is "
+                          "left unscored until one is", model, new.manifest_id, sw.at.isoformat())
+            else:
+                log.warning("%s pool switched to manifest %s at %s (previous %s held until %s)", model, new.manifest_id,
+                            sw.at.isoformat(), self._old_manifests[model].manifest_id, sw.grace_end.isoformat())
+            if old_backend is not None and old_backend is not nxt:
+                try:
+                    asyncio.get_running_loop().create_task(old_backend.close())
+                except RuntimeError:
+                    pass
+
+    def _grace_manifest_ids(self, now: datetime) -> dict[str, str]:
+        """{model: previous manifest id} of the pools inside their grace period (switch time <= now < switch + grace)."""
+        return {m: self._old_manifests[m].manifest_id for m, sw in self.switches.items()
+                if m in self._old_manifests and now < sw.grace_end}
 
     # --------------------------------------------------------------- roles
     def slot_roles(self, n: Neuron) -> dict[str, str]:
@@ -338,6 +400,14 @@ class S1Validator(Validator):
     def _why_model_rejected(self, model: str, manifest_id: str) -> str:
         if model not in self.pools:
             return f"the {model} pool is not enabled in this release"
+        old = self._old_manifests.get(model)
+        if old is not None and manifest_id == old.manifest_id:
+            end = self.switches[model].grace_end
+            if self._clock() < end:
+                return (f"{model} switched to manifest {self.manifests[model].manifest_id}; this miner still commits the "
+                        f"previous {manifest_id}: held until {end.isoformat()} (not queried, not scored, not reset)")
+            return (f"{model} switched to manifest {self.manifests[model].manifest_id}; the grace period for the previous "
+                    f"{manifest_id} ended {end.isoformat()}")
         return (f"manifest {manifest_id} differs from this release's {model} manifest "
                 f"{self.manifests[model].manifest_id} (miner and validator run different releases)")
 
@@ -593,6 +663,9 @@ class S1Validator(Validator):
             return None
         self._shrunk_count = None
         self._last_neuron_count = count
+        now = self._clock()
+        self._apply_pool_switches(now)
+        grace = self._grace_manifest_ids(now)
         views = elements.role_views(snap)
         isnap = views.inference  # commitment = the inference element; the competition code gets views.competition
         reset = self.state.sync(isnap)
@@ -607,11 +680,16 @@ class S1Validator(Validator):
         # entry (role "") like any non-miner. A slot whose model left the commitment proposes the empty role.
         excluded = {n.uid for n in isnap.neurons if n.hotkey == self.hotkey or n.uid == isnap.owner_uid}
         proposed: dict[int, tuple[Optional[str], str]] = {}
+        frozen: set[int] = set()  # slots committed to a previous manifest inside its grace period
         slot_neurons: dict[int, Neuron] = {}  # slot -> the neuron with uid = slot (virtual: same endpoint and keys)
         for n in isnap.neurons:
             if n.uid in excluded:
                 continue
             slot_roles = self.slot_roles(n)
+            if grace:
+                for model, mid in (elements.parse_inference(n.commitment) or {}).items():
+                    if grace.get(model) == mid and model not in slot_roles:
+                        frozen.add(slot_key(n.uid, model))
             if "s1-fast" not in slot_roles:
                 proposed[n.uid] = (None, "")
             for model in MODEL_ORDER:
@@ -620,7 +698,7 @@ class S1Validator(Validator):
                     proposed[slot] = (model, slot_roles[model])
                     slot_neurons[slot] = dataclasses.replace(n, uid=slot)
                     self.state.miners.setdefault(slot, MinerState(hotkey=n.hotkey))
-        for slot in [s for s in self.state.miners if s >= SLOT_STRIDE and s not in proposed]:
+        for slot in [s for s in self.state.miners if s >= SLOT_STRIDE and s not in proposed and s not in frozen]:
             if slot_uid(slot) in excluded:
                 self.state.drop_slot(slot)
             else:
@@ -740,7 +818,7 @@ class S1Validator(Validator):
                      "-" if math.isinf(res.latency_s) else f"{res.latency_s:.2f}s", self.state.miners[res.uid].ema,
                      " STRIKE" if strike else "", f" error={res.error}" if res.error else "")
         for slot in list(self.state.miners):
-            if (slot not in queried and slot not in shielded and slot not in rested
+            if (slot not in queried and slot not in shielded and slot not in rested and slot not in frozen
                     and slot_uid(slot) not in excluded):
                 self.state.update(slot, 0.0, 0.0, self.params.ema_alpha)
         answered = {res.uid for res in results if res.answers is not None and res.uid not in unscored}
@@ -1305,6 +1383,7 @@ class S1Validator(Validator):
         return elements.role_views(snap).competition
 
     def compute_weights(self, snap: Snapshot) -> dict[int, float]:
+        self._apply_pool_switches(self._clock())
         ema_by_pool: dict[str, dict[int, float]] = {m: {} for m in self.pools}
         capacity_by_pool: dict[str, dict[int, float]] = {m: {} for m in self.pools}
         current = {f"{model}:{man.manifest_id}": model for model, man in self.manifests.items()}

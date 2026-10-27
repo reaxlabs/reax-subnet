@@ -91,6 +91,19 @@ def _runtime_token(common: CommonConfig) -> str:
     return _read_token(common.runtime_token_file)
 
 
+def _s1_next_backend(common: CommonConfig, model: str):
+    """The reference runtime of a pool's NEXT manifest (timed switch), or None when no URL is configured."""
+    from .manifest import POOL_MANIFEST_SWITCH, load_manifest
+    from .s1backends import load_s1_backend
+
+    sw = POOL_MANIFEST_SWITCH.get(model)
+    url = common.next_runtime_url(model)
+    if sw is None or not url:
+        return None
+    return load_s1_backend(model, url, _runtime_token(common), common.allow_dev_models, common.runtime_inflight,
+                           manifest=load_manifest(model, name=sw.manifest_name))
+
+
 def _s1_backend(common: CommonConfig, model: str):
     from .s1backends import load_s1_backend
 
@@ -307,12 +320,38 @@ async def _run_s1_validator(cfg, wallet) -> None:
     from .chain import SdkChain
     from .s1validator import SHARES_BOTH, SHARES_FAST_ONLY, TIERED_POOLS, S1Validator
 
+    from datetime import datetime, timezone
+
+    from .manifest import POOL_MANIFEST_SWITCH
+
     models = sorted(SHARES_BOTH if cfg.s1_pro_pool else SHARES_FAST_ONLY)
     if cfg.tiered_pools:
         models = sorted([*models, *TIERED_POOLS])
     backends = {}
+    next_backends = {}
+    now = datetime.now(timezone.utc)
     for m in models:
         tiered = m in TIERED_POOLS
+        sw = POOL_MANIFEST_SWITCH.get(m)
+        if sw is not None:  # timed manifest switch: the next reference is built now, used from the switch time on
+            try:
+                nxt = _s1_next_backend(cfg.common, m)
+            except ValueError as exc:
+                sys.exit(f"configuration error: {exc}")
+            if nxt is None:
+                log.error("%s switches to manifest %s at %s but REAX_%s_NEXT_RUNTIME_URL is not set: the pool will be "
+                          "UNSCORED from then on", m, sw.manifest_name, sw.at.isoformat(), m.upper().replace("-", "_"))
+            else:
+                next_backends[m] = nxt
+            if now >= sw.at:  # restarted after the switch: the new runtime is THE reference (a down runtime is not fatal)
+                if nxt is not None and not await nxt.probe():
+                    log.error("the %s reference runtime for the new manifest at %s did not answer an authenticated test "
+                              "decision: the pool is unscored until it does", m, cfg.common.next_runtime_url(m))
+                from .manifest import load_manifest
+                from .s1backends import UnavailableBackend
+
+                backends[m] = nxt or UnavailableBackend(m, load_manifest(m, name=sw.manifest_name))
+                continue
         try:
             backends[m] = _s1_backend(cfg.common, m)
         except ValueError as exc:
@@ -341,7 +380,8 @@ async def _run_s1_validator(cfg, wallet) -> None:
         if genesis.lower() == FINNEY_GENESIS:
             sys.exit("REAX_NETWORK is a custom endpoint of finney (mainnet): set REAX_NETWORK=finney so that the "
                      "release-fixed engine competition and split are used (docs/COMPETITIONS.md)")
-    await S1Validator(cfg, wallet, chain, backends, engine=engine, competitions=drivers).run_forever()
+    await S1Validator(cfg, wallet, chain, backends, engine=engine, competitions=drivers,
+                      next_backends=next_backends).run_forever()
 
 
 def _engine_competition(cfg):

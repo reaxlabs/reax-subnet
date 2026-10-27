@@ -699,7 +699,7 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
         co_keys = {m.key for m in cochamp_members(ts)}
         co_since = cochamp_since(ts)
         for s in ts.submissions.values():
-            if not ST.reveal_allows_payment(s, now) or s.status not in KEEPALIVE_STATUSES or not s.delta_checked or RV.under_review(s):
+            if not ST.reveal_allows_keepalive(s, now) or s.status not in KEEPALIVE_STATUSES or not s.delta_checked or RV.under_review(s):
                 continue    # rc11.post5: an entry under review (reparametrisation flag, operator hold) gets no keep-alive
             is_co = s.key in co_keys and s.status != ST.CHAMPION and co_since is not None
             since = co_since if is_co else _keepalive_since(s)
@@ -995,7 +995,7 @@ def mark_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sn
     for track_id in track_ids:
         opened = _open_counts(state, track_id)
         for s in state.track(track_id).submissions.values():
-            if (ST.reveal_allows_payment(s, now) and s.provisional_since_ts is None and _provisional_ok(s, live, snapshot.block, opened.get(s.coldkey, 0), d4) is not None
+            if (ST.reveal_allows_keepalive(s, now) and s.provisional_since_ts is None and _provisional_ok(s, live, snapshot.block, opened.get(s.coldkey, 0), d4) is not None
                     and (not d4 or s.hash_named or s.key in probed) and _big_ok(s, track_id, now, undecided=True)):
                 # the window belongs to the hotkey: a later entry of it inherits the hotkey's earliest start
                 s.provisional_since_ts = first.setdefault(s.hotkey, _commitment_ts(live[s.hotkey], snapshot.block, now) if d4 else now)
@@ -1086,7 +1086,7 @@ def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: 
             s = subs.get(f"{hk}|{c.text()}")
             at = _onchain_ts(n, snapshot.block, now)
             if s is not None:
-                if not ST.reveal_allows_payment(s, now):
+                if not ST.reveal_allows_keepalive(s, now):
                     continue
                 if s.status not in (ST.QUEUED, ST.PENDING_VERIFY) or not _big_ok(s, track_id, now, undecided=True):
                     continue
@@ -1200,7 +1200,7 @@ def compute_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot:
         cands = []
         opened = _open_counts(state, track_id)
         for s in state.track(track_id).submissions.values():
-            if not ST.reveal_allows_payment(s, now):
+            if not ST.reveal_allows_keepalive(s, now):
                 continue
             since = s.provisional_since_ts
             if not isinstance(since, (int, float)) or not math.isfinite(since):

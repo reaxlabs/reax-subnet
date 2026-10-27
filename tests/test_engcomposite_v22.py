@@ -284,8 +284,10 @@ def test_the_two_new_slots():
                                           pplx.determinism_tau)  # provisional gates: like pplx
     # vision = the Blink engine and weights with images: same model id for the engine, own runner key and pool
     assert v.model == b.model == "blink-v0.3-26b-a4b" and v.params.name == "s1-vision" and v.params.pool == "s1-vision"
-    assert (v.params.concurrency, v.params.temperature, v.params.mean_tau, v.params.item_tau) == (
-        b.params.concurrency, b.params.temperature, b.params.mean_tau, b.params.item_tau)
+    assert (v.params.concurrency, v.params.temperature) == (b.params.concurrency, b.params.temperature)
+    # vision's eager reference is bit-identical across starts: strict gates; Blink text (CUDA graphs) got wider ones (26 Oct)
+    assert (v.params.mean_tau, v.params.item_tau, v.params.min_top_agreement) == (0.05, 1.0, 0.99)
+    assert v.params.mean_tau < b.params.mean_tau and v.params.item_tau < b.params.item_tau
     assert v.memory_budget_mib == b.memory_budget_mib and v.params.eval_budget_s >= b.params.eval_budget_s
     assert ecmp.SLOT_WEIGHTS_FROM == {"vision": "blink"}
     assert ecmp.parse_declared("vision,quyet", t) == {"vision", "quyet"}

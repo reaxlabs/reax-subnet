@@ -38,6 +38,44 @@ your hotkey (`REAX_PUBLISH_COMMITMENT`, default 1). Validators only query miners
 enabled pool and this release's manifest; without a matching commitment your miner is not queried and earns
 nothing. Changing the commitment (model or manifest) restarts that UID's score from zero.
 
+## s1-pro switches from Rune to mammoth-1 on Fri 30 Oct 2026, 09:00 UTC (release 1.2.0rc11.post8.1)
+
+Binding time **Fri 30 Oct 2026 09:00 UTC** (announced Wed 28 Oct, release 1.2.0rc11.post8.1). From that second the
+validators of this release accept for the s1-pro pool only the new manifest and score it against the new reference
+runtime. Nothing changes for s1-fast, s1-lite and s1-cpu.
+
+| | until Fri 30 Oct 09:00 UTC | from Fri 30 Oct 09:00 UTC |
+|---|---|---|
+| Model | Surogate Rune 26B-A4B v3 | `baselabs/mammoth-1` @ `61cec44c281c693992e3d6ebeb44dd3402dfa186` (MIT) |
+| `manifest_id` | `5b11440bf57b5434` | `3f3558e583b0a1d6` |
+| Reference runtime | Rune image (vLLM 0.30.0, deterministic) | `ghcr.io/reaxlabs/reax-engine-ref-mammoth@sha256:3080a593060542bccbdaf7cf0c66593fc182d9753b3facd50206df86d93b8588` |
+| Readout temperature | 2.0 | 1.0 |
+| Tolerances (`tau_mean` / `tau_strike` / `tau_item`) | 0.20 / 0.50 / 2.0 | 0.20 / 0.50 / 2.0 (logit units at T = 1.0) |
+| GPU | 80-96 GB class | one NVIDIA GPU with 48 GB or more (measured peak 35.2 GB; RTX PRO 6000 96 GB is the measured card) |
+
+**What to do before Fri 30 Oct 09:00 UTC:**
+
+1. Download the weights with `hf download baselabs/mammoth-1 --revision 61cec44c281c693992e3d6ebeb44dd3402dfa186 --local-dir <dir>`
+   (about 55 GB, public). The runtime verifies every pinned file against the manifest at start.
+2. Pull the reference runtime image by the digest above and test it next to your Rune sidecar if your GPU has room
+   (35 GB), or on a second machine. Run `reax-selfcheck --model s1-pro` once the miner kit update (Wed 28 Oct) has
+   published the mammoth reference answers; it must print PASS before you switch.
+3. **Switch at or after 09:00 UTC, not before.** Stop the Rune sidecar, start the mammoth sidecar on the same loopback
+   port, update the miner image to 1.2.0rc11.post8.1 and restart it: the miner commits the new manifest on its own.
+   A miner of this release started before 09:00 UTC still commits the Rune manifest.
+4. Do not commit the new manifest before 09:00 UTC: until then validators do not accept it, and a commitment they do not
+   accept removes your s1-pro slot (score reset), exactly like any other manifest change.
+
+**Grace period 24 h (until Sat 31 Oct 09:00 UTC).** A miner that still commits the Rune manifest after the switch is
+neither struck nor reset: its moving average is frozen, it is not queried and it receives no weight. When it commits
+the new manifest, the slot starts from zero like after any manifest change. After Sat 31 Oct 09:00 UTC a miner still
+on the Rune manifest is handled like any stale manifest (slot dropped, score reset). Every hour after 09:00 UTC on the
+old manifest is an hour without s1-pro weight: have the mammoth sidecar ready and switch promptly.
+
+A miner restarted after 09:00 UTC with the post8.1 release commits the mammoth manifest automatically; do not restart a
+miner after that time while its sidecar still serves Rune. Several models on one hotkey: only the s1-pro entry of your
+commitment changes.
+
 ## Models, licences and hardware (s1)
 
 A hotkey serves one model, or **several models** (below); your commitment says which. Several models on one hotkey and a

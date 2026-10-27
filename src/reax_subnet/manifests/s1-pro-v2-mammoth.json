@@ -1,0 +1,78 @@
+{
+ "hardware": {
+  "min_gpu_memory_gb": 48,
+  "note": "anchored FP8 at load: 35.2 GB peak per engine on a 96 GB card (token cap 16384, state-once); 54.7 GB bf16 weights on disk. 48 GB cards and up (L40S, RTX 6000 Ada, A6000-class, H100, RTX PRO 6000); the 48 GB figure is an estimate, measured fit: 33.9 GB per engine, two engines 67.9 GB."
+ },
+ "licence": {
+  "note": "baselabs/mammoth-1 (Qwen3.5 27B fine-tune). README declares MIT; the repository ships no LICENSE file. Do not mirror the weights.",
+  "notices": [],
+  "spdx": "MIT"
+ },
+ "limits": {
+  "max_input_tokens": 16384,
+  "max_options": 64,
+  "max_state_bytes": 16384,
+  "min_options": 2
+ },
+ "model": "s1-pro",
+ "name": "Mammoth-1 27B (System1 s1-pro)",
+ "production_reference": "ghcr.io/reaxlabs/reax-engine-ref-mammoth@sha256:3080a593060542bccbdaf7cf0c66593fc182d9753b3facd50206df86d93b8588 (reax-engine ref-mammoth, engine.serve; bit-identical at concurrency 1 to production engine 5117ec3 on 500/500 items)",
+ "readout": {
+  "attention": "prefix_bidir (state block + system prompt never attend to the question)",
+  "labels": "A..Z then single-token two-letter codes (qev-labels-v2 layout)",
+  "prompt": "qev state-once decision prompt (one shared-prefix prefill per request, one batched forward over the question suffixes); no prompt tuning, truncation or option pruning",
+  "softmax": "fp32 slot_lm readout over option-label logits / T (one forward pass, no generation)",
+  "temperature": 1.0
+ },
+ "runtime": {
+  "args": [
+   "--linear",
+   "fp8",
+   "--compile",
+   "1",
+   "--gva",
+   "1",
+   "--budget",
+   "16384",
+   "--max-tokens",
+   "16384",
+   "--shared-state",
+   "1",
+   "--shared-until",
+   "64",
+   "--shared-mixq",
+   "0",
+   "--shared-group",
+   "1"
+  ],
+  "dtype": "bfloat16 weights, anchored FP8 linears",
+  "engine": "reax-engine ref-mammoth (qev runtime OneJev@81ce62f + serve.patch)",
+  "env": {
+   "CIE_LAZY_LOAD": "1",
+   "REAX_MAX_WAIT_MS": "4",
+   "REAX_PROFILE": "reference"
+  },
+  "image": "ghcr.io/reaxlabs/reax-engine-ref-mammoth@sha256:3080a593060542bccbdaf7cf0c66593fc182d9753b3facd50206df86d93b8588"
+ },
+ "schema": "reax-s1-manifest/1",
+ "weights": {
+  "files": {
+   "chat_template.jinja": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+   "config.json": "bab5a8ceb73fd6a8f191afaf23afbf689d931da5b3c7c9d5153cf1e4b5024502",
+   "constraints.txt": "7afb5334b5d57ef09e3d8ac2fc670f07182c50ffb51035d5b6eb7898f863edfb",
+   "engine.py": "72373353379c53b7cabfb5d05b6fef3c898d48c87cc386e03fc3de9c07e67ca7",
+   "generation_config.json": "eb67f249756eede535dd6f8c941570e91a2a73f0c8d05d00c6012216ecfca869",
+   "model-00001-of-00002.safetensors": "29701f9a7b131bedb3fe1d565dad69b912d9128c6fc27e3d8fb0aedc47ae0e06",
+   "model-00002-of-00002.safetensors": "4da0ff5476813bbd9898454f0d7f7ba3c82914c42e32e2b87577c6d69daae671",
+   "model.safetensors.index.json": "0424520f63f04816eee4d229a4487dc9744866ceb46513e591dd987e401b1663",
+   "processor_config.json": "bfbc24af59a3e73a9cd0653b8d4ae758dfaec4e3e6c15dfb1c6c8ee8d5683c85",
+   "readout.json": "96ea8a5c6ecfc30c20cdd369762db5997c5f4fb9821ce0a0318941343eb5e8ba",
+   "serve.patch": "f234c125f1d38d82104b9e1f24e75bde51e4401928acfba2fbf5c59ef2fb46b8",
+   "setup.sh": "6bf9514c6b80f585a94f9a40c03f87c27cce9e2de8d2ba4cf4b41434babca62a",
+   "tokenizer.json": "a5cd9732badce41de57e6efce8302930ded1c1188c5f81feb2bd6c24c4a1941f",
+   "tokenizer_config.json": "2984c03425a28d242744e234a5003786fd289b3713db79fe0958c65eb59d85b2"
+  },
+  "hf_repo": "baselabs/mammoth-1",
+  "revision": "61cec44c281c693992e3d6ebeb44dd3402dfa186"
+ }
+}

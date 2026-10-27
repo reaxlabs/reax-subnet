@@ -205,9 +205,16 @@ class CommonConfig:
     runtime_endpoints: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = ()
     # Decisions in flight to the runtime sidecar at once (raise it for a multi-GPU runtime behind one hotkey).
     runtime_inflight: int = 16
+    # Timed manifest switch (manifest.POOL_MANIFEST_SWITCH): loopback URL of the reference runtime the validator uses
+    # for a pool from its switch time on (REAX_<MODEL>_NEXT_RUNTIME_URL). A separate URL, so the previous runtime can
+    # never answer for the new manifest.
+    next_runtime_urls: tuple[tuple[str, str], ...] = ()
 
     def runtime_url(self, model: str) -> str:
         return dict(self.runtime_urls).get(model, "")
+
+    def next_runtime_url(self, model: str) -> str:
+        return dict(self.next_runtime_urls).get(model, "")
 
     def endpoints(self, model: str) -> tuple[tuple[str, str], ...]:
         """All runtime sidecars of ``model`` as (url, token file); falls back to the single ``runtime_url``."""
@@ -460,6 +467,12 @@ def load_common(env: Mapping[str, str] = os.environ) -> CommonConfig:
             raise ConfigError("runtime URLs must be loopback (the model runtime must not be reachable from outside)")
         if url == "hash" and not _bool(env, "REAX_ALLOW_DEV_MODELS", False):
             raise ConfigError("the hash test runtime needs REAX_ALLOW_DEV_MODELS=1")
+    next_urls = tuple((m, _env(env, f"REAX_{m.upper().replace('-', '_')}_NEXT_RUNTIME_URL", "") or "")
+                      for m in POOL_MODELS)
+    for _m, url in next_urls:
+        if url and not _is_loopback_url(url):
+            raise ConfigError("runtime URLs must be loopback (the model runtime must not be reachable from outside)")
+    next_urls = tuple((m, u) for m, u in next_urls if u)
     allow_public = _bool(env, "REAX_ALLOW_PUBLIC_RUNTIME", False)
     endpoints = tuple((m, _runtime_endpoints(env, m, allow_public)) for m in S1_MODELS)
     endpoints = tuple((m, eps) for m, eps in endpoints if eps)
@@ -498,6 +511,7 @@ def load_common(env: Mapping[str, str] = os.environ) -> CommonConfig:
         runtime_token_file=token_file,
         runtime_endpoints=endpoints,
         runtime_inflight=_int(env, "REAX_RUNTIME_INFLIGHT", 16, 1, 1024),
+        next_runtime_urls=next_urls,
     )
 
 

@@ -9,6 +9,7 @@ runtimes listen on loopback only (`127.0.0.1:8101`, `127.0.0.1:8102`); never pub
 | --- | --- | --- | --- |
 | `s1-fast-runtime` | 127.0.0.1:8101 | 12.3 GB | reference fast runtime, as in 1.1; starts first |
 | `s1-pro-runtime` | 127.0.0.1:8102 | 58.7 GB (`REAX_S1_PRO_GPU_MEM_UTIL` 0.60, `REAX_S1_PRO_MAX_MODEL_LEN` 8192) | deterministic build, 52 GB bf16 weights + KV cache; bit-identical to the calibration runs (871/871 items, concurrency 1 and 16) |
+| `s1-pro-next-runtime` (profile `pool-switch`) | 127.0.0.1:8112 | about 35 GB (measured peak 35.2 GB) | **from Fri 30 Oct 2026 09:00 UTC** (release 1.2.0rc11.post8.1): mammoth-1 reference `reax-engine-ref-mammoth@sha256:3080a593...`; does not fit next to `s1-pro-runtime`: stop Rune at the switch time, then start this service. Until it answers, the s1-pro pool is left unscored. Keep the Rune service and image for 24 h as the rollback |
 | `s1-cpu-runtime` | 127.0.0.1:8104 | none (CPU) | s1-cpu reference: Gutsy 0.8B Q8_0 GGUF on llama.cpp CPU, `GGUF_THREADS=8` (3.7 decisions/s measured on 8 threads) |
 | `validator` | none | none | `reax-validator`, hotkey-only wallets mounted read-only; **no docker socket**, competitions in remote mode |
 | `competition-worker` | none | up to 25 GB while a cycle runs | `reax-competition-worker`: the docker socket, the sealed pools and the work directories live here; **no wallets, no tokens** |

@@ -68,6 +68,38 @@ services:
         reservations:
           devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]  # the same GPU as s1-fast-runtime
     restart: unless-stopped
+  # Release 1.2.0rc11.post8.1, timed s1-pro manifest switch (Rune -> mammoth-1 at Fri 30 Oct 2026 09:00 UTC): the NEW reference
+  # runtime. It does NOT fit next to s1-pro-runtime on one 96 GB card (58.7 GB + ~35 GB + s1-fast 12.3 GB): at the switch time stop
+  # s1-pro-runtime and then start this one (`--profile pool-switch up -d s1-pro-next-runtime`). The validator asks it on loopback
+  # port 8112 (REAX_S1_PRO_NEXT_RUNTIME_URL) from the switch time on, never the old runtime; until it answers the pool is left
+  # unscored (no strike, no reset). Keep the Rune service and image until switch + 24 h for a rollback (docs/MINER.md, "s1-pro
+  # switches from Rune to mammoth-1"). The start line below is the reference image's sidecar contract (token file, loopback
+  # port); confirm it with a start of the exact digest before the switch (RESULT of the pool-switch slice, open risks).
+  s1-pro-next-runtime:
+    profiles: ["pool-switch"]
+    logging: {driver: json-file, options: {max-size: "50m", max-file: "5"}}
+    image: ghcr.io/reaxlabs/reax-engine-ref-mammoth@sha256:3080a593060542bccbdaf7cf0c66593fc182d9753b3facd50206df86d93b8588
+    user: "${REAX_UID:?set REAX_UID=$(id -u)}:${REAX_GID:?set REAX_GID=$(id -g)}"  # reads the 0600 token file
+    init: true
+    network_mode: host         # listens on 127.0.0.1:8112 only
+    depends_on:
+      s1-fast-runtime:
+        condition: service_healthy
+    environment:
+      S1M_INTERNAL_TOKEN_FILE: /run/s1m-internal-token
+      RUNTIME_HOST: "127.0.0.1"
+      RUNTIME_PORT: "8112"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    volumes:
+      - ../secrets/runtime-token:/run/s1m-internal-token:ro
+      - ${REAX_S1_PRO_NEXT_WEIGHTS:?set REAX_S1_PRO_NEXT_WEIGHTS to the baselabs/mammoth-1 hf download --local-dir directory}:/model:ro
+    shm_size: "8gb"
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]  # the same GPU as s1-fast-runtime
+    restart: unless-stopped
   s1-cpu-runtime:
     logging: {driver: json-file, options: {max-size: "50m", max-file: "5"}}  # bounded logs for long unattended runs
     build:
@@ -118,6 +150,7 @@ services:
       REAX_MODEL: s1-fast
       REAX_S1_FAST_RUNTIME_URL: http://127.0.0.1:8101
       REAX_S1_PRO_RUNTIME_URL: http://127.0.0.1:8102
+      REAX_S1_PRO_NEXT_RUNTIME_URL: http://127.0.0.1:8112   # from the s1-pro manifest switch time (Fri 30 Oct 2026 09:00 UTC): mammoth-1
       REAX_S1_LITE_RUNTIME_URL: ${REAX_S1_LITE_RUNTIME_URL:-http://127.0.0.1:8101}   # the s1-fast runtime (bf16, no extra GPU memory)
       REAX_S1_CPU_RUNTIME_URL: ${REAX_S1_CPU_RUNTIME_URL:-http://127.0.0.1:8104}     # the s1-cpu CPU reference above
       REAX_RUNTIME_TOKEN_FILE: /run/reax-runtime-token

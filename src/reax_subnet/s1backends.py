@@ -78,15 +78,24 @@ async def _read_capped(stream: Any, limit: int) -> bytes:
     return b"".join(chunks)
 
 
+def _manifest_for(model: str) -> Manifest:
+    """A pool model's manifest follows the pool's timed switch; an engine model that only BORROWS a pool's manifest
+    (ENGINE_POOL_MANIFEST) keeps the release manifest, so a pool switch never changes what an engine client carries (critic-post81 F1)."""
+    if model in ENGINE_POOL_MANIFEST:
+        return load_manifest(ENGINE_POOL_MANIFEST[model], switches={})
+    return load_manifest(model)
+
+
 class SidecarBackend:
     """Client for a runtime sidecar on loopback, or (``link_key`` set) for a worker's ``reax-runtime-relay``
     (multinode.py): then every request is HMAC-signed with the worker's link key instead of carrying the sidecar
     token, and an https URL is accepted only with the relay certificate's pinned SHA-256 ``fingerprint``."""
 
     def __init__(self, model: str, url: str, token: str, max_inflight: int = 16, timeout_s: float = 60.0, *,
-                 link_key: Optional[bytes] = None, fingerprint: str = "", name: str = ""):
+                 link_key: Optional[bytes] = None, fingerprint: str = "", name: str = "",
+                 manifest: Optional[Manifest] = None):
         self.model = model
-        self.manifest = load_manifest(ENGINE_POOL_MANIFEST.get(model, model))
+        self.manifest = manifest or _manifest_for(model)
         self.url = url.rstrip("/")
         self.name = name or self.url
         self._link_key = link_key
@@ -615,12 +624,34 @@ class PooledBackend:
         self._drained.remove(m.backend)
 
 
+class UnavailableBackend:
+    """Placeholder reference of a pool whose runtime is not configured (a timed manifest switch without its
+    ``REAX_<MODEL>_NEXT_RUNTIME_URL``): every decision fails, so the pool is left unscored (no strike, no reset)."""
+
+    def __init__(self, model: str, manifest: Manifest, why: str = "no reference runtime configured"):
+        self.model = model
+        self.manifest = manifest
+        self.why = why
+
+    async def decide(self, decisions: Sequence[Decision]) -> list[dict[str, Any]]:
+        raise SidecarError(f"{self.model}: {self.why}", answer_started=False, backend_fault=True)
+
+    async def decide_each(self, decisions: Sequence[Decision], retries: int = 1) -> list[Any]:
+        return [SidecarError(f"{self.model}: {self.why}", answer_started=False, backend_fault=True) for _ in decisions]
+
+    async def probe(self) -> bool:
+        return False
+
+    async def close(self) -> None:
+        pass
+
+
 class S1HashBackend:
     """Deterministic pseudo-model for tests: ``salt`` plays the role of the weights."""
 
     def __init__(self, model: str = "s1-fast", salt: str = "reference", logit_noise: float = 0.0, seed: int = 0):
         self.model = model
-        self.manifest = load_manifest(ENGINE_POOL_MANIFEST.get(model, model))
+        self.manifest = _manifest_for(model)
         self.salt = salt
         self.noise = logit_noise
         self._rng_seed = seed
@@ -666,7 +697,7 @@ class S1HashBackend:
 
 
 def load_s1_backend(model: str, url: Optional[str], token: str, allow_dev: bool, max_inflight: int = 16,
-                    endpoints: Sequence[tuple[str, str]] = ()) -> S1Backend:
+                    endpoints: Sequence[tuple[str, str]] = (), manifest: Optional[Manifest] = None) -> S1Backend:
     """One sidecar from ``url``, or a ``PooledBackend`` over ``endpoints`` ((url, token) pairs; an empty token falls
     back to ``token``). A single endpoint is a plain ``SidecarBackend``."""
     if endpoints:
@@ -674,7 +705,7 @@ def load_s1_backend(model: str, url: Optional[str], token: str, allow_dev: bool,
         for ep_url, ep_token in endpoints:
             if not (ep_token or token):
                 raise ValueError("REAX_RUNTIME_TOKEN_FILE must name a non-empty token file shared with the runtime sidecar")
-            members.append(SidecarBackend(model, ep_url, ep_token or token, max_inflight=max_inflight))
+            members.append(SidecarBackend(model, ep_url, ep_token or token, max_inflight=max_inflight, manifest=manifest))
         return members[0] if len(members) == 1 else PooledBackend(members)
     if url == "hash" and allow_dev:
         return S1HashBackend(model)
@@ -683,4 +714,4 @@ def load_s1_backend(model: str, url: Optional[str], token: str, allow_dev: bool,
         raise ValueError(f"{var} is required (the loopback URL of the {model} runtime sidecar)")
     if not token:
         raise ValueError("REAX_RUNTIME_TOKEN_FILE must name a non-empty token file shared with the runtime sidecar")
-    return SidecarBackend(model, url, token, max_inflight=max_inflight)
+    return SidecarBackend(model, url, token, max_inflight=max_inflight, manifest=manifest)

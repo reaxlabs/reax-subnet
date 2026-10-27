@@ -31,6 +31,17 @@ def _engine_opening_off(request, monkeypatch):
     engcomp.set_start_block_hash(None)  # module-global state must not leak between tests
 
 
+@pytest.fixture(autouse=True)
+def _pool_switch_off(request, monkeypatch):
+    """The release switches the s1-pro manifest at a fixed time (manifest.POOL_MANIFEST_SWITCH); the existing tests
+    were written for the single manifest and must not change with the wall clock. tests/test_pool_switch.py passes its
+    own switches (or sets the marker ``real_switch`` to keep the release constant)."""
+    from reax_subnet import manifest
+
+    if request.node.get_closest_marker("real_switch") is None:
+        monkeypatch.setattr(manifest, "POOL_MANIFEST_SWITCH", {})
+
+
 @pytest.fixture
 def make_wallet():
     return DevWallet

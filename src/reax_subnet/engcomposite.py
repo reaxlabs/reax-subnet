@@ -413,12 +413,22 @@ _DEFAULT_SLOTS = (
     # reference images reax-engine PR #9; qwen35 slots with REAX_MAX_WAIT_MS=4, which removes the greedy scheduler's
     # bimodal throughput). Noise = rel std of fresh-process runs at the slot concurrency; gates = worst honest
     # ref-vs-ref pair with headroom; memory budget ~1.3x steady; budget_s from the longest runsc session x 1.8.
-    # blink (vLLM 0.30, preset ref-prod = production flags, gpu_memory_utilization 0.45): bit-identical across c1/c8/c16,
-    # repeats and processes; 160.6 dec/s c16, 42.1 GiB (2x 84.2), start 142 s native / 202-255 s runsc; throughput is
+    # blink (vLLM 0.30, preset ref-prod = production flags, gpu_memory_utilization 0.45): bit-identical across c1/c8/c16 and
+    # repeats inside one process (across starts see the 26 Oct note below); 160.6 dec/s c16, 42.1 GiB (2x 84.2), start 142 s native / 202-255 s runsc; throughput is
     # bimodal inside vLLM (7.5 %), no engine-side knob.
+    # Gates widened 26 Oct (hotfix, #28021/#28022): with CUDA graphs + torch.compile the reference autotunes a compiled kernel
+    # per start, so two starts of the same image can differ. Measured: two co-resident starts (gpucheck3, 256 items, ab02e141
+    # vs 4a5b94b3 whose text path differs only by a no-op top_p=1.0) moved 42/256 items, mean 0.042, max item 1.125, top
+    # agreement 98.83 %; an identical-image session (gpucheck2) mean 0.004, max 0.643, top 99.41 %; a miner measured ~7 % of
+    # items moving with max 1.03. GPU confirm (gpucheck-blinkgates-b, Shadeform runsc, byte copy of ab02e141): sessions mean
+    # 0.003 / 0.030, item 0.464 / 0.625, top 100 % / 99.22 %; a raw co-resident pair of fresh starts 213/256 exact, mean 0.033,
+    # item 0.469, top 98.44 % (old 99 % gate FAILS). The old gates (0.05 / 1.0 / 99 %) could fail a byte copy. New: mean 0.08
+    # (~2x the worst 0.042), item 1.6 (as reax1; worst 1.125), top 97 % (as mammoth/d3; worst 98.44 %, so 98 % would leave one
+    # flip per 256 items of headroom). Mean stays stricter than every qwen35 slot and carries the lossy-engine defence
+    # (a lossy engine moves every item, honest drift moves 5-17 % of them). determinism_tau stays 0.05 (same process: bit-identical).
     dict(name="blink", model="blink-v0.3-26b-a4b", pool="s1-fast", temperature=1.3, concurrency=16,
          noise=0.0751, memory_budget_mib=52_224, budget_s=1200.0,
-         gates={"mean_tau": 0.05, "item_tau": 1.0, "min_top_agreement": 0.99, "determinism_tau": 0.05}),
+         gates={"mean_tau": 0.08, "item_tau": 1.6, "min_top_agreement": 0.97, "determinism_tau": 0.05}),
     # vision = s1-vision: the Blink v0.3 engine of slot blink (same weights, same reference image family, same REAX_MODEL), but
     # every timed item carries exactly one procedurally drawn picture (s1vision.py), as in production (field ``images``).
     # Release calibration 26 Oct (gpucheck-lineup-b, Verda runsc, ref-blink 97d06a91 = eager): two co-resident eager engines

@@ -11,6 +11,28 @@ the card but that your runtime reproduces the reference (see [CALIBRATION.md](CA
 Cards below the class (for example 48 GB for s1-pro) cannot hold the weights plus KV cache; a quantised build
 is not the reference and is struck.
 
+## s1-pro pool: Rune until Fri 30 Oct 2026 09:00 UTC, mammoth-1 from then (release 1.2.0rc11.post8.1)
+
+| | Rune (until the switch) | mammoth-1 (from the switch) |
+|---|---|---|
+| Weights | `surogate/rune-26b-a4b-GGUF@c6b360d4` (gated), 52 GB bf16 | `baselabs/mammoth-1@61cec44c` (public, MIT), 54.7 GB bf16 on disk, anchored FP8 linears at load |
+| GPU memory | 80-96 GB class | measured peak **35.2 GB** per engine (two engines together 67.9 GB); one 48 GB-class or larger NVIDIA GPU |
+| Reference runtime | `reax-s1-pro-runtime` (vLLM 0.30.0, deterministic) | `reax-engine-ref-mammoth@sha256:3080a593...` (state-once, 16384 token cap) |
+| Temperature / tolerances | 2.0 / 0.20, 0.50, 2.0 | 1.0 / 0.20, 0.50, 2.0 |
+| `manifest_id` | `5b11440bf57b5434` | `3f3558e583b0a1d6` |
+
+The mammoth calibration (ref-mammoth `3080a593`, 26 Oct 2026): concurrency-1 answers bit-identical to the production
+engine on 500 of 500 items; batched answers drift at most 0.087 mean / 0.33 per item (restart drift at most 0.39),
+well inside the tolerances; two 96 GB-card release sessions passed (0.980 / 0.996); noise 1 %. What miners do before
+the switch: [MINER.md](MINER.md), "s1-pro switches from Rune to mammoth-1". The capacity unit of the pool
+(`target_dps` 10 decisions/s, cap 640/s) is unchanged.
+
+**Validator GPU around the switch.** Rune (58.7 GB) and mammoth (about 35 GB) do not fit on one 96 GB card together with
+the s1-fast reference (12.3 GB). A validator therefore runs one s1-pro reference at a time: Rune until 09:00 UTC, stop it
+at 09:00 UTC, start mammoth on `REAX_S1_PRO_NEXT_RUNTIME_URL` (a separate loopback port). Until the new runtime answers
+the pool is left unscored (no strike, no reset). After the switch the card holds s1-fast 12.3 GB + mammoth about 35 GB,
+about 49 GB, leaving more room than before for competition measurements.
+
 ## Validator GPU budget (one 96 GB card)
 
 Measured on an RTX PRO 6000 Blackwell Server Edition (97,887 MiB):

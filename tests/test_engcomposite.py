@@ -581,7 +581,10 @@ def test_default_track_carries_the_measured_gates():
     assert d3.concurrency == 8 and d3.timed_items == 1024 and d3.determinism_tau == 1.1 and d3.item_tau == 1.1
     assert d3.mean_tau == 0.17 and d3.mean_tau > 0.134 > 0.062 and d3.min_top_agreement == 0.97  # probe 0.134 passes
     bl = t.slot("blink").params
-    assert (bl.mean_tau, bl.item_tau, bl.min_top_agreement, bl.determinism_tau) == (0.05, 1.0, 0.99, 0.05)
+    assert (bl.mean_tau, bl.item_tau, bl.min_top_agreement, bl.determinism_tau) == (0.08, 1.6, 0.97, 0.05)
+    # hotfix 26 Oct: the honest start-to-start drift of the Blink reference itself (gpucheck3: mean 0.042, item 1.125, top
+    # 98.83 %; raw pair of fresh starts 98.44 %) must pass, with headroom; the old gates (0.05 / 1.0 / 99 %) failed it
+    assert 0.042 * 1.5 < bl.mean_tau and 1.125 * 1.4 < bl.item_tau and bl.min_top_agreement <= 0.9844 - 0.01
     assert bl.concurrency == 16 and bl.reference_noise_std == 0.0751 and t.slot("blink").memory_budget_mib == 52_224
     # REAX 1 (23 Oct release calibration): worst honest pair mean 0.092 / item 0.53 (session tail 1.325) / top 98.8 %
     r1 = t.slot("reax1").params
@@ -946,3 +949,50 @@ class _Recorder:
     async def __call__(self, runner, reference, candidate, track, declared, **kw):
         self.calls.append((runner, declared))
         return EvalResult(digest="d", track=track.name, ok=True, score=1.0)
+
+
+def _blink_pair(n_moved: int, n_flipped: int, shift: float, n: int = 512):
+    """Reference answers and a candidate whose first n_moved items move by a logit shift and whose first n_flipped of
+    those swap their top choice (3 options, T=1.3 distances)."""
+    ref, cand = {}, {}
+    for i in range(n):
+        p = [0.6, 0.3, 0.1]
+        if i < n_flipped:
+            q = [0.3, 0.6, 0.1]
+        elif i < n_moved:
+            w = [math.log(x) for x in p]
+            w[0] += shift
+            z = sum(math.exp(x) for x in w)
+            q = [math.exp(x) / z for x in w]
+        else:
+            q = list(p)
+        ref[f"i{i}"], cand[f"i{i}"] = p, q
+    return cand, ref
+
+
+def test_blink_gates_admit_the_reference_cross_start_drift_and_refuse_a_lossy_engine():
+    from reax_subnet.engcomp import check_correctness
+
+    bl = default_track().slot("blink").params
+    # ~16 % of 2x256 timed items move (gpucheck3: 42/256), 6 of 512 flip (3/256): an exact copy must pass
+    cand, ref = _blink_pair(n_moved=84, n_flipped=6, shift=0.12)
+    ok = check_correctness(cand, ref, bl)
+    assert ok.ok, ok.reason
+    assert not check_correctness(cand, ref, dataclasses.replace(bl, mean_tau=0.05, item_tau=1.0, min_top_agreement=0.99)).ok
+    # a lossy engine that moves every item (mean 0.1 at T 1.3) or flips more than 3 % of the tops fails
+    assert not check_correctness(*_blink_pair(n_moved=512, n_flipped=0, shift=0.12), bl).ok
+    assert not check_correctness(*_blink_pair(n_moved=0, n_flipped=16, shift=0.0), bl).ok
+    # the worst measured byte-copy pair (raw fresh starts: 4 of 256 tops flipped, i.e. 8 of 512) passes
+    assert check_correctness(*_blink_pair(n_moved=40, n_flipped=8, shift=0.12), bl).ok
+
+
+def test_v2_docs_gate_table_matches_the_code():
+    doc = open(os.path.join(os.path.dirname(__file__), "..", "docs", "ENGINE-COMPETITION-V2.md"), encoding="utf-8").read()
+    rows = re.findall(r"^\| (mammoth|blink|reax1|jeffan|vision|d3)(?: \(fallback v20-d3\))? \| ([\d.]+) \| (\d+) \| ([\d.]+) \| "
+                      r"([\d.]+) \| (\d+) % \| ([\d.]+) \|$", doc, re.M)
+    assert {r[0] for r in rows} == {"mammoth", "blink", "reax1", "jeffan", "vision", "d3"}
+    for name, t, items, mean, item, top, det in rows:
+        track = default_track(variant="v20-d3") if name == "d3" else default_track()
+        p = track.slot(name).params
+        assert (p.temperature, p.timed_items, p.mean_tau, p.item_tau, p.min_top_agreement, p.determinism_tau) == pytest.approx(
+            (float(t), int(items), float(mean), float(item), int(top) / 100, float(det))), name
