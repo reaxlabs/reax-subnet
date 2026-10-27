@@ -28,6 +28,7 @@ class S1Item:
     kind: str  # choice | noul | score
     instructions: Any
     criteria: Any  # dict (choice / noul or None) or list (score)
+    images: tuple[str, ...] = ()  # s1-vision items: exactly one image data URL (s1vision.py); text items: none
 
     def question(self) -> dict[str, Any]:
         q: dict[str, Any] = {"type": self.kind, "instructions": self.instructions}
@@ -36,7 +37,10 @@ class S1Item:
         return q
 
     def decision(self) -> dict[str, Any]:
-        return {"id": self.item_id, "state": self.state, "questions": {"q": self.question()}}
+        out = {"id": self.item_id, "state": self.state, "questions": {"q": self.question()}}
+        if self.images:
+            out["images"] = list(self.images)
+        return out
 
     def keys(self) -> tuple[str, ...]:
         if self.kind == "noul":
@@ -268,3 +272,14 @@ def generate_s1_items(n: int, seed: int | None = None) -> list[S1Item]:
             criteria = {k: criteria[k] for k in keys}
         items.append(S1Item("%032x" % rng.getrandbits(128), state, kind, instructions, criteria))
     return items
+
+
+def items_for_pool(pool: str, n: int, seed: int | None = None) -> list[S1Item]:
+    """Fresh items for a contract pool: image items for ``s1-vision`` (s1vision.py), the text items for every other pool."""
+    from .s1contract import IMAGE_POOLS
+
+    if pool in IMAGE_POOLS:
+        from .s1vision import generate_vision_items
+
+        return generate_vision_items(n, seed)
+    return generate_s1_items(n, seed)

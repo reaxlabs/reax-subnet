@@ -501,6 +501,7 @@ def _d4_unfetched_world(monkeypatch):
 
 @pytest.mark.usefixtures("rc5_entry_floors")
 def test_f5_an_unfetched_entry_gets_no_slot_before_its_repo_was_probed(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     st, s, snap, now, df = _d4_unfetched_world(monkeypatch)
     assert not E.mark_provisional(st, [df], snap, now) and s.provisional_since_ts is None
     assert E.compute_provisional(st, [df], snap, now=now)[df] == []

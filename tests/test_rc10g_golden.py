@@ -85,6 +85,7 @@ def test_multirole_start_blocks_are_the_release_block():
 
 
 def test_competition_split_before_generalist_is_bit_identical_to_rc9_post6(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # golden of rc9.post6: the rc11.post4 windows (the hotfix: test_waiting_ka_hotfix.py)
     monkeypatch.setattr(CS, "GENERALIST_START_UTC", _utc(2026, 10, 30, 12))  # the fuzz instants run to 30 Oct 12:00Z
     assert _digest() == EXPECTED
 
@@ -94,7 +95,8 @@ def test_release_schedule_before_the_opening_is_bit_identical_to_rc9_post6():
     assert _digest([_utc(*a) for a in RELEASE_INSTANTS], fuzz=False) == EXPECTED_RELEASE_SCHEDULE
 
 
-def test_weight_mixing_with_the_release_constants_is_bit_identical_to_rc9_post6():
+def test_weight_mixing_with_the_release_constants_is_bit_identical_to_rc9_post6(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # golden of rc9.post6: the rc11.post4 windows (the hotfix: test_waiting_ka_hotfix.py)
     assert _digest([], fuzz=True) == EXPECTED_WEIGHTS
 
 

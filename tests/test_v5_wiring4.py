@@ -119,6 +119,7 @@ def test_v5_nonpositive_scores_keep_leader_and_keepalive_slots(monkeypatch):
 
 
 def test_v5_keepalive_top_eight_uses_deciding_reference_margin(monkeypatch):
+    monkeypatch.setattr(CS, "KA_GAUNTLET_R2", False)    # pins the eight-slot cut (gauntlet round-2 fix F1 removes it under the hotfix)
     monkeypatch.setattr(S, "EVAL_V5_START_UTC", datetime.fromtimestamp(NOW - 60, timezone.utc))
     monkeypatch.setattr(CS, "GENERALIST_CO_CHAMPIONS", ())
     st = ST.SpecState()

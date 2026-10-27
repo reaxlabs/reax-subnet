@@ -81,7 +81,8 @@ async def test_crowned_exact_copy_still_wins_over_a_later_commitment(tmp_path):
 
 
 # ------------------------------------------------------------------ provisional keep-alive until the verdict
-def test_close_call_waiting_for_its_extra_draw_keeps_the_provisional_slot():
+def test_close_call_waiting_for_its_extra_draw_keeps_the_provisional_slot(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     st = ST.SpecState()
     s = _p(st, 1)
     s.score, s.delta_checked, s.close_draws = 61.0, True, ["d1"]
@@ -107,6 +108,7 @@ def test_close_call_still_needs_the_window_and_the_immunity_condition():
 def test_generalist_keeps_the_reg_sniping_rules_and_stays_closed_until_calibrated(monkeypatch):
     """The provisional keep-alive loop and its close-call rule are track-generic (rc10h merge); the generalist guard in
     ``_provisional_ok`` (finite entry floor and frozen G_med) still comes first, so nothing is paid before calibration."""
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     from generalist_defaults import defaults
     from reax_subnet import competition_split as cs
     monkeypatch.setitem(cs.TRACK_ENTRY_FLOOR, "generalist", defaults()["GENERALIST_ENTRY_FLOOR"])  # uncalibrated: the release
@@ -154,7 +156,8 @@ def test_engine_pending_challenger_keeps_the_slot_until_its_confirmation():
     assert EC.waiting_uids(st, [ch, other], B, {}) == []
 
 
-def test_engine_window_starts_at_the_end_of_the_immunity():
+def test_engine_window_starts_at_the_end_of_the_immunity(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     w = _sub(4, "w1", DA, B - 10)
     st = TrackState(first_seen={DA: (B - 10, "w1")}, owners={DA: "w1"})
     lead = CS.CHAIN_IMMUNITY_BLOCKS - CS.PROVISIONAL_KA_LEAD_BLOCKS
@@ -187,7 +190,8 @@ async def test_a_tie_in_first_sighting_never_dethrones_a_champion(tmp_path):
     assert a.status == ST.CHAMPION and m.status == ST.REJECTED
 
 
-def test_engine_new_digest_does_not_restart_the_hotkey_window():
+def test_engine_new_digest_does_not_restart_the_hotkey_window(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     max_blocks = int(CS.ENGINE_KA_MAX_HOURS * 300)
     old_b = B - max_blocks - 10
     w = _sub(4, "w1", DB, B - 5)

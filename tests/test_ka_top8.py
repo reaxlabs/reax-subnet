@@ -16,6 +16,13 @@ pytestmark = pytest.mark.usefixtures("rc5_entry_floors")
 N = CS.KEEPALIVE_MAX_ENTRIES
 
 
+@pytest.fixture(autouse=True)
+def _pin_the_count_cut(monkeypatch):
+    """This file tests the eight-slot count cut of compute_keepalive; the gauntlet round-2 fix F1 (KA_GAUNTLET_R2) removes it under
+    the hotfix (tests/test_ka_gauntlet_props.py, test_ka_gauntlet_r2.py), so the old rule is pinned here."""
+    monkeypatch.setattr(CS, "KA_GAUNTLET_R2", False)
+
+
 def test_release_constant():
     assert N == 8
 
@@ -92,7 +99,8 @@ def test_eight_or_fewer_are_all_kept_and_an_unapproved_champion_is_never_cut():
     assert len(out) == 9 and out[0][0] == 1
 
 
-def test_an_approved_champion_leaves_eight_pending_entries_paid_an_unapproved_one_seven():
+def test_an_approved_champion_leaves_eight_pending_entries_paid_an_unapproved_one_seven(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 8-slot cut; the hotfix: test_waiting_ka_hotfix.py
     # review-rc8 F2: approved champion 1 is paid by its rank; all 8 strongest pending entries keep their keep-alive
     st = ST.SpecState()
     subs = [_sub(st, 1, ST.CHAMPION, 40.0, nonproc=65.0)] + [_sub(st, u, ST.PENDING_CONFIRM, 40.0, nonproc=60.0 + u) for u in range(2, 11)]
@@ -109,7 +117,8 @@ def test_an_approved_champion_leaves_eight_pending_entries_paid_an_unapproved_on
 
 
 
-def test_combine_weights_pays_exactly_eight_each_the_capped_share():
+def test_combine_weights_pays_exactly_eight_each_the_capped_share(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 8-slot cut; the hotfix: test_waiting_ka_hotfix.py
     entries = [(u, 60.0 - u) for u in range(1, 13)]                   # rank order, as compute_keepalive returns it
     serving = {u: 1.0 for u in range(50, 90)}
     w = combine_weights(serving, None, 0.0, {}, keepalive={DF: entries}, floors={DF: 0.0})
@@ -205,7 +214,8 @@ def test_crowned_generalist_track_and_other_tracks_keep_the_plain_score_order():
     assert [u for u, _ in out] == [12, 11, 10, 9, 8, 7, 6, 5]
 
 
-def test_vacant_generalist_track_lists_all_cohort_entries_beyond_eight_and_protects_them():
+def test_vacant_generalist_track_lists_all_cohort_entries_beyond_eight_and_protects_them(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 8-slot cut; the hotfix: test_waiting_ka_hotfix.py
     GEN = "generalist"
     start = CS.GENERALIST_START_UTC.timestamp()
     st = ST.SpecState()
@@ -234,7 +244,8 @@ def test_vacant_generalist_track_lists_all_cohort_entries_beyond_eight_and_prote
     assert E.keepalive_protected(st, [GEN], _snap(cohort + post)) == {}
 
 
-def test_protected_cut_keeps_nine_pure_cohort_entries_and_cuts_the_unprotected_one():
+def test_protected_cut_keeps_nine_pure_cohort_entries_and_cuts_the_unprotected_one(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 8-slot cut; the hotfix: test_waiting_ka_hotfix.py
     GEN = "generalist"
     serving = {u: 1.0 for u in range(50, 90)}
     entries = [(u, 40.0) for u in range(1, 11)]                       # 10 pure entrants, 1..9 protected, 10 not

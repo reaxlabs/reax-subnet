@@ -41,6 +41,7 @@ DOMAIN = b"reax-award-approval/1\n"  # signatures cannot be replayed as anything
 MAX_FILE_BYTES = 4 * 1024 * 1024
 CLOCK_SKEW_S = 600
 ENGINE_TRACK_ID = "s1-fast"
+ENGINE_TRACK_IDS = (ENGINE_TRACK_ID, "dm-all")  # v1 track and the composite track v2 (engcomposite.py)
 
 _HEX32 = re.compile(r"[0-9a-f]{64}")
 _KEYS = {"track_id", "hotkey", "submission_id", "approved_at", "expires_at"}
@@ -241,7 +242,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     kg.add_argument("--out", required=True, help="private key file to create (PEM, mode 600)")
     sg = sub.add_parser("sign", help="sign one approval and add it to an approvals file (or print it)")
     sg.add_argument("--key", required=True, help="private key file (PEM or 64 hex seed)")
-    sg.add_argument("--track", required=True, help=f"track id: {ENGINE_TRACK_ID} (engine) or a specialist track id")
+    sg.add_argument("--track", required=True, help=f"track id: {' or '.join(ENGINE_TRACK_IDS)} (engine) or a specialist track id")
     sg.add_argument("--hotkey", required=True)
     sg.add_argument("--submission", required=True,
                     help="engine: sha256:<64 hex image digest>; specialist: <hf repo>@<40 hex revision>")
@@ -263,9 +264,9 @@ def main(argv: Optional[list[str]] = None) -> None:
         return
 
     if args.cmd == "sign":
-        if args.track == ENGINE_TRACK_ID and not re.fullmatch(r"sha256:[0-9a-f]{64}", args.submission):
+        if args.track in ENGINE_TRACK_IDS and not re.fullmatch(r"sha256:[0-9a-f]{64}", args.submission):
             sys.exit("engine track: --submission must be sha256:<64 hex image digest>")
-        if args.track != ENGINE_TRACK_ID and not re.fullmatch(r"[^@\s]+/[^@\s]+@[0-9a-f]{40}", args.submission):
+        if args.track not in ENGINE_TRACK_IDS and not re.fullmatch(r"[^@\s]+/[^@\s]+@[0-9a-f]{40}", args.submission):
             sys.exit("specialist track: --submission must be <hf repo>@<40 hex revision>")
         key = load_private_key(args.key)
         now = int(time.time())

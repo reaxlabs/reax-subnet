@@ -15,7 +15,14 @@ from reax_subnet.spec import state as ST
 from reax_subnet.spec.commitment import SpecCommitment
 from reax_subnet.spec.evaluator import compute_keepalive, compute_provisional, mark_provisional
 
-pytestmark = pytest.mark.usefixtures("rc5_entry_floors")
+pytestmark = pytest.mark.usefixtures("rc5_entry_floors", "rc11_post4_windows")
+
+
+@pytest.fixture
+def rc11_post4_windows(monkeypatch):
+    """These tests pin the rc11.post4 provisional mechanics (window from the evaluator's stored start, pure entrants
+    only), which the waiting-state hotfix switch restores exactly; the hotfix itself: test_waiting_ka_hotfix.py."""
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)
 IMM, LEAD = E.IMMUNITY_BLOCKS_ASSUMED, CS.PROVISIONAL_KA_LEAD_BLOCKS
 BLOCK = 20000
 REG_DUE = BLOCK - IMM + LEAD - 10       # immunity ends in 590 blocks: inside the lead
@@ -116,7 +123,7 @@ def test_unfetched_entry_with_an_invalid_or_foreign_commitment_is_not_eligible()
     assert _uids(st, snapshot(BLOCK, [])) == []                                         # hotkey gone
 
 
-def test_unfetched_entry_over_the_open_limit_is_not_eligible_and_still_obeys_the_other_limits():
+def test_unfetched_entry_over_the_open_limit_is_not_eligible_and_still_obeys_the_other_limits(monkeypatch):
     from reax_subnet.spec import config as C
     st = ST.SpecState()
     subs = [_unfetched(st, u, coldkey="ck") for u in range(1, C.MAX_OPEN_PER_COLDKEY_TRACK + 2)]
@@ -181,7 +188,7 @@ def test_immunity_window():
     assert end(BLOCK - IMM) == BLOCK
 
 
-def test_twelve_hour_limit():
+def test_twelve_hour_limit(monkeypatch):
     st = ST.SpecState()
     s = _p(st, 1, since=NOW - 12 * H)
     assert _uids(st, _snapr([s])) == [1]
@@ -312,7 +319,7 @@ def test_off_switches(monkeypatch):
 
 
 # ------------------------------------------------------------------------------------------ plumbing
-def test_remote_state_file_to_weights(tmp_path):
+def test_remote_state_file_to_weights(tmp_path, monkeypatch):
     from test_remote_competitions import NOW0, Clock, stamp, write_engine_state
     from reax_subnet import remote as RM
     from reax_subnet.config import ENGINE_STATE_FILE
@@ -341,7 +348,7 @@ def test_remote_state_file_to_weights(tmp_path):
     assert adapter.provisional([DF], NOW0) == {}
 
 
-async def test_evaluator_persists_the_window_start_and_never_pays_a_scored_entry(tmp_path):
+async def test_evaluator_persists_the_window_start_and_never_pays_a_scored_entry(tmp_path, monkeypatch):
     from test_spec_evaluator import TRACK, Env, T0
     from spec_helpers import commit
 
@@ -375,7 +382,7 @@ def _recommit(st, old, repo, track=DF):
     return s
 
 
-def test_recommit_does_not_restart_the_hotkey_window():
+def test_recommit_does_not_restart_the_hotkey_window(monkeypatch):
     st = ST.SpecState()
     a = _p(st, 1, since=NOW)
     snap = _snapr([a])
@@ -391,7 +398,7 @@ def test_recommit_does_not_restart_the_hotkey_window():
     assert _uids(st, _snapr([c]), now=NOW + 13 * H) == []                  # every later recommit is dead too
 
 
-def test_window_is_also_shared_across_tracks_and_a_stale_own_start_cannot_extend_it():
+def test_window_is_also_shared_across_tracks_and_a_stale_own_start_cannot_extend_it(monkeypatch):
     st = ST.SpecState()
     a = _p(st, 1, since=NOW)
     other = _p(st, 1, since=NOW + 10 * H, track=RA, repo="m/ra")           # same hotkey, later start in another track
@@ -403,7 +410,7 @@ def test_window_is_also_shared_across_tracks_and_a_stale_own_start_cannot_extend
     assert fresh.provisional_since_ts == NOW
 
 
-def test_other_hotkey_of_the_same_coldkey_is_unaffected_except_for_the_one_per_coldkey_rule():
+def test_other_hotkey_of_the_same_coldkey_is_unaffected_except_for_the_one_per_coldkey_rule(monkeypatch):
     st = ST.SpecState()
     a = _p(st, 1, since=NOW - 20 * H, coldkey="ck")                        # hotkey 1: window long over
     b = _unfetched(st, 2, since=None, coldkey="ck")                        # another hotkey, same coldkey, new

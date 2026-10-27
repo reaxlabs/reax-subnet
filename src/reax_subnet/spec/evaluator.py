@@ -251,7 +251,7 @@ def cochamp_members(ts: ST.TrackState, keys: Sequence[str] | None = None) -> lis
         return []
     if not keys or (ts.champion not in keys and not (dynamic and not ts.champion)):
         return []
-    out = [ts.submissions[k] for k in keys if k in ts.submissions and (
+    out = [ts.submissions[k] for k in keys if k in ts.submissions and not getattr(ts.submissions[k], "reveal_void", False) and (
         k == ts.champion or (ts.submissions[k].status == ST.PENDING_CONFIRM and ts.submissions[k].delta_checked))]
     out.sort(key=lambda m: m.key != ts.champion)
     return out
@@ -393,6 +393,8 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
         ts = state.track(track_id)
         ranked: list[ST.Submission] = []
         champ = ts.submissions.get(ts.champion)
+        if champ is not None and getattr(champ, "reveal_void", False):
+            champ = None
         members = cochamp_members(ts)
         co_n = len(cochamp_keys(ts))
         co_fracs: dict[int, float] = {}
@@ -401,6 +403,8 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
             # the list is the first member that still commits; the others are not listed (``cochamps`` carries them)
             floor_t = TRACK_ENTRY_FLOOR.get(track_id)
             for m in members:
+                if not ST.reveal_allows_payment(m, now):
+                    continue
                 uid_c = live.get(m.hotkey)
                 c = parse_commitment(uid_c[1]) if uid_c is not None else None
                 v51 = _v51_scored(m, now)
@@ -414,7 +418,7 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
         elif champ is not None:
             ranked.append(champ)
         # a former champion crowned by a release whose copy check could pass without the base is not ranked
-        former = [s for s in ts.submissions.values() if s.status == ST.FORMER and s.delta_checked]
+        former = [s for s in ts.submissions.values() if s.status == ST.FORMER and s.delta_checked and not getattr(s, "reveal_void", False)]
         form_fracs: dict[int, float] = {}
         set_keys = split.GENERALIST_CO_CHAMPIONS if track_id == split.GENERALIST_CO_CHAMPIONS_TRACK else ()
         # the set is beaten once any listed entry is a former champion; the listed entries still pending count with it, so a
@@ -475,6 +479,8 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
         res = RankedLeaders()
         v5_floor = TRACK_ENTRY_FLOOR.get(track_id) if track_id == "generalist" and S.v5_active(now) else None
         for s in ranked:
+            if not ST.reveal_allows_payment(s, now):
+                continue
             uid_c = live.get(s.hotkey)
             if uid_c is None or (s.score is None and s.key not in slots):
                 continue
@@ -551,7 +557,7 @@ KEEPALIVE_FUTURE_S = 3600.0    # a window start further in the future than this 
 
 
 def _big_ok(s: ST.Submission, track_id: str, now: float, base_floors: Mapping[str, Mapping[str, float]] | None = None,
-            qual: float | None = None) -> bool:
+            qual: float | None = None, undecided: bool = False) -> bool:
     """Open-class base floor (``KEEPALIVE_BASE_FLOOR``). Before the open class starts: always True. From it on: an entry with
     at most ``KEEPALIVE_BIG_PARAMS`` parameters is not affected; a larger entry needs its declared base's tensor hash
     (``base_id``) in the table with a floor for the track and a qualifying score ``qual`` above that floor +
@@ -559,7 +565,8 @@ def _big_ok(s: ST.Submission, track_id: str, now: float, base_floors: Mapping[st
     gives False for a larger entry (fail closed). A parameter count that is not recorded (``None``) counts as small: every fetch
     of this release records it, so ``None`` means fetched by an earlier release, under the 9 B cap, or not fetched yet (only the
     time-bounded provisional keep-alive applies to those, and it stops once the fetch records a count above 10 B). A recorded
-    value that is not a non-negative int gives False."""
+    value that is not a non-negative int gives False. ``undecided`` (``split.KA_BIG_UNDECIDED``): the entry still waits for its
+    first draw (or owes one more); the base floor is a test on a score, so it does not apply yet (a sane parameter count is enough)."""
     if track_id != "generalist" or not spec_open_class_active(now):
         return True
     p = s.params
@@ -568,6 +575,8 @@ def _big_ok(s: ST.Submission, track_id: str, now: float, base_floors: Mapping[st
     if isinstance(p, bool) or not isinstance(p, int) or p < 0:
         return False
     if p <= KEEPALIVE_BIG_PARAMS:
+        return True
+    if undecided and split.KA_BIG_UNDECIDED:
         return True
     if _v51_scored(s, now):
         return True     # critic F2: only the v4-scale base-floor comparison is skipped (the entry beat its base on S_v5.1)
@@ -597,6 +606,50 @@ def _keepalive_since(s: ST.Submission) -> float | None:
     else:
         t = _first_pass_ts(s)
     return float(t) if isinstance(t, (int, float)) and math.isfinite(t) else None
+
+
+def _decision_end(s: ST.Submission) -> float | None:
+    """Waiting-state hotfix H1: when the slot that decides the pending entry ``s`` has run (slot + ``SLOT_CLOCK_S``): its
+    stored crowning's slot (``_crown_pending``), else the first slot whose K1-a cutoff (slot - ``SLOT_K1_DUE_LEAD_S``) its
+    confirmation is due by, counted from its last ``crown_done`` instead if that is later (a voided slot / back on the
+    challenger path waits for the next slot). None: no slot or no due time known (the plain window applies)."""
+    if _crown_pending(s) is not None:
+        return SpecEvaluator._slot_of(s) + split.SLOT_CLOCK_S
+    anchors = []
+    c = s.confirm_after_ts
+    if isinstance(c, (int, float)) and not isinstance(c, bool) and math.isfinite(c):
+        anchors.append(float(c) + split.SLOT_K1_DUE_LEAD_S)
+    anchors += [float(h["ts"]) for h in s.history if h.get("kind") == "crown_done" and isinstance(h.get("ts"), (int, float))
+                and not isinstance(h.get("ts"), bool) and math.isfinite(h["ts"])]
+    if not anchors:
+        return None
+    at = max(anchors)
+    later = [t.timestamp() for t in split.CROWN_SLOTS_UTC if t.timestamp() >= at]
+    return min(later) + split.SLOT_CLOCK_S if later else None
+
+
+def _keepalive_end(s: ST.Submission, since: float, is_co: bool = False, now: float | None = None,
+                   plain_since: float | None = None) -> float:
+    """The end of the keep-alive window that started at ``since`` (``compute_keepalive``). rc11.post4: ``KEEPALIVE_HOURS``.
+    Waiting-state hotfix (``split.WAITING_KA_HOTFIX``): a champion or an opening/shared-group co-champion waiting for its
+    award approval keeps it ``CHAMPION_APPROVAL_KA_HOURS`` (H5); a pending entry until the slot that decides it has run
+    (``_decision_end``, H1); if it is still pending after that slot's clock (the slot was void or its clock ran out without
+    a decision) and the wait is not on the miner's side (repo gone), until the next slot's clock (critic F1). Never shorter
+    than before and at most ``PENDING_KA_MAX_HOURS`` after ``since``. ``plain_since`` (gauntlet F5): an earlier start of the same
+    tensors' first pass, which shortens the plain window only, never the slot extension or the hard cap."""
+    plain = (since if plain_since is None else plain_since) + KEEPALIVE_HOURS * 3600.0
+    if not split.WAITING_KA_HOTFIX:
+        return plain
+    if s.status == ST.CHAMPION or is_co:
+        return since + max(KEEPALIVE_HOURS, split.CHAMPION_APPROVAL_KA_HOURS) * 3600.0
+    end = _decision_end(s)
+    if end is None:
+        return plain
+    miner_side = s.reason.startswith(WAITING_FOR_REPO) and s.wait_kind != ST.WAIT_INFRA
+    if now is not None and now > end and s.status == ST.PENDING_CONFIRM and not miner_side:
+        later = [t.timestamp() for t in split.CROWN_SLOTS_UTC if t.timestamp() + split.SLOT_CLOCK_S > now]
+        end = min(later) + split.SLOT_CLOCK_S if later else end   # after the last generated slot (31 Mar 2027): no extension
+    return min(max(plain, end), since + split.PENDING_KA_MAX_HOURS * 3600.0)
 
 
 def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot,
@@ -646,14 +699,18 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
         co_keys = {m.key for m in cochamp_members(ts)}
         co_since = cochamp_since(ts)
         for s in ts.submissions.values():
-            if s.status not in KEEPALIVE_STATUSES or not s.delta_checked or RV.under_review(s):
+            if not ST.reveal_allows_payment(s, now) or s.status not in KEEPALIVE_STATUSES or not s.delta_checked or RV.under_review(s):
                 continue    # rc11.post5: an entry under review (reparametrisation flag, operator hold) gets no keep-alive
             is_co = s.key in co_keys and s.status != ST.CHAMPION and co_since is not None
             since = co_since if is_co else _keepalive_since(s)
+            plain_since = None
             if since is not None and s.status != ST.CHAMPION and not is_co and s.hash_named in first_pass:
-                since = min(since, first_pass[s.hash_named])
+                if split.KA_GAUNTLET_R2 and split.WAITING_KA_HOTFIX:
+                    plain_since = min(since, first_pass[s.hash_named])    # F5: the plain window only
+                else:
+                    since = min(since, first_pass[s.hash_named])
             # fail closed on a timestamp more than an hour in the future (a clock that jumped): it would never expire
-            if since is None or now - since > KEEPALIVE_HOURS * 3600.0 or since > now + KEEPALIVE_FUTURE_S:
+            if since is None or now > _keepalive_end(s, since, is_co, now, plain_since) or (since if plain_since is None else plain_since) > now + KEEPALIVE_FUTURE_S:
                 continue
             score = s.score
             v51 = _v51_scored(s, now)
@@ -701,6 +758,8 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
             rank[n.uid] = (head[0], cohort_key.get(head[3], 1), -qual, head[1], n.uid)
         champ_n = sum(1 for u, _ in res if rank[u][0] == 0)
         if len(res) > KEEPALIVE_MAX_ENTRIES:
+            # gauntlet F1: under the hotfix nobody is cut to zero by the count (combine_weights splits the share cap evenly);
+            # the deterministic rank order stays
             # the 2-per-coldkey rule above came first; now only the strongest entries keep waiting alive: a champion
             # first, then (vacant generalist track only) the opening cohort, then the highest qualifying score, ties by earlier on-chain commitment block (unknown: uid only), then uid. The rest get nothing.
             # rc8 (review-rc8 F2): the champion is listed on top of the 8 pending entries, not inside them; combine_weights
@@ -711,10 +770,11 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
             # listed, even beyond KEEPALIVE_MAX_ENTRIES (they rank first, see cohort_key); post-opening entries fill the rest
             cohort_n = sum(1 for u, _ in res if rank[u][0] != 0 and rank[u][1] == 0) if vacant_gen else 0
             keep = champ_n + max(KEEPALIVE_MAX_ENTRIES, cohort_n)
-            if len(res) > keep:
+            if len(res) > keep and not (split.KA_GAUNTLET_R2 and split.WAITING_KA_HOTFIX):
                 log.info("track %s: %d entries qualify for keep-alive, only the top %d pending entries (plus a champion) are "
                          "listed; no keep-alive for uids %s", track_id, len(res), KEEPALIVE_MAX_ENTRIES, [u for u, _ in res[keep:]])
-            res = res[:keep]
+            if not (split.KA_GAUNTLET_R2 and split.WAITING_KA_HOTFIX):
+                res = res[:keep]
         out[track_id] = res
     return out
 
@@ -876,6 +936,8 @@ def _provisional_ok(s: ST.Submission, live: Mapping[str, Any], block: int, open_
       have been rejected): QUEUED and copy-checked (``delta_checked``), or held for this host's infrastructure.
     Either way the hotkey's immunity ends within ``PROVISIONAL_KA_LEAD_BLOCKS`` or is over, registration block known.
     ``from_commitment`` (D4, eval v5 gate): the slot starts at the on-chain commitment, so the immunity lead is not asked for."""
+    if getattr(s, "reveal_void", False):
+        return None
     floor = TRACK_ENTRY_FLOOR.get("generalist", math.inf)
     if s.track_id == "generalist" and not from_commitment and (
             not isinstance(floor, (int, float)) or isinstance(floor, bool) or not math.isfinite(floor)
@@ -933,13 +995,187 @@ def mark_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sn
     for track_id in track_ids:
         opened = _open_counts(state, track_id)
         for s in state.track(track_id).submissions.values():
-            if (s.provisional_since_ts is None and _provisional_ok(s, live, snapshot.block, opened.get(s.coldkey, 0), d4) is not None
-                    and (not d4 or s.hash_named or s.key in probed) and _big_ok(s, track_id, now)):
+            if (ST.reveal_allows_payment(s, now) and s.provisional_since_ts is None and _provisional_ok(s, live, snapshot.block, opened.get(s.coldkey, 0), d4) is not None
+                    and (not d4 or s.hash_named or s.key in probed) and _big_ok(s, track_id, now, undecided=True)):
                 # the window belongs to the hotkey: a later entry of it inherits the hotkey's earliest start
                 s.provisional_since_ts = first.setdefault(s.hotkey, _commitment_ts(live[s.hotkey], snapshot.block, now) if d4 else now)
                 state.track(track_id).log(now, f"{s.key[:12]}: provisional keep-alive window starts")
                 changed = True
     return changed
+
+
+def _windows(times: Sequence[float], gap: float) -> list[float]:
+    """Greedy window starts over ``times``: the first, then each one at least ``gap`` after the previous start."""
+    out: list[float] = []
+    for v in sorted(times):
+        if not out or v - out[-1] >= gap:
+            out.append(v)
+    return out
+
+
+def _onchain_ts(n: Any, block: int, now: float) -> float | None:
+    """When the neuron's current commitment was made on chain (its commitment block, one block = ``BLOCK_SECONDS``); None
+    when the block is unknown or lies in the future (``_commitment_ts`` would say ``now``, which never expires)."""
+    cb = getattr(n, "commitment_block", 0)
+    if not isinstance(cb, int) or isinstance(cb, bool) or cb <= 0 or cb > block:
+        return None
+    return now - (block - cb) * BLOCK_SECONDS
+
+
+_FAKE_REASONS = ("no safetensors weights listed", "weights are identical to the declared base model",
+                 "hub revision does not match the committed revision")
+
+
+def _is_fake(s: ST.Submission) -> bool:
+    """Abuse clause: the commitment is not a loadable model (see ``split.KA_ABUSE_CLAUSE``). A 401 (private or not found
+    anonymously) is NOT a fake; a 404 (the committed revision does not exist in a reachable repo) is."""
+    r = s.reason or ""
+    if r.startswith(WAITING_FOR_REPO) and "404" in r:
+        return True
+    return s.status == ST.REJECTED and any(x in r for x in _FAKE_REASONS)
+
+
+def _fakes_by_coldkey(state: ST.SpecState, now: float) -> dict[str, int]:
+    """Fakes per coldkey first seen within ``KA_ABUSE_WINDOW_DAYS`` before ``now`` (all tracks, any status). Pure."""
+    since = now - split.KA_ABUSE_WINDOW_DAYS * 86400.0
+    out: dict[str, int] = {}
+    for ts in state.tracks.values():
+        for s in ts.submissions.values():
+            v = s.first_seen_ts
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= since and _is_fake(s):
+                out[s.coldkey] = out.get(s.coldkey, 0) + 1
+    return out
+
+
+def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot, now: float) -> dict[str, list[int]]:
+    """Waiting-state hotfix G1 (Florian 26 Oct 2026: keep-alive GUARANTEED for a committed entry until its evaluation is
+    through): the provisional keep-alive, per track, from the live chain commitments themselves, so it starts with the
+    first weight set after the commitment, also before the evaluator has seen the entry and also when our first fetch
+    found no repo (a 401 that later turns out public). A live neuron qualifies for ``track_id`` when its commitment parses
+    as a commitment for that track and its entry is not decided: not in the state yet, or QUEUED / PENDING_VERIFY and never
+    scored (a close call waiting for its extra draw counts as undecided), not too big (``_big_ok``),
+    its coldkey within the open-entry limit. Window:
+    - VERIFIED (fetched with the exact tensor hash and copy-checked, base download on our side, or a close call) or OUR
+      wait (not fetched yet, no fetch failed): from its own on-chain commitment until its first draw decides it, at most
+      ``PROVISIONAL_KA_OUR_WAIT_HOURS``;
+    - UNVERIFIED (not seen yet, or the last fetch found no repo / a miner-side base problem):
+      ``PROVISIONAL_KA_UNVERIFIED_HOURS`` from the start of the hotkey's unverified window; a hotkey opens at most one such window per ``KA_REWINDOW_HOURS``
+      (over the first sightings of all its entries and this commitment), so recommitting dummies cannot chain windows.
+    A commitment block that is unknown or in the future: the entry's first sighting, else nothing (fail closed). At most
+    MAX_OPEN_PER_COLDKEY_TRACK per coldkey and track with KA_PROV_TWO_PER_COLDKEY (otherwise one), most exposed
+    first with KA_EXPOSED_FIRST, otherwise verified / our-wait first, then commitment block and uid. At most ``PROVISIONAL_KA_UNVERIFIED_MAX`` unverified entries per track; pay and caps as before (``combine_weights``). Pure."""
+    out: dict[str, list[int]] = {t: [] for t in track_ids}
+    live = {n.hotkey: n for n in snapshot.neurons}
+    seen: dict[str, list[float]] = {}
+    for ts in state.tracks.values():
+        for s in ts.submissions.values():
+            v = s.first_seen_ts
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+                seen.setdefault(s.hotkey, []).append(float(v))
+    gap = split.KA_REWINDOW_HOURS * 3600.0
+    fakes = _fakes_by_coldkey(state, now) if split.KA_ABUSE_CLAUSE else {}
+    for track_id in track_ids:
+        ts = state.tracks.get(track_id)
+        subs = ts.submissions if ts is not None else {}
+        opened = _open_counts(state, track_id) if ts is not None else {}
+        cands = []
+        for hk, n in live.items():
+            c = parse_commitment(n.commitment)
+            if c is None or c.track_id != track_id:
+                continue
+            s = subs.get(f"{hk}|{c.text()}")
+            at = _onchain_ts(n, snapshot.block, now)
+            if s is not None:
+                if not ST.reveal_allows_payment(s, now):
+                    continue
+                if s.status not in (ST.QUEUED, ST.PENDING_VERIFY) or not _big_ok(s, track_id, now, undecided=True):
+                    continue
+                if s.score is not None and not (s.status == ST.QUEUED and s.close_draws and s.hash_named and s.delta_checked):
+                    continue    # scored: the first draw decided it (pending entries hold the keep-alive, not this)
+                if opened.get(s.coldkey, 0) > C.MAX_OPEN_PER_COLDKEY_TRACK:
+                    continue
+                if at is None:
+                    at = s.first_seen_ts if isinstance(s.first_seen_ts, (int, float)) and math.isfinite(s.first_seen_ts) else None
+                verified = bool(s.hash_named) and (s.delta_checked or s.wait_kind == ST.WAIT_INFRA or s.score is not None)
+                ours = verified or _our_wait(s)
+            else:
+                ours = False
+            if at is None or at > now + KEEPALIVE_FUTURE_S:
+                continue
+            if split.KA_ABUSE_CLAUSE:
+                n_fakes = fakes.get(n.coldkey, 0)
+                if n_fakes >= split.KA_ABUSE_EXCLUDE_AFTER or (not ours and (n_fakes > 0 or (s is not None and _is_fake(s)))):
+                    continue    # abuse clause: fakes lose the unverified window, repeat offenders the provisional keep-alive
+            if ours:
+                since, hours = at, split.PROVISIONAL_KA_OUR_WAIT_HOURS
+            else:
+                own = [x for x in _windows(seen.get(hk, []) + [at], gap) if x <= at]
+                since, hours = (own[-1] if own else at), split.PROVISIONAL_KA_UNVERIFIED_HOURS
+            unseen = s is None and split.KA_GAUNTLET_R2
+            if unseen and now - since > hours * 3600.0 and now - at <= split.PROVISIONAL_KA_UNSEEN_GRACE_HOURS * 3600.0:
+                since, hours = at, split.PROVISIONAL_KA_UNSEEN_GRACE_HOURS     # F2: grace from its own commitment block
+            if now - since > hours * 3600.0:
+                continue
+            cb = n.commitment_block if isinstance(n.commitment_block, int) and n.commitment_block > 0 else sys.maxsize
+            cands.append((0 if ours else 1, cb, n.uid, hk, unseen, n))
+        taken: dict[str, int] = {}
+        per_coldkey = C.MAX_OPEN_PER_COLDKEY_TRACK if split.KA_PROV_TWO_PER_COLDKEY else 1
+        unverified = 0
+        ordered = sorted(cands, key=lambda c: c[:4])
+        groups: dict[str, list] | None = None
+        if split.KA_EXPOSED_FIRST or split.KA_PROV_TWO_PER_COLDKEY:
+            # most exposed first inside a coldkey (not immune before immune, then the earliest immunity end; the stable sort keeps
+            # the old order among equals). The coldkey keeps its place in the global order (the unverified cap counts oldest first).
+            # Checked/our-wait entries stay before unverified ones (owner #28382, uid 25): an exposed unverified entry must not
+            # take its coldkey's checked slot position and with it a capped unverified slot from another coldkey's only entry;
+            # for the same reason an unseen commitment (not counted against the cap) goes before a counted unverified one.
+            groups = {}
+            for c in ordered:
+                groups.setdefault(c[5].coldkey, []).append(c)
+            if split.KA_EXPOSED_FIRST:
+                for g in groups.values():
+                    g.sort(key=lambda c: (c[0], not c[4], split.exposure_key(c[5].registered_block, snapshot.block)))
+        # final critic F-A: pass 1 offers every coldkey its first slot (global order), pass 2 the second slots, so a coldkey's
+        # second entry can never take an unverified slot from another coldkey's only entry (one pass when per_coldkey == 1).
+        # Each offer sits at the coldkey's earliest UNPAID entry (critic F-G): a second slot does not ride on the position of
+        # the coldkey's already paid checked entry ahead of older second entries of other coldkeys.
+        for pass_no in range(1, per_coldkey + 1):
+            for head in ordered:
+                if taken.get(head[5].coldkey, 0) >= pass_no or head[2] in out[track_id]:
+                    continue
+                for rank, _, uid, _, unseen, n in (groups[head[5].coldkey] if groups is not None else [head]):
+                    if uid in out[track_id]:
+                        continue
+                    if rank == 1 and not unseen:    # F3: an unseen commitment (grace only) does not count against the cap
+                        # critic F3: dummy commitments cannot dilute the others without bound: at most
+                        # PROVISIONAL_KA_UNVERIFIED_MAX unverified entries per track, the oldest commitments first
+                        if unverified >= split.PROVISIONAL_KA_UNVERIFIED_MAX:
+                            continue
+                        unverified += 1
+                    taken[n.coldkey] = taken.get(n.coldkey, 0) + 1
+                    out[track_id].append(uid)
+                    # Each original candidate position offers one slot. Taking a second slot here would jump
+                    # ahead of older commitments from other coldkeys at the global unverified cap.
+                    break
+    return out
+
+
+def _our_wait(s: ST.Submission) -> bool:
+    """H3: the entry waits for its first evaluation because of THIS side (queue, boxes, fetch, base download), not the
+    miner's: fetched and copy-checked but not drawn yet; a close call waiting for its extra draw; ``pending_verification``
+    for this host's infrastructure; or not fetched yet and no fetch attempt failed. A repo that was missing or private at
+    the last fetch, or a miner-side base problem, is the miner's wait."""
+    if s.status == ST.PENDING_VERIFY:
+        return s.wait_kind == ST.WAIT_INFRA
+    if s.status != ST.QUEUED:
+        return False
+    if s.score is not None:
+        return bool(s.close_draws and s.hash_named and s.delta_checked)
+    if s.hash_named:
+        return bool(s.delta_checked)
+    if s.reason.startswith(WAITING_FOR_REPO):
+        return s.wait_kind == ST.WAIT_INFRA     # our hub/I-O failure (``_fetch_failed``), not a private repo (critic F5)
+    return s.wait_kind != ST.WAIT_MINER
 
 
 def compute_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot,
@@ -948,18 +1184,24 @@ def compute_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot:
     ``_provisional_ok`` for the conditions, at most ``PROVISIONAL_KA_MAX_HOURS`` after ``provisional_since_ts`` (not set
     or more than an hour in the future: nothing, fail closed), at most one per coldkey and track (earlier on-chain
     commitment block, unknown last, then uid). In the open class an entry with a recorded parameter count above
-    ``KEEPALIVE_BIG_PARAMS`` gets none (``_big_ok``; not fetched yet = no count = eligible as before). Pure, like ``compute_keepalive``; never counts against the top-8."""
+    ``KEEPALIVE_BIG_PARAMS`` gets none unless undecided with ``KA_BIG_UNDECIDED`` (``_big_ok``). With WAITING_KA_HOTFIX,
+    ``_committed_waiting`` supplies the on-chain windows and two-per-coldkey limit instead. Pure, like ``compute_keepalive``;
+    never counts against the top-8."""
     out: dict[str, list[int]] = {t: [] for t in track_ids}
     if not PROVISIONAL_KA:
         return out
     now = time.time() if now is None else now
     live = {n.hotkey: n for n in snapshot.neurons}
+    if split.WAITING_KA_HOTFIX:
+        return _committed_waiting(state, track_ids, snapshot, now)
     first = _first_provisional_ts(state)
     d4 = S.v5_active(now)
     for track_id in track_ids:
         cands = []
         opened = _open_counts(state, track_id)
         for s in state.track(track_id).submissions.values():
+            if not ST.reveal_allows_payment(s, now):
+                continue
             since = s.provisional_since_ts
             if not isinstance(since, (int, float)) or not math.isfinite(since):
                 continue
@@ -967,7 +1209,7 @@ def compute_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot:
             if now - since > PROVISIONAL_KA_MAX_HOURS * 3600.0 or since > now + KEEPALIVE_FUTURE_S:
                 continue
             n = _provisional_ok(s, live, snapshot.block, opened.get(s.coldkey, 0), d4)
-            if n is None or not _big_ok(s, track_id, now) or RV.under_review(s):
+            if n is None or not _big_ok(s, track_id, now, undecided=True) or RV.under_review(s):
                 continue
             cb = n.commitment_block if isinstance(n.commitment_block, int) and n.commitment_block > 0 else sys.maxsize
             cands.append((cb, n.uid, s.key, n))
@@ -1172,7 +1414,7 @@ class SpecEvaluator:
                            if s.provisional_since_ts is None and not s.hash_named and s.key not in self._d4_probed
                            and now - self._d4_probe_failed.get(s.key, -math.inf) >= C.RETRY_UNAVAILABLE_S
                            and _provisional_ok(s, live, snapshot.block, opened.get(s.coldkey, 0), True) is not None
-                           and _big_ok(s, track_id, now)),
+                           and _big_ok(s, track_id, now, undecided=True)),
                           key=lambda s: (s.first_seen_block, s.uid, s.key))
             for s in todo[:C.WAIT_REPO_PROBES_PER_CYCLE]:
                 commitment = SpecCommitment(s.track_id, s.repo, s.revision)

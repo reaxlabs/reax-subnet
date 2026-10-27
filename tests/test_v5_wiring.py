@@ -504,6 +504,7 @@ def _d4_world(monkeypatch, gate_on, *, commit_age_blocks=1800, registered_age_bl
 
 @pytest.mark.usefixtures("rc5_entry_floors")
 def test_d4_gate_off_is_rc11_no_slot_before_the_immunity_lead(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     st, s, snap, now, df = _d4_world(monkeypatch, False)
     assert not E.mark_provisional(st, [df], snap, now) and s.provisional_since_ts is None       # immunity far from its end: nothing
     assert E.compute_provisional(st, [df], snap, now=now)[df] == []
@@ -511,6 +512,7 @@ def test_d4_gate_off_is_rc11_no_slot_before_the_immunity_lead(monkeypatch):
 
 @pytest.mark.usefixtures("rc5_entry_floors")
 def test_d4_slot_starts_at_the_onchain_commitment(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     st, s, snap, now, df = _d4_world(monkeypatch, True, commit_age_blocks=1800)               # committed 1800 x 12 s = 6 h ago
     assert E.mark_provisional(st, [df], snap, now)
     assert s.provisional_since_ts == pytest.approx(now - 6 * 3600)                              # not "now": the commitment block
@@ -521,6 +523,7 @@ def test_d4_slot_starts_at_the_onchain_commitment(monkeypatch):
 
 @pytest.mark.usefixtures("rc5_entry_floors")
 def test_d4_old_commitment_has_no_time_left_and_unknown_block_counts_from_now(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     st, s, snap, now, df = _d4_world(monkeypatch, True, commit_age_blocks=3700)               # 12.3 h ago: the half is over
     E.mark_provisional(st, [df], snap, now)
     assert E.compute_provisional(st, [df], snap, now=now)[df] == []

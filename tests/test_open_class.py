@@ -603,7 +603,9 @@ def _prov(now, params, base_id=""):
     return st, s, snap, BLOCK
 
 
-def test_provisional_keepalive_is_unchanged_up_to_10b_and_for_unknown_size_and_closed_above_10b():
+def test_provisional_keepalive_is_unchanged_up_to_10b_and_for_unknown_size_and_closed_above_10b(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
+    monkeypatch.setattr(CS, "KA_BIG_UNDECIDED", False)    # pins the base floor on undecided entries; the fix: test_ka_big_undecided.py
     from test_provisional_ka import _snapr
     for params, want in ((SMALL, [1]), (10_000_000_000, [1]), (BIG, []), (None, [1])):
         st, s, snap, _ = _prov(AFTER + 7200, params)
@@ -677,7 +679,9 @@ def _remote_state(tmp_path, now, entries):
     return RM.RemoteSpecEvaluator(str(path), clock=lambda: now), _snap(subs), subs
 
 
-def test_remote_validator_applies_the_big_floor_to_keepalive_and_provisional_after_the_switch(tmp_path):
+def test_remote_validator_applies_the_big_floor_to_keepalive_and_provisional_after_the_switch(tmp_path, monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
+    monkeypatch.setattr(CS, "KA_BIG_UNDECIDED", False)    # pins the base floor on undecided entries; the fix: test_ka_big_undecided.py
     for now, want in ((AFTER + 7200, [2]), (BEFORE - 7200, [1, 2])):
         ev, snap, subs = _remote_state(tmp_path, now, [(1, BIG), (2, SMALL)])
         active = ev.cfg.active_tracks(now)

@@ -57,7 +57,7 @@
                         "co_champions": co_champions or None, "pools": pools, "history": track_history(st)})
      # engine track open since 20 Oct 2026 18:00 UTC (block 9326382); results/leaderboard live on /competitions/live/
      eng_status = "live" if now >= 1792519200 else "preparing"
-+    eng_track = ((engine or {}).get("tracks") or {}).get("s1-fast") or {} if isinstance(engine, dict) else {}
++    eng_track = (lambda t: t.get("dm-all") or t.get("s1-fast") or {})((engine or {}).get("tracks") or {}) if isinstance(engine, dict) else {}
 +    pending = eng_track.get("pending")
 +    # Only the public summary leaves the collector; no sessions, image labels or parent runs.
 +    pending = {k: pending.get(k) for k in ("uid", "digest12", "pooled_score", "slot_utc")} if isinstance(pending, dict) else None

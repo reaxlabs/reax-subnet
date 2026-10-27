@@ -136,7 +136,7 @@ def test_offline_cli_and_strict_transition(tmp_path):
     with pytest.raises(ValueError): check_transition(old, new, SLOT+timedelta(hours=4,seconds=1), 'slot', snap)
     assert finalize_document(old, snap, BEFORE) == old
     snap['rows'] = []
-    assert finalize_document(old, snap, SLOT) == old
+    assert finalize_document(old, snap, SLOT) == old  # the confirmed challenger is still pending: the switch slot is not closed
     for name, data in [('in.json',old), ('snapshot.json',snapshot()['rows'])]:
         (tmp_path/name).write_text(json.dumps(data))
     main(['finalize','--state',str(tmp_path/'in.json'),'--commitments',str(tmp_path/'snapshot.json'),
@@ -319,3 +319,89 @@ def test_batch_can_lower_new_champions_held_score():
     check_transition(old,new,SLOT+timedelta(hours=1),'final')
     new['tracks'][P.name]['champion']['score'] = 2.1
     with pytest.raises(ValueError): check_transition(old,new,SLOT+timedelta(hours=1),'final')
+
+
+def test_the_switch_slot_without_a_crown_is_closed_once_and_the_frozen_file_is_usable(tmp_path):
+    import hashlib
+    from reax_subnet.engvalidator import read_frozen_v1
+    pending = document(ready())
+    snap = snapshot()
+    snap['rows'] = []  # the confirmed challenger is missing from this snapshot: it can still be crowned, so not final
+    assert finalize_document(pending, snap, SLOT + timedelta(minutes=5)) == pending
+    st = ready()
+    update_champion(st, [], P, 200, now=BEFORE)  # the challenger withdrew before the slot: nothing to crown
+    assert st.challenger is None
+    old = document(st)
+    path = tmp_path / 'v1.json'
+
+    def frozen(doc):
+        path.write_text(json.dumps(doc))
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    with pytest.raises(ValueError, match='frozen before'):
+        read_frozen_v1(str(path), frozen(old))
+    assert finalize_document(old, snap, BEFORE) == old  # before the slot: nothing recorded
+    now = SLOT + timedelta(minutes=20)
+    new = finalize_document(old, snap, now)
+    ev = new['tracks'][P.name]['history'][-1]
+    assert ev == {'block': snap['block'], 'event': 'slot_closed', 'slot_utc': SLOT.isoformat(), 'crowned': False}
+    assert new['tracks'][P.name].get('slot_results', []) == old['tracks'][P.name].get('slot_results', [])
+    assert new['tracks'][P.name].get('challenger') == old['tracks'][P.name].get('challenger')
+    check_transition(old, new, now, 'slot', snap)  # the deterministic replay reproduces it
+    check_transition(old, new, now, 'final')
+    assert finalize_document(new, snap, now + timedelta(hours=1)) == new  # once only
+    assert finalize_document(old, snap, SLOT + timedelta(days=3)) == old  # the Friday slot does not close Tuesday
+    st, _ = read_frozen_v1(str(path), frozen(new))
+    assert st.history[-1]['event'] == 'slot_closed'
+    # a crown at the switch slot is not followed by a slot_closed event
+    crowned = finalize_document(pending, snapshot(), SLOT)
+    assert crowned['tracks'][P.name]['history'][-1]['event'] == 'crowned'
+    assert finalize_document(crowned, snap, SLOT + timedelta(hours=1)) == crowned
+
+
+F = 'c' * 64
+
+
+def moved_challenger():
+    """Seed: challenger D (1 of 2 sessions) while F holds an accepted measurement from an earlier batch; the batch
+    re-measures D as rejected and the cycle promotes F with that earlier measurement."""
+    subd, subf = SUB, Submission(8, 'hk2', P.name, 'repo/image2', F, 51)
+    st = TrackState(derived={D: [], F: []})
+    observe(st, [subd, subf], 100)
+    st.results[F] = EvalResult(F, P.name, True, score=1.5, block=90, session='old')   # below the bar: not promoted
+    st.results[D] = EvalResult(D, P.name, True, score=2, block=100, session='s0')
+    assert update_champion(st, [subd, subf], P, 100, now=BEFORE) is None
+    assert st.challenger['digest'] == D
+    old = document(st)
+    st.results[F] = EvalResult(F, P.name, True, score=2.2, block=90, session='old')
+    st.results[D] = EvalResult(D, P.name, False, block=110, session='s1', reason='correctness')
+    update_champion(st, [subd, subf], P, 110, now=BEFORE)
+    assert st.challenger['digest'] == F and st.challenger['measurements'] == [[90, 2.2, 'old']]
+    new = document(st)
+    # F's result is unchanged from the seed in the batch: carried, not re-measured
+    old['tracks'][P.name]['results'][F] = deepcopy(new['tracks'][P.name]['results'][F])
+    return old, new
+
+
+def test_challenger_moved_to_entry_measured_in_earlier_batch():
+    old, new = moved_challenger()
+    check_transition(old, new, BEFORE, 'final')
+
+
+def test_challenger_moved_with_fabricated_measurement_rejected():
+    old, new = moved_challenger()
+    new['tracks'][P.name]['challenger']['measurements'] = [[91, 2.3, 'fake']]
+    with pytest.raises(ValueError): check_transition(old, new, BEFORE, 'final')
+
+
+def test_challenger_moved_to_entry_whose_result_is_not_ok_rejected():
+    old, new = moved_challenger()
+    new['tracks'][P.name]['results'][F]['ok'] = False
+    with pytest.raises(ValueError): check_transition(old, new, BEFORE, 'final')
+
+
+def test_challenger_moved_carrying_measurement_the_seed_does_not_hold_rejected():
+    old, new = moved_challenger()
+    old['tracks'][P.name]['results'][F]['score'] = 1.4   # seed result differs: [90, 2.2, 'old'] was never accepted
+    new['tracks'][P.name]['results'][F]['score'] = 2.4   # and the batch result is another score
+    with pytest.raises(ValueError): check_transition(old, new, BEFORE, 'final')

@@ -54,6 +54,10 @@ class SidecarError(RuntimeError):
 
 
 MAX_RUNTIME_RESPONSE_BYTES = 1 << 20
+# Engine-competition pools without a release manifest of their own (s1contract.ENGINE_MAX_OPTIONS) borrow the one of the
+# reference model they extend; the engine measurement never reads it (it matters for the miner mechanism only).
+ENGINE_POOL_MANIFEST = {"s1-vision": "s1-fast", "quyet-1-large": "s1-pro", "jeffan-31b": "s1-pro"}
+
 PROBE_DECISION = parse_decision(
     {"id": "probe", "state": "Probe: the parcel arrived two days late.",
      "questions": {"q": {"type": "noul", "instructions": "Was the delivery late?"}}},
@@ -82,7 +86,7 @@ class SidecarBackend:
     def __init__(self, model: str, url: str, token: str, max_inflight: int = 16, timeout_s: float = 60.0, *,
                  link_key: Optional[bytes] = None, fingerprint: str = "", name: str = ""):
         self.model = model
-        self.manifest = load_manifest(model)
+        self.manifest = load_manifest(ENGINE_POOL_MANIFEST.get(model, model))
         self.url = url.rstrip("/")
         self.name = name or self.url
         self._link_key = link_key
@@ -196,6 +200,8 @@ class SidecarBackend:
                 "state": d.state,
                 "questions": {d.question.ident: d.question.author_dict()},
             }
+            if d.images:  # s1-vision: the production field, a list of exactly one data URL
+                body["images"] = list(d.images)
             import aiohttp
 
             s = await self._client()
@@ -614,14 +620,15 @@ class S1HashBackend:
 
     def __init__(self, model: str = "s1-fast", salt: str = "reference", logit_noise: float = 0.0, seed: int = 0):
         self.model = model
-        self.manifest = load_manifest(model)
+        self.manifest = load_manifest(ENGINE_POOL_MANIFEST.get(model, model))
         self.salt = salt
         self.noise = logit_noise
         self._rng_seed = seed
         self.calls = 0
 
     def logits(self, d: Decision) -> list[float]:
-        base = json.dumps([d.state, d.question.author_dict()], sort_keys=True, ensure_ascii=False)
+        base = json.dumps([d.state, d.question.author_dict(), *([list(d.images)] if d.images else [])],
+                          sort_keys=True, ensure_ascii=False)
         out = []
         for k in d.question.keys:
             h = hashlib.sha256(f"{self.salt}\x00{base}\x00{k}".encode()).digest()

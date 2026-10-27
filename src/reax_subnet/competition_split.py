@@ -91,6 +91,31 @@ ENGINE_CO_CHAMPIONS: dict[str, tuple[tuple[str, str], ...]] = {
 }
 ENGINE_CO_CHAMPION_BAR: dict[str, float] = {"s1-fast": 2.82332066708034}  # uid 4's opening score
 ENGINE_CO_CHAMPION_CROWNED: dict[str, int] = {"s1-fast": 9326968}  # the decay runs from the opening crowning block
+# Engine competition v2.1 payout bridge (docs/ENGINE-COMPETITION-V2.md): None = off. When set, a validator running the
+# composite track ``dm-all`` keeps paying the v1 ``s1-fast`` champion's engine share, read from the frozen v1 state file
+# (engvalidator.EngineCompetition ``v1_bridge``), until dm-all is crowned for the first time (one-way, survives vacating and restarts) or this time, whichever is first.
+# The bridge is on only if BOTH constants are set; the state file must hash to ENGINE_V1_BRIDGE_STATE_SHA256 on every read.
+# Calendar (CoS promise check, board #22 #26409): the Tue 27 Oct 14:30Z crown slot is the LAST v1 (``s1-fast``) crowning. Engine v2
+# (``dm-all``) is in force right after that slot: before ENGINE_V2_START_UTC no composite cycle runs and no composite entry is paid;
+# from it on measurements may run, but a composite is only ever crowned at a slot strictly AFTER it (the first one is Fri 30 Oct
+# 14:30Z), so the v1 slot and the v2 start at the same instant cannot both crown.
+ENGINE_V2_START_UTC: Optional[datetime] = datetime(2026, 10, 27, 14, 30, tzinfo=timezone.utc)
+# The v1 title holder at the switch keeps the champion share until the first v2 crowning, at most until this slot. Then it moves to
+# the 17 % former-champion place as if beaten (engvalidator: carried places), the v1 former champions shift down with it.
+ENGINE_V1_BRIDGE_END_UTC: Optional[datetime] = datetime(2026, 11, 3, 14, 30, tzinfo=timezone.utc)
+# sha256 (hex) of the frozen v1 engine-competition.json bytes, pinned after the Tue 27 Oct 14:30Z slot was finalised (frozen file
+# engine-competition.v1-final-1faccee3.json, copy in tests/data). While it is None the bridge is off, and ``release_bridge_problem``
+# refuses to run v2 on finney.
+ENGINE_V1_BRIDGE_STATE_SHA256: Optional[str] = "1faccee327f80b48427778d0561195c9d2c0110ffc15f897ff7ef5045969c7a6"
+
+
+def release_bridge_problem() -> Optional[str]:
+    """Why a finney process must not run the composite (v2) track yet, or None. Fail closed: with a bridge end time but no pinned
+    frozen-state digest the v1 title holder would silently lose its champion share and its former-champion place."""
+    if ENGINE_V1_BRIDGE_END_UTC is not None and not ENGINE_V1_BRIDGE_STATE_SHA256:
+        return ("ENGINE_V1_BRIDGE_END_UTC is set but ENGINE_V1_BRIDGE_STATE_SHA256 is not pinned: freeze the v1 state after the "
+                "27 Oct 14:30Z slot, pin its sha256, then start v2")
+    return None
 
 # Engine keep-alive (miner report 21903), release constants; also needs REAX_ENGINE_KEEPALIVE=1 (default OFF). An engine
 # entry that waits for its FIRST measurement earns 0 and is pruned. While it is committed, its image was pulled and bound to
@@ -252,6 +277,87 @@ PROVISIONAL_KA_MAX_HOURS = 12.0
 PROVISIONAL_KA_FRACTION = 0.5
 PROVISIONAL_KA_MAX_SHARE = 0.05
 
+# Waiting-state keep-alive HOTFIX (Florian 26 Oct 2026 14:5xZ, DECISIONS keepalive-no-dereg-while-waiting: "Miner UIDs
+# must not be deregistered just because they are in a waiting state"; job keepalive-hotfix-20261026, SPEC.md). Every wait
+# WE cause now keeps the keep-alive it already had until the wait ends, bounded; pay levels, floors, per-coldkey limits,
+# KEEPALIVE_MAX_ENTRIES and the share caps are unchanged. False restores the rc11.post4 windows exactly.
+WAITING_KA_HOTFIX = True
+# Big-undecided fix (lead decision 26 Oct 2026, 21:3xZ): the open-class base floor for entries above KEEPALIVE_BIG_PARAMS is a
+# test on a SCORE. An entry still undecided (waiting for its first draw, or owing one more draw) keeps the provisional keep-alive
+# (same caps, windows, abuse clause); score-based keep-alive (pending, champion, top-eight) keeps the floor. False = bit-identical to 233dbd2.
+KA_BIG_UNDECIDED = True
+# Gauntlet round 2 (lead decision 26 Oct 2026, property-test findings F1/F2/F3/F5; needs WAITING_KA_HOTFIX): F1 compute_keepalive no
+# longer cuts pending / confirmed / champion-awaiting entries to KEEPALIVE_MAX_ENTRIES (the share cap splits evenly downstream);
+# F2 an on-chain commitment the evaluator has not recorded yet gets UNSEEN_GRACE_HOURS from its OWN commitment block whatever
+# earlier windows the hotkey used; F3 unseen commitments do not count against PROVISIONAL_KA_UNVERIFIED_MAX; F5 the same-tensors
+# "one window per model" minimum applies to the plain window only, never to the slot extension or the hard cap.
+# False (with KA_BIG_UNDECIDED False) = bit-identical to 233dbd2.
+KA_GAUNTLET_R2 = True
+PROVISIONAL_KA_UNSEEN_GRACE_HOURS = 6.0
+# Most exposed first (lead decision 26 Oct 2026, needs WAITING_KA_HOTFIX): when keep-alives per coldkey are chosen (generalist
+# provisional, engine waiting), the uid that is most exposed to pruning gets it: not immune before immune, then the earliest immunity
+# end, then the old order (an unknown registration block counts as exposed, after the known ones). Uids 165 (immune) / 223 (exposed)
+# and champion 62 share a coldkey: the older commitment must not push the exposed one to zero.
+# False = the previous order (commitment block / first sighting).
+KA_EXPOSED_FIRST = True
+# Match the published two paid waiting entries per coldkey and track (MAX_OPEN_PER_COLDKEY_TRACK).
+# Needs WAITING_KA_HOTFIX; False restores the previous one-entry pick. Share and unverified caps stay unchanged.
+KA_PROV_TWO_PER_COLDKEY = True
+
+
+def exposure_key(registered_block, block: int) -> tuple[int, int]:
+    """Sort key, smaller = more exposed: (1 if still immune else 0, end of immunity); unknown registration = (0, huge)."""
+    if isinstance(registered_block, int) and not isinstance(registered_block, bool) and registered_block > 0:
+        end = registered_block + CHAIN_IMMUNITY_BLOCKS
+        return (1 if block < end else 0, end)
+    return (0, 1 << 62)
+# H1: a pending entry (first pass taken) keeps its keep-alive until the slot that decides it has run (slot + SLOT_CLOCK_S),
+# not just KEEPALIVE_HOURS after its first pass; hard cap after the first pass: the longest slot gap twice (a voided slot
+# re-runs at the next one) plus the confirmation lead.
+PENDING_KA_MAX_HOURS = 216.0
+# H5: a new champion waiting for the owner's award approval (source + rebuild check + signer card) keeps it this long
+# after its crowning; an approved champion is paid by its rank and holds no keep-alive slot anyway.
+CHAMPION_APPROVAL_KA_HOURS = 72.0
+# G1/H3: every live commitment of an undecided entry gets the provisional keep-alive from the first weight set after its
+# on-chain commitment (spec.evaluator._committed_waiting), also before the evaluator saw it and when our first fetch found
+# no repo. Verified entries and waits on OUR side (queue, boxes, fetch, base download) keep it until the first draw decides
+# them, at most this long (a safety bound; the reliability invariant alerts long before); unverified ones (repo missing or
+# private, miner-side base problem; we cannot tell a private repo from a hub/token failure on our side) get
+# PROVISIONAL_KA_UNVERIFIED_HOURS from the commitment, one such window per hotkey per KA_REWINDOW_HOURS.
+# A waiting hotkey with a small serving weight is topped up to the keep-alive level instead of being left out.
+PROVISIONAL_KA_OUR_WAIT_HOURS = 96.0
+PROVISIONAL_KA_UNVERIFIED_HOURS = 24.0
+# at most this many UNVERIFIED provisional entries per track (oldest commitments first), so dummy commitments cannot
+# dilute the others without bound (critic F3; 16 per critic2 N4: the real state had 9 at once); verified / our-wait entries are not limited by count (share cap only).
+PROVISIONAL_KA_UNVERIFIED_MAX = 16
+# Abuse clause for the unverified window (proposal 26 Oct 2026 17:4xZ, ships only after Florian's yes): a commitment that is
+# not a loadable model (FAKE: the committed revision does not exist (HTTP 404), no safetensors listed, weights identical to
+# the declared base, hub revision different from the committed one) gets no unverified window, its coldkey gets no
+# unverified window for KA_ABUSE_WINDOW_DAYS, and a coldkey with KA_ABUSE_EXCLUDE_AFTER fakes in that time gets no provisional
+# keep-alive at all. A private repo (HTTP 401) is not a fake: it keeps its 24 h. False = the clause is off.
+KA_ABUSE_CLAUSE = True
+KA_ABUSE_WINDOW_DAYS = 30
+KA_ABUSE_EXCLUDE_AFTER = 2
+# H4: a hotkey's provisional / engine waiting window used to start once and never again, so a former champion or an
+# earlier entrant that commits a new entry (track switch, new model) got none. A new entry first seen at least this long
+# after the start of the hotkey's previous window opens a new window from its own first sighting (at most one per this
+# many hours per hotkey; per-coldkey limits and share caps unchanged).
+KA_REWINDOW_HOURS = 72.0
+# H6 (engine): an image waiting for its first measurement: this long from its own first sighting (was ENGINE_KA_MAX_HOURS
+# per hotkey); the pending challenger (its first session beat the bar; confirming session, Tue/Fri slot or finalize still
+# to come, all on our side) keeps it while it is the pending challenger, at most ENGINE_SLOT_KA_MAX_HOURS after its first
+# session (critic F6).
+ENGINE_KA_WAIT_HOURS = 24.0
+ENGINE_SLOT_KA_MAX_HOURS = 120.0
+# H6b (engine, 26 Oct 2026, uid 165): an image that has no measurement yet waits for OUR measurement, so its window lasts until
+# it is measured, at most ENGINE_SLOT_KA_MAX_HOURS (not ENGINE_KA_WAIT_HOURS), and the window of an immune hotkey opens
+# ENGINE_KA_LEAD_BLOCKS before its immunity ends instead of PROVISIONAL_KA_LEAD_BLOCKS: SN92 has commit-reveal, a set counts only
+# at the second epoch boundary after its block (up to 2 x 360 blocks), so 600 left the first paying set landing after the
+# immunity (uid 165 paid 0 at the end of its immunity). Per-coldkey limit and ENGINE_KA_MAX_SHARE cap still apply. False restores
+# the post7.1 windows exactly.
+ENGINE_KA_UNTIL_MEASURED = True
+ENGINE_KA_LEAD_BLOCKS = 1500
+
 # Keep-alive non-proc floor (1.2.0rc6), release constant: a keep-alive entry must also score above this on the NON-proc
 # items of its latest draw (same_family, new_domain, new_family; tier != "proc_sealed"), so learning the public
 # procedural families alone never earns it. Value: the reference model's (Plumb-4B = s1-fast) score on the non-proc items
@@ -268,11 +374,12 @@ KEEPALIVE_NONPROC_FLOOR: dict[str, Optional[float]] = {"demand_forecasting": 32.
 KEEPALIVE_LEGACY_FLOOR: dict[str, Optional[float]] = {"demand_forecasting": 60.0, "risk_assessment": 50.0}
 
 # Keep-alive base floor (1.2.0rc9.post6), release constant, open class only (from ``SPEC_OPEN_CLASS_START_UTC``): an entry
-# with more than ``KEEPALIVE_BIG_PARAMS`` parameters qualifies for the keep-alive (and the provisional keep-alive) only if
+# with more than ``KEEPALIVE_BIG_PARAMS`` parameters qualifies for score-based keep-alive only if
 # this table has its declared base's tensor hash (``Submission.base_id``) for the track and the score that qualified it (the
 # non-proc score, the total for a legacy entry) is above that floor + ``KEEPALIVE_BIG_MARGIN``. A larger model must beat
 # its own base, not only a rules-only model. Maps base tensor hash -> {track id: floor}. Ships EMPTY (filled after
-# calibration): until then no entry above 10 B parameters gets a keep-alive. A larger entry without a recorded base hash gets
+# calibration): until then no scored entry above 10 B parameters gets a keep-alive. With KA_BIG_UNDECIDED, undecided
+# entries retain provisional keep-alive without a floor or score. A larger scored entry without a recorded base hash gets
 # none; an entry without a recorded parameter count (fetched by an earlier release, under the 9 B cap, or not fetched yet) counts as small. An entry with at most ``KEEPALIVE_BIG_PARAMS`` parameters is not affected.
 KEEPALIVE_BIG_PARAMS = 10_000_000_000
 KEEPALIVE_BIG_MARGIN = 1.5
@@ -428,6 +535,11 @@ def competitions_active(now: datetime) -> bool:
     return now >= COMPETITIONS_START_UTC
 
 
+def release_v2_start() -> Optional[datetime]:
+    """The composite (engine v2) start on finney; None = no extra start (development constant unset)."""
+    return ENGINE_V2_START_UTC
+
+
 def release_engine_start() -> datetime:
     """The engine track's start on finney: ``ENGINE_HELD`` while ``ENGINE_TRACK_START_UTC`` is None."""
     return ENGINE_HELD if ENGINE_TRACK_START_UTC is None else ENGINE_TRACK_START_UTC
@@ -507,6 +619,17 @@ def engine_keepalive_enabled(env: Mapping[str, str]) -> bool:
     if raw in ("1", "true", "yes", "on"):
         return True
     raise ValueError(f"REAX_ENGINE_KEEPALIVE must be 1/0 (or true/false, yes/no, on/off), got {raw!r}")
+
+
+def engine_composite_enabled(env: Mapping[str, str]) -> bool:
+    """REAX_ENGINE_COMPOSITE: strict on/off switch for engine competition v2, unset = off; an unknown value is refused
+    (``0``/``false`` must never switch v2 on)."""
+    raw = (env.get("REAX_ENGINE_COMPOSITE") or "").strip().lower()
+    if raw in ("", "0", "false", "no", "off"):
+        return False
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    raise ValueError(f"REAX_ENGINE_COMPOSITE must be 1/0 (or true/false, yes/no, on/off), got {raw!r}")
 
 
 # a crowning time further ahead of the validator clock than this is treated as unknown (no keep-share rule)
@@ -800,15 +923,28 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     for track_id in cand:
         elig = [u for u in cand[track_id] if own.get(u, 0.0) < per_entry]
         elig = [u for u in elig if u not in own] + [u for u in elig if u in own]
-        elig = cut(track_id, elig)
-        if elig:
-            alive[track_id] = elig
+        if WAITING_KA_HOTFIX:
+            # G1: no waiting entry is cut to zero by KEEPALIVE_MAX_ENTRIES any more; the track's keep-alive share cap
+            # (KEEPALIVE_MAX_SHARE) still bounds the total and is split evenly when it binds
+            if len(elig) > KEEPALIVE_MAX_ENTRIES:
+                log.info("track %s: keep-alive for all %d waiting entries (more than %d), within the share cap",
+                         track_id, len(elig), KEEPALIVE_MAX_ENTRIES)
+            kept = elig
+        else:
+            kept = cut(track_id, elig)
+        if kept:
+            alive[track_id] = kept
     taken = {u for ids in alive.values() for u in ids} | set(paid)
     for ranked_t in ranks_of.values():
         taken.update(ranked_t)
     # provisional pay keeps an UNSERVED waiting entry from being pruned: a hotkey that serves is not at that risk, so only
     # pure entrants get it (critic round 1 F9) and only they make a track hold a slot (round 2 NEW-2)
-    prov_all = {t: [u for u in ids if u not in taken and u not in own] for t, ids in prov_cand.items()}
+    if WAITING_KA_HOTFIX:
+        # G1: a waiting hotkey that serves a little is still at risk: it is topped up to the provisional level
+        prov_all = {t: [u for u in ids if u not in taken and own.get(u, 0.0) < PROVISIONAL_KA_FRACTION * per_entry]
+                    for t, ids in prov_cand.items()}
+    else:
+        prov_all = {t: [u for u in ids if u not in taken and u not in own] for t, ids in prov_cand.items()}
     # which tracks hold a slot: only tracks with a payable entry (or ranks), so an entry that would be paid nothing never
     # pushes another track's entrants out of the profile's slots
     slots = list(zip(sorted(set(tracks) | {t for t, v in alive.items() if v} | {t for t, v in prov_all.items() if v}),
@@ -822,20 +958,22 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
         for ranked_t in ranks_of.values():
             taken.update(ranked_t)
         for uid in ewait_cand:
-            if uid not in taken and uid not in own and len(ewait) < ENGINE_KA_MAX_ENTRIES + ENGINE_KA_PROTECTED_MAX:
+            low = own.get(uid, 0.0) < ENGINE_KA_FRACTION * per_entry if WAITING_KA_HOTFIX else uid not in own
+            if uid not in taken and low and (WAITING_KA_HOTFIX or len(ewait) < ENGINE_KA_MAX_ENTRIES + ENGINE_KA_PROTECTED_MAX):
                 ewait.append(uid)
     if ewait:
         each_ew = min(ENGINE_KA_FRACTION * per_entry, ENGINE_KA_MAX_SHARE * prof.engine / len(ewait))
         for uid in ewait:
-            paid[uid] = each_ew
+            paid[uid] = max(0.0, each_ew - own.get(uid, 0.0)) if WAITING_KA_HOTFIX else each_ew
+        ew_total = math.fsum(paid[u] for u in ewait)
         # taken from the engine share, i.e. from the champion's part of it (split by payment over co-champions)
         if not engine_cochampions:
             if engine_champion in paid:  # exactly the rule before the co-champions
-                paid[engine_champion] = max(0.0, paid[engine_champion] - each_ew * len(ewait))
+                paid[engine_champion] = max(0.0, paid[engine_champion] - ew_total)
         else:
             held = math.fsum(paid[u] for u in engine_payees)
             if held > 0:
-                take = each_ew * len(ewait)
+                take = ew_total
                 for u in engine_payees:
                     paid[u] = max(0.0, paid[u] - take * paid[u] / held)
         log.info("engine keep-alive for uids %s, each %.5f of the miner part", ewait, each_ew)
@@ -856,7 +994,13 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             n = len(alive[track_id])
             # generalist: the keep-alive cap is never above KEEPALIVE_MAX_SHARE even if keepalive_share is raised
             cap = min(ka_cap, KEEPALIVE_MAX_SHARE) if track_id == "generalist" else ka_cap
-            each = min(per_entry, cap * slot_share / n)
+            room = cap * slot_share
+            if WAITING_KA_HOTFIX and track_id == "generalist" and prov.get(track_id):
+                # critic2 N1: the provisional share is reserved first, so a crowd of keep-alive entries (no count cut any more)
+                # cannot squeeze the waiting committed entries to zero; the keep-alive gets the rest of the 25 %
+                room = max(0.0, room - min(PROVISIONAL_KA_MAX_SHARE * slot_share,
+                                           len(prov[track_id]) * PROVISIONAL_KA_FRACTION * per_entry))
+            each = min(per_entry, room / n)
             for uid in alive[track_id]:
                 paid[uid] = paid.get(uid, 0.0) + max(0.0, each - own.get(uid, 0.0))
             # the top-ups actually paid; a serving entrant gives up only what it does not already earn
@@ -868,9 +1012,15 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             if track_id == "generalist":
                 prov_cap = min(prov_cap, max(0.0, min(ka_cap, KEEPALIVE_MAX_SHARE) * slot_share - (slot_share - rank_share)))
             each_prov = min(PROVISIONAL_KA_FRACTION * per_entry, prov_cap / n_prov)
-            for uid in ids:
-                paid[uid] = paid.get(uid, 0.0) + each_prov
-            rank_share -= each_prov * n_prov
+            if WAITING_KA_HOTFIX:   # G1: a top-up (a pure entrant gets all of it, as before)
+                top = {uid: max(0.0, each_prov - own.get(uid, 0.0)) for uid in ids}
+                for uid in ids:
+                    paid[uid] = paid.get(uid, 0.0) + top[uid]
+                rank_share -= math.fsum(top.values())
+            else:
+                for uid in ids:
+                    paid[uid] = paid.get(uid, 0.0) + each_prov
+                rank_share -= each_prov * n_prov
             log.info("track %s: provisional keep-alive for uids %s, each %.5f of the miner part",
                      track_id, ids, each_prov)
         ranked_pay = ranks_of.get(track_id) or rank_shares(tracks.get(track_id, ()), floors.get(track_id))

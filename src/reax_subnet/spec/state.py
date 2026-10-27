@@ -101,7 +101,46 @@ class Submission:
     decision_rule: str = ""               # "v3" = first stage decided under rule v3; "" = old rule (confirmed under the old rule)
     close_draws: list[str] = field(default_factory=list)    # first-stage draws of a close call (the first one included) while queued
     confirm_draws: list[str] = field(default_factory=list)  # confirmation draws already taken that left it pending (extra draw)
+    # Credential-free commit/reveal receipts; absent/default for legacy/public entries.
+    nonpublic: bool = False
+    reveal_hash: str = ""
+    reveal_due_ts: float | None = None
+    revealed_ts: float | None = None
+    reveal_void: bool = False
+    access_ready_ts: float | None = None
+    gated_seen_ts: float | None = None       # first time the gated listing (sha == revision) was visible anonymously
+    credential_wait_ts: float | None = None  # first evaluator-credential failure of an unbroken run (cleared by a plain access miss)
+    public_seen_ts: float | None = None      # first successful anonymous public check of a reveal (<= reveal_due_ts to count)
+    reveal_infra_fail_ts: float | None = None  # last reveal check/proof that failed for an infrastructure reason
+    reveal_grace: bool = False               # the one 2 h grace after an infra error was used
+    reveal_void_ts: float | None = None
+    public_checked_ts: float | None = None   # last anonymous re-check of a revealed entry
+    public_lost_ts: float | None = None      # a revealed entry was found gated/private again (payment stopped)
+    admission_after_ts: float | None = None  # no private/gated slot up to this instant (a missed reveal of the coldkey)
     history: list[dict[str, Any]] = field(default_factory=list)
+
+
+def reveal_allows_payment(sub: Any, now: float | None = None) -> bool:
+    """Validator guard: a stale-but-fresh-enough worker file cannot extend a reveal deadline.
+
+    Defaults preserve old objects/state. A non-public entry that has played a slot (``reveal_due_ts`` set) is paid
+    only after its reveal receipt (``revealed_ts <= reveal_due_ts``) and not while it is found non-public again
+    (``public_lost_ts``). Before its first slot (no deadline yet) the waiting keep-alive stays (#27732).
+    The worker owns mutation, public status and deletion; readers enforce the payment stop independently.
+    """
+    if getattr(sub, "reveal_void", False):
+        return False
+    due = getattr(sub, "reveal_due_ts", None)
+    if due is None or not getattr(sub, "nonpublic", False):
+        return True
+    if not isinstance(due, (int, float)) or not math.isfinite(due):
+        return False
+    revealed = getattr(sub, "revealed_ts", None)
+    if revealed is None:
+        return False
+    if not (isinstance(revealed, (int, float)) and math.isfinite(revealed) and revealed <= due):
+        return False
+    return getattr(sub, "public_lost_ts", None) is None
 
 
 @dataclass
@@ -157,8 +196,19 @@ class SpecState:
 
 
 def _to_json(state: SpecState) -> dict[str, Any]:
+    # Default receipts do not change legacy wire bytes while the switch is off.
+    tracks = {tid: asdict(t) for tid, t in sorted(state.tracks.items())}
+    for track in tracks.values():
+        for sub in track["submissions"].values():
+            for key, default in (("nonpublic", False), ("reveal_hash", ""), ("reveal_due_ts", None),
+                                 ("revealed_ts", None), ("reveal_void", False), ("access_ready_ts", None),
+                                 ("gated_seen_ts", None), ("credential_wait_ts", None), ("public_seen_ts", None),
+                                 ("reveal_infra_fail_ts", None), ("reveal_grace", False), ("reveal_void_ts", None),
+                                 ("public_checked_ts", None), ("public_lost_ts", None), ("admission_after_ts", None)):
+                if sub[key] == default:
+                    del sub[key]
     return {"version": SPEC_STATE_VERSION, "saved_at": int(time.time()), "eval_times": state.eval_times,
-            "tracks": {tid: asdict(t) for tid, t in sorted(state.tracks.items())}}
+            "tracks": tracks}
 
 
 def _build(cls, raw: dict[str, Any]):

@@ -101,6 +101,7 @@ def test_former_paid_by_restore_previous_gets_no_keepalive(tmp_path, ka):
 
 
 def test_protected_go_first_then_waiting_and_total_cap(tmp_path, monkeypatch, ka):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 engine windows/count; the hotfix: test_waiting_ka_hotfix.py
     monkeypatch.setattr(CS, "ENGINE_CO_CHAMPIONS", {"s1-fast": ((DA, "old"), (DC, "x"))})
     comp = _comp3(tmp_path, Gate())
     st = _st(comp)

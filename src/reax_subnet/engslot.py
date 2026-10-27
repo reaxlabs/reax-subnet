@@ -22,7 +22,11 @@ def track_params():
         from .engvalidator import TRACKS
     except ImportError as exc:
         raise RuntimeError("engine slot dependencies unavailable; use the release CHAIN_PY virtualenv") from exc
-    return TRACKS
+    # v2: the composite track dm-all is finalised by the same rules (its champion rule sees the composite score)
+    from .engcomposite import default_track
+
+    composite = default_track()
+    return {**TRACKS, composite.name: composite.params()}
 
 
 def snapshot_submissions(snapshot, track, state, block=None, binds_hotkey=False):
@@ -51,6 +55,27 @@ def snapshot_submissions(snapshot, track, state, block=None, binds_hotkey=False)
     return out, head
 
 
+def close_switch_slot(st, now, head):
+    """v2 switch: when the Tue 27 Oct 14:30Z slot (cs.ENGINE_V2_START_UTC) is finalised without a crowning (before the next
+    slot), record that once as a ``slot_closed`` history event, so the frozen v1 state proves the slot was finalised
+    (engvalidator.read_frozen_v1).
+    Deterministic in (state, now, head): the slot-mode replay in check_transition reproduces it."""
+    start = cs.ENGINE_V2_START_UTC
+    if start is None or start not in cs.ENGINE_CROWN_SLOTS_UTC or now < start:
+        return
+    following = next((s for s in cs.ENGINE_CROWN_SLOTS_UTC if s > start), None)
+    if following is not None and now >= following:
+        return  # only the switch slot's own finalisation (a later slot's publication stays as before)
+    slot = start.isoformat()
+    c = st.challenger
+    if c and c.get("confirmed_at") and c.get("slot_utc") == slot:
+        return  # a confirmed challenger for the switch slot can still be crowned (rerun, late recovery): not final
+    if any(e.get("slot_utc") == slot for e in st.slot_results) or any(
+            e.get("event") in ("crowned", "slot_closed") and e.get("slot_utc") == slot for e in st.history):
+        return
+    st.history.append({"block": head, "event": "slot_closed", "slot_utc": slot, "crowned": False})
+
+
 def finalize_document(raw, snapshot, now, block=None):
     """Preserve every unrelated byte of JSON data; change only tracks which crown or record a compliance block."""
     out = deepcopy(raw)
@@ -62,6 +87,8 @@ def finalize_document(raw, snapshot, now, block=None):
         st = TrackState.from_json(before)
         eligible, head = snapshot_submissions(snapshot, name, st, block, raw.get("binds_hotkey", False))
         crown = finalize_engine_slot(st, eligible, TRACKS[name], now, head)
+        if crown is None and name == "s1-fast":
+            close_switch_slot(st, now, head)
         if crown is None and st.history == before.get("history", []):
             continue
         after = deepcopy(before)
@@ -191,6 +218,15 @@ def _check_challenger(prev, st, now, created_at):
                   for e in st.get("cycle_events", [])
                   if e.get("event") == "measurement" and e.get("digest") == c.get("digest")
                   and e not in prev.get("cycle_events", []) and e.get("ok") is True]
+    if not same:
+        # A challenger that moved to an entry measured in an EARLIER batch keeps that accepted measurement (engcomp
+        # promotes the digest's latest valid result): it is carried from the previous state, not a batch addition.
+        pr = prev.get("results", {}).get(c.get("digest")) or {}
+        if pr.get("ok") is True:
+            available.append([pr.get("block"), pr.get("score"), pr.get("session", "")])
+        available += [[e.get("block"), e.get("score"), e.get("session", "")]
+                      for e in prev.get("cycle_events", [])
+                      if e.get("event") == "measurement" and e.get("digest") == c.get("digest") and e.get("ok") is True]
     if any(m not in available for m in additions) or (additions and not result.get("ok")):
         raise ValueError("challenger measurements have no batch results")
     owner = st.get("owners", {}).get(c.get("digest")) or (st.get("first_seen", {}).get(c.get("digest")) or [None, None])[1]

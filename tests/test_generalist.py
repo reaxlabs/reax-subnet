@@ -395,6 +395,7 @@ def test_pruning_category_draws_keeps_pooled_and_pending(tmp_path):
 
 
 def test_source_gmed_is_required_for_provisional(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     from test_provisional_ka import _p, _snapr
     monkeypatch.setitem(CS.TRACK_ENTRY_FLOOR, "generalist", 0.0)
     st = ST.SpecState()

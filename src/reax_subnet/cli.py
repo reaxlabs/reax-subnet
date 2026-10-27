@@ -376,11 +376,13 @@ def _award_gate(e):
 
 
 def _remote_competition(cfg, e):
+    from . import competition_split as _csplit
     from .competition_split import COMPETITIONS_START_UTC, release_engine_start
     from .competitions import CompetitionDriver
     from .config import SPEC_STATE_FILE
     from .remote import RemoteEngineCompetition, RemoteSpecAdapter, RemoteSpecEvaluator
     from .spec import config as spec_config
+    from .competition_split import engine_composite_enabled
     from .worker import engine_params
 
     tracks_def = spec_config.DEFAULT_TRACKS
@@ -390,8 +392,19 @@ def _remote_competition(cfg, e):
     engine_start = release_engine_start() if e.release_mode else None
     tracks, reward = engine_params(e)
     adapter = RemoteSpecAdapter(RemoteSpecEvaluator(os.path.join(cfg.competitions_state_dir, SPEC_STATE_FILE), tracks_def))
+    composites = None
+    if engine_composite_enabled(os.environ):  # engine competition v2: pay the worker's composite champion
+        from .worker import composite_track_from_env
+
+        track = composite_track_from_env(os.environ, e.release_mode)
+        composites, tracks = {track.name: track}, None
+    from .worker import v1_bridge_from_env
+
+    bridge = v1_bridge_from_env(os.environ, e.state_path, composites, e.release_mode)  # v2.1 payout bridge: frozen v1 state, see EngineCompetition
     engine = RemoteEngineCompetition(e.state_path, tracks=tracks, reward=reward, start_utc=start, specialist=adapter,
-                                     engine_start_utc=engine_start, award_gate=_award_gate(e))
+                                     engine_start_utc=engine_start, award_gate=_award_gate(e), composites=composites,
+                                     v1_bridge=bridge,
+                                     composite_start_utc=_csplit.ENGINE_V2_START_UTC if composites and e.release_mode else None)
     log.info("competitions: REMOTE mode, results read from %s (no docker, no sealed data in this process); starts %s",
              cfg.competitions_state_dir, start.isoformat() if start else "immediately (development network)")
     return engine, CompetitionDriver(engine, adapter, background=True)

@@ -99,8 +99,10 @@ async def test_old_state_loads_and_recovers_without_new_fields(tmp_path):
     env.hub.unavailable.clear()
     await env.cycle({1: "m/old"})
     assert env.sub(1).status == ST.PENDING_CONFIRM
-    # Serialization still uses precisely the existing state dataclasses.
-    assert set(dataclasses.asdict(env.sub(1))) == set(raw["tracks"][TRACK]["submissions"][env.sub(1).key]) | {"last_fetch_ts"}
+    # Legacy wire keys stay identical; new default-only receipts are deliberately
+    # omitted from the serialized form while the commit/reveal switch is off.
+    encoded = ST._to_json(env.ev.state)["tracks"][TRACK]["submissions"][env.sub(1).key]
+    assert set(encoded) == set(raw["tracks"][TRACK]["submissions"][env.sub(1).key]) | {"last_fetch_ts"}
 
 
 @pytest.mark.parametrize("private,gated", [(False, False), (True, False), (False, True)])

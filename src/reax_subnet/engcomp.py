@@ -26,6 +26,7 @@ Rules (all from the validator's own measurements, nothing the engine reports is 
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import logging
 import math
@@ -206,12 +207,21 @@ class EvalResult:
     items: int = 0
     block: int = 0
     session: str = ""  # unique id of the evaluation session (new containers, fresh items); set by the validator
+    # GPU memory the candidate added next to the loaded reference, peak over its measurement (-1 = the runner does not
+    # read memory; None = the reading failed on our side)
+    cand_memory_mib: Optional[int] = -1
+    parts: dict[str, Any] = field(default_factory=dict)  # composite tracks: per-model breakdown (engcomposite.py)
 
     def to_json(self) -> dict[str, Any]:
         out = asdict(self)
         for k, v in out.items():
             if isinstance(v, float) and not math.isfinite(v):
                 out[k] = None
+        # v2 fields at their defaults are left out: a v1 (s1-fast) state file serialises exactly as on rc11p6
+        if out.get("cand_memory_mib") == -1:
+            del out["cand_memory_mib"]
+        if not out.get("parts"):
+            out.pop("parts", None)
         return out
 
     @classmethod
@@ -947,25 +957,83 @@ def dethroned_blocks(state: TrackState) -> dict[tuple[str, str], Any]:
             holder = key
         elif kind == "vacated":
             holder = None
+        elif kind == "bridge_end":  # v1 -> v2 switch (carried_view): the v1 title holder is beaten by the end of the bridge
+            if holder is not None:
+                out[holder] = e.get("block")
+            holder = None
     return out
+
+
+def block_at_utc(when: datetime) -> Optional[int]:
+    """Chain block at ``when`` from the engine opening anchor (competition_split.ENGINE_TRACK_START_BLOCK at
+    ENGINE_TRACK_START_UTC, 12 s per block). Pure and the same for every validator; None without an anchor."""
+    start, anchor = _cs.ENGINE_TRACK_START_UTC, _cs.ENGINE_TRACK_START_BLOCK
+    if start is None or anchor is None or when.tzinfo is None:
+        return None
+    return anchor + int(round((when - start).total_seconds() / ENGINE_BLOCK_SECONDS))
+
+
+def carried_view(v2: TrackState, v1: TrackState, end_block: Optional[int]) -> TrackState:
+    """The v2 track state as seen by the former-champion ranks after the v1 -> v2 switch: the v1 history (frozen state)
+    followed by the v2 history, so the v1 title holder is a former champion of the composite and the v1 former
+    champions shift down exactly as a normal crowning shifts them. The v1 holder is dethroned by the first v2 crowning,
+    or, if there is none up to ``end_block`` (the bridge end), at ``end_block`` (a ``bridge_end`` event). Pure; ``v2`` is
+    copied, never changed."""
+    ev = [dict(e) for e in v1.history if e.get("event") in ("crowned", "vacated", "context_changed")]
+    h = v1.champion
+    if h is not None and not any(e.get("event") == "crowned" and (e.get("digest"), e.get("hotkey")) == (h.digest, h.hotkey)
+                                 for e in ev):  # the 50-event window dropped it
+        ev.append({"block": h.crowned_block, "event": "crowned", "digest": h.digest, "hotkey": h.hotkey, "score": h.score})
+    tail = [dict(e) for e in v2.history]
+    # A context change of the composite (new reference digests, rules, thresholds ...) drops the composite's own former
+    # champions, as on every track, and its champion (reset_measurements). It must not touch the carried v1 chain: only the
+    # crowned/vacated events the chain needs are kept, and what the reset wiped is reduced to the one fact the chain needs,
+    # the block at which the v1 holder was first beaten (a ``bridge_end`` event: dethrones the holder, adds no composite champion).
+    cut = max((i for i, e in enumerate(tail) if e.get("event") == "context_changed"), default=-1)
+    if cut >= 0:
+        first = next((e for e in tail[:cut] if e.get("event") == "crowned"), None)
+        tail = ([{"block": first.get("block"), "event": "bridge_end"}] if first is not None else []) + tail[cut + 1:]
+    tail = [e for e in tail if e.get("event") in ("crowned", "vacated", "bridge_end")]
+    c = v2.champion
+    if c is not None and not any(e.get("event") == "crowned" and (e.get("digest"), e.get("hotkey")) == (c.digest, c.hotkey)
+                                 for e in tail):  # a champion without its crowning event (history window, hand-built state)
+        tail.append({"block": c.crowned_block, "event": "crowned", "digest": c.digest, "hotkey": c.hotkey, "score": c.score})
+    if h is not None and end_block is not None:
+        if not any(e.get("event") in ("crowned", "bridge_end") and isinstance(e.get("block"), int) and e["block"] <= end_block
+                   for e in tail):
+            ev.append({"block": end_block, "event": "bridge_end", "digest": h.digest, "hotkey": h.hotkey})
+    view = copy.copy(v2)  # shallow: only ``history`` is replaced
+    view.history = ev + tail
+    return view
 
 
 def waiting_uids(state: TrackState, eligible: Sequence[Submission], block: int,
                  coldkeys: Mapping[int, str], registered: Optional[Mapping[int, int]] = None) -> list[int]:
     """Engine keep-alive candidates (competition_split.ENGINE_KA_*): eligible submissions that wait for a decision,
-    at most one per coldkey (a missing coldkey counts as its own), oldest first, at most ENGINE_KA_MAX_ENTRIES. Pure.
+    at most two per coldkey with KA_PROV_TWO_PER_COLDKEY and WAITING_KA_HOTFIX (otherwise one; a missing coldkey counts
+    as its own). Most exposed first within a coldkey with KA_EXPOSED_FIRST, otherwise oldest first. The hotfix uses the
+    engine share cap; without it, at most ENGINE_KA_MAX_ENTRIES. Pure.
 
     Waiting = no result yet and the image is bound to the committing hotkey (``owners``) or, not pulled yet, the hotkey
     is the digest's first committer and no other hotkey is bound to it; or the pending challenger (its first session
     beat the bar, the confirming one is due). The ENGINE_KA_MAX_HOURS window counts from the first sighting (effective
     commitment block of the hotkey's first digest, so a new digest does not restart it; the challenger: its first session)
     or, if later and ``registered`` gives the uid's registration
-    block, from the end of its immunity minus PROVISIONAL_KA_LEAD_BLOCKS (an immune hotkey is not pruned)."""
-    max_blocks = _cs.ENGINE_KA_MAX_HOURS * 3600.0 / ENGINE_BLOCK_SECONDS
+    block, from the end of its immunity minus the lead (ENGINE_KA_LEAD_BLOCKS, else PROVISIONAL_KA_LEAD_BLOCKS; an immune hotkey is not
+    pruned). H6b (ENGINE_KA_UNTIL_MEASURED): a digest without a result waits up to ENGINE_SLOT_KA_MAX_HOURS, not 24 h."""
+    hotfix = _cs.WAITING_KA_HOTFIX
+    untilm = hotfix and _cs.ENGINE_KA_UNTIL_MEASURED
+    lead = _cs.ENGINE_KA_LEAD_BLOCKS if untilm else _cs.PROVISIONAL_KA_LEAD_BLOCKS
+    hours = max(_cs.ENGINE_KA_MAX_HOURS, _cs.ENGINE_KA_WAIT_HOURS) if hotfix else _cs.ENGINE_KA_MAX_HOURS
+    max_blocks = hours * 3600.0 / ENGINE_BLOCK_SECONDS
     c = state.challenger
     cands = []
     for s in eligible:
+        limit = max_blocks
         first = state.first_seen.get(s.digest)
+        if first is None and hotfix and isinstance(s.block, int) and 0 < s.block <= block:
+            # G1: committed on chain but not recorded by the runner yet: its window starts at the commitment block
+            first = (effective_block(s.block), s.hotkey)
         if first is None:
             continue
         pending = (c is not None and c.get("digest") == s.digest and c.get("hotkey") == s.hotkey and c.get("measurements")
@@ -975,6 +1043,10 @@ def waiting_uids(state: TrackState, eligible: Sequence[Submission], block: int,
                 since = max(effective_block(first[0]), int(c["measurements"][0][0]))
             except (TypeError, ValueError, IndexError, KeyError):
                 continue    # malformed challenger record: fail closed
+            if hotfix:
+                # H6: the pending challenger waits for our confirming session / its Tue-Fri slot / the finalize: kept while
+                # it is the pending challenger, at most ENGINE_SLOT_KA_MAX_HOURS after its first session (critic F6)
+                limit = max(limit, _cs.ENGINE_SLOT_KA_MAX_HOURS * 3600.0 / ENGINE_BLOCK_SECONDS)
         elif s.digest in state.results:
             continue
         else:
@@ -984,21 +1056,46 @@ def waiting_uids(state: TrackState, eligible: Sequence[Submission], block: int,
             # one window per hotkey: its earliest first sighting on any digest (``first_seen`` is never pruned), so
             # committing a fresh digest does not restart it
             since = min([effective_block(b) for b, hk in state.first_seen.values() if hk == s.hotkey] or [effective_block(first[0])])
+            if hotfix:
+                # G1/H4: every digest waits in its own window from its own first sighting (commitment block): a new image of
+                # a hotkey waits for OUR next batch (pull, bind, measure), so the hotkey-wide window left it at zero
+                # (uid 57, 26 Oct). Bounded per digest (ENGINE_KA_WAIT_HOURS), per-coldkey limit below, the engine share cap.
+                since = effective_block(first[0])
+                if untilm:
+                    # H6b: it waits for OUR measurement (a failed one leaves ``results``/the queue after max_infra_attempts)
+                    limit = max(limit, _cs.ENGINE_SLOT_KA_MAX_HOURS * 3600.0 / ENGINE_BLOCK_SECONDS)
         reg = (registered or {}).get(s.uid, 0)
         if isinstance(reg, int) and reg > 0:
-            since = max(since, reg + _cs.CHAIN_IMMUNITY_BLOCKS - _cs.PROVISIONAL_KA_LEAD_BLOCKS)
-        if since <= 0 or since > block + 5 or block - since > max_blocks:
+            since = max(since, reg + _cs.CHAIN_IMMUNITY_BLOCKS - lead)
+        if since <= 0 or since > block + 5 or block - since > limit:
             continue
-        cands.append((seen_order(state, s), s))
+        order = seen_order(state, s) if s.digest in state.first_seen else \
+            (first[0], tie_key(first[0], s.hotkey, s.digest), s.uid)    # G1: not recorded yet, its commitment block
+        cands.append((order, s))
     out: list[int] = []
-    seen: set[str] = set()
-    for _, s in sorted(cands, key=lambda c: c[0]):
-        ck = coldkeys.get(s.uid) or f"uid:{s.uid}"
-        if ck in seen or s.uid in out:
-            continue
-        seen.add(ck)
-        out.append(s.uid)
-    return out[: _cs.ENGINE_KA_MAX_ENTRIES]
+    ordered = sorted(cands, key=lambda c: c[0])
+    per_coldkey = 1
+    if hotfix and _cs.KA_PROV_TWO_PER_COLDKEY:
+        from .spec.config import MAX_OPEN_PER_COLDKEY_TRACK
+        per_coldkey = MAX_OPEN_PER_COLDKEY_TRACK
+    groups: dict[str, list[Submission]] = {}
+    for _, s in ordered:
+        groups.setdefault(coldkeys.get(s.uid) or f"uid:{s.uid}", []).append(s)
+    if hotfix and _cs.KA_EXPOSED_FIRST:
+        # Stable exposure order inside each coldkey; coldkeys retain their global first-sighting order.
+        for group in groups.values():
+            group.sort(key=lambda s: _cs.exposure_key((registered or {}).get(s.uid), block))
+    for group in groups.values():
+        paid = 0
+        for s in group:
+            if s.uid in out:
+                continue
+            out.append(s.uid)
+            paid += 1
+            if paid >= per_coldkey:
+                break
+    # G1: with the hotfix no waiting entry is cut to zero by the count; ENGINE_KA_MAX_SHARE bounds the total (combine_weights)
+    return out if hotfix else out[: _cs.ENGINE_KA_MAX_ENTRIES]
 
 
 def former_ranks(state: TrackState, track: str, block: int,
@@ -1136,6 +1233,8 @@ def finalize_engine_slot(state: TrackState, eligible: Sequence[Submission], para
             return None
         if now < slot or confirmed > slot or next_engine_slot(confirmed, state) != slot.isoformat():
             return None
+        if params.name != "s1-fast" and _cs.ENGINE_V2_START_UTC is not None and slot <= _cs.ENGINE_V2_START_UTC:
+            return None  # v2: the slot of the switch itself is the last v1 crowning; a composite is crowned strictly after it
         if any(e.get("slot_utc") == slot.isoformat() for e in state.slot_results):
             return None
         ms = c["measurements"]

@@ -141,7 +141,8 @@ def test_median_of_an_even_count_is_the_mean_of_the_middle_two_and_order_does_no
     assert combine_weights(b, None, 0.0, {}, keepalive={DF: [(20, 30.0)]}) == w
 
 
-def test_cap_binds_with_many_entries():
+def test_cap_binds_with_many_entries(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 8-slot cut; the hotfix: test_waiting_ka_hotfix.py
     # mechanism v2: the cap is reached by the 8 paid entries (KEEPALIVE_MAX_ENTRIES), the other 52 get nothing
     serving = {u: 1.0 for u in range(100, 160)}                       # median 1/60 each
     alive = {DF: [(u, 30.0) for u in range(60)]}                      # 8 x 1/60 = 0.133 > 0.25 x 0.15 = 0.0375
@@ -292,7 +293,8 @@ def test_at_most_two_slots_per_coldkey_by_priority():
     assert sorted(u for u, _ in out) == [1, 2, 3, 4, 5]
 
 
-def test_keepalive_expires_24_hours_after_the_first_pass_or_the_crowning():
+def test_keepalive_expires_24_hours_after_the_first_pass_or_the_crowning(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     st = ST.SpecState()
     subs = [_sub(st, 1, ST.CHAMPION, 40.0), _sub(st, 2, ST.PENDING_CONFIRM, 30.0), _sub(st, 3, ST.PENDING_CONFIRM, 31.0)]
     now = NOW

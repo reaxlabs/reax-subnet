@@ -12,14 +12,35 @@ probabilities, so reference-looking fields over wrong probabilities fail.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import math
+import re
+import struct
+import zlib
 from dataclasses import dataclass
 from typing import Any
 
 MAX_STATE_BYTES = 16 * 1024
-MAX_OPTIONS = {"s1-fast": 16, "s1-pro": 64, "s1-lite": 16, "s1-cpu": 16}
-MODELS = tuple(MAX_OPTIONS)
+# The reference models of the s1 mechanism (miner protocol ``reax-s1/1``): only these may appear in a miner request.
+REFERENCE_MAX_OPTIONS = {"s1-fast": 16, "s1-pro": 64, "s1-lite": 16, "s1-cpu": 16}
+# Pools of engine competition v2 (engcomposite.py): the decisionmodels.io models that have a contract of their own.
+#   quyet-1-large  Quyet-1.0-Large (Gemma-4-31B fine-tune): at most 10 options (node-letters configs/quyet.json max_options).
+#   jeffan-31b     Jeffan-31b-1710 (Gemma-4-31B): one question, 2..26 options = the public decisionmodels.io limit (gateway
+#                  PR #103 model_versions.MAX_OPTIONS[JEFFAN] = 26, board #22 #26863; the engine itself takes 255), no images.
+#                  Prompt: the shared 8192-byte instructions / 16 KiB state limits below; 8192 input tokens per question.
+#   s1-vision      Blink v0.3 with one image per request: 26 options (the Blink engine bound of s1-vision-2).
+ENGINE_MAX_OPTIONS = {"quyet-1-large": 10, "jeffan-31b": 26, "s1-vision": 26}
+MAX_OPTIONS = {**REFERENCE_MAX_OPTIONS, **ENGINE_MAX_OPTIONS}
+MODELS = tuple(REFERENCE_MAX_OPTIONS)  # NOT the engine pools: the miner protocol never takes a vision or Quyet request
+# Only this pool takes the optional ``images`` field (production: s1-vision, exactly one image per request).
+IMAGE_POOLS = frozenset({"s1-vision"})
+# The gateway's published image limits (services/gateway images.py): 4 MiB decoded, 2,000,000 pixels. The validator
+# only sends PNG/JPEG (the gateway also accepts WebP).
+MAX_IMAGE_BYTES = 4 * 1024 * 1024
+MAX_IMAGE_PIXELS = 2_000_000
+MIN_IMAGE_SIDE = 8
 # The reference engine checks sum(p) within 1e-3; the validator is stricter on what it accepts back.
 PROB_SUM_TOLERANCE = 1e-3
 DERIVED_TOLERANCE = 1e-6
@@ -69,13 +90,17 @@ class Decision:
     ident: str
     state: Any
     question: Question
+    images: tuple[str, ...] = ()  # s1-vision only: exactly one ``data:image/png;base64,...`` URL (production field ``images``)
 
     def body(self) -> dict[str, Any]:
         """The decision as sent on the wire (``questions`` map with one entry)."""
         q: dict[str, Any] = {"type": self.question.kind, "instructions": self.question.instructions}
         if self.question.criteria is not None and not (self.question.kind == "noul" and self.question.criteria == {}):
             q["criteria"] = self.question.criteria
-        return {"id": self.ident, "state": self.state, "questions": {self.question.ident: q}}
+        out: dict[str, Any] = {"id": self.ident, "state": self.state, "questions": {self.question.ident: q}}
+        if self.images:
+            out["images"] = list(self.images)
+        return out
 
 
 def parse_question(ident: str, value: Any, model: str) -> Question:
@@ -124,18 +149,123 @@ def parse_question(ident: str, value: Any, model: str) -> Question:
     return Question(ident, kind, instruction, criteria, keys, descriptions)
 
 
+_DATA_URL = re.compile(r"data:image/(png|jpeg);base64,([A-Za-z0-9+/]+={0,2})")
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+_MAX_DATA_URL_CHARS = len("data:image/jpeg;base64,") + 4 * ((MAX_IMAGE_BYTES + 2) // 3)
+
+
+@dataclass(frozen=True)
+class ImageInfo:
+    mime: str  # image/png | image/jpeg
+    width: int
+    height: int
+    size: int  # decoded bytes
+
+
+def _png_size(data: bytes) -> tuple[int, int]:
+    """Width and height of a PNG after walking every chunk (length, CRC, IHDR first, IDAT present, IEND last)."""
+    if not data.startswith(_PNG_SIGNATURE):
+        raise ContractError("image is not a PNG")
+    pos, size, seen_idat = len(_PNG_SIGNATURE), None, False
+    while True:
+        if pos + 12 > len(data):
+            raise ContractError("PNG is truncated")
+        length, kind = struct.unpack(">I4s", data[pos:pos + 8])
+        end = pos + 12 + length
+        if end > len(data):
+            raise ContractError("PNG is truncated")
+        if zlib.crc32(data[pos + 4:pos + 8 + length]) != struct.unpack(">I", data[end - 4:end])[0]:
+            raise ContractError("PNG chunk checksum is wrong")
+        if size is None:
+            if kind != b"IHDR" or length != 13:
+                raise ContractError("PNG does not start with IHDR")
+            width, height, depth, colour, _comp, _filt, interlace = struct.unpack(">IIBBBBB", data[pos + 8:pos + 21])
+            if colour not in (0, 2, 3, 4, 6) or depth not in (1, 2, 4, 8, 16) or interlace not in (0, 1):
+                raise ContractError("PNG header is invalid")
+            size = (width, height)
+        elif kind == b"IDAT":
+            seen_idat = True
+        elif kind == b"IEND":
+            if length or end != len(data) or not seen_idat:
+                raise ContractError("PNG has no image data or trailing bytes")
+            return size
+        pos = end
+
+
+def _jpeg_size(data: bytes) -> tuple[int, int]:
+    """Width and height from the start-of-frame marker of a JPEG (ends with EOI)."""
+    if data[:3] != b"\xff\xd8\xff" or data[-2:] != b"\xff\xd9":
+        raise ContractError("image is not a JPEG")
+    pos = 2
+    while pos + 4 <= len(data):
+        if data[pos] != 0xFF:
+            raise ContractError("JPEG marker is invalid")
+        marker = data[pos + 1]
+        if marker == 0xFF:  # fill byte
+            pos += 1
+            continue
+        if marker in (0x01, *range(0xD0, 0xD8)):  # markers without a length
+            pos += 2
+            continue
+        length = struct.unpack(">H", data[pos + 2:pos + 4])[0]
+        if length < 2 or pos + 2 + length > len(data):
+            raise ContractError("JPEG is truncated")
+        if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+            if length < 8:
+                raise ContractError("JPEG frame header is invalid")
+            height, width = struct.unpack(">HH", data[pos + 5:pos + 9])
+            return width, height
+        if marker == 0xDA:  # scan data before any frame header
+            break
+        pos += 2 + length
+    raise ContractError("JPEG has no frame header")
+
+
+def parse_image(url: Any) -> ImageInfo:
+    """Validate one image data URL as the s1-vision gateway does: a ``data:image/png|jpeg;base64,`` URL, at most 4 MiB
+    decoded, valid base64, real PNG/JPEG structure whose type matches the URL, a decoded size of at most 2,000,000 pixels
+    and at least 8 x 8. Raises ContractError."""
+    if not isinstance(url, str) or len(url) > _MAX_DATA_URL_CHARS:
+        raise ContractError("image must be a data URL within the size limit")
+    m = _DATA_URL.fullmatch(url)
+    if m is None:
+        raise ContractError("image must be a data:image/png or data:image/jpeg base64 URL")
+    try:
+        data = base64.b64decode(m.group(2), validate=True)
+    except (binascii.Error, ValueError):
+        raise ContractError("image is not valid base64") from None
+    if not data or len(data) > MAX_IMAGE_BYTES:
+        raise ContractError(f"image must be 1..{MAX_IMAGE_BYTES} bytes decoded")
+    kind = m.group(1)
+    width, height = _png_size(data) if kind == "png" else _jpeg_size(data)
+    if width < MIN_IMAGE_SIDE or height < MIN_IMAGE_SIDE or width * height > MAX_IMAGE_PIXELS:
+        raise ContractError(f"image must be at least {MIN_IMAGE_SIDE} x {MIN_IMAGE_SIDE} and at most "
+                            f"{MAX_IMAGE_PIXELS} pixels")
+    return ImageInfo(f"image/{kind}", width, height, len(data))
+
+
 def parse_decision(obj: Any, model: str) -> Decision:
-    """One decision: ``{"id", "state", "questions": {<one question>}}``."""
+    """One decision: ``{"id", "state", "questions": {<one question>}}``; on the s1-vision pool also an optional
+    ``"images"``: a list of exactly one image data URL (every other pool is text only)."""
     if model not in MAX_OPTIONS:
         raise ContractError("unknown model")
-    if not isinstance(obj, dict) or set(obj) != {"id", "state", "questions"}:
+    if not isinstance(obj, dict) or not {"id", "state", "questions"} <= set(obj) <= {"id", "state", "questions", "images"}:
         raise ContractError("decision must have exactly the fields id, state, questions")
+    images: tuple[str, ...] = ()
+    if "images" in obj:
+        if model not in IMAGE_POOLS:
+            raise ContractError("this model takes text only")
+        raw_images = obj["images"]
+        if not isinstance(raw_images, list) or len(raw_images) != 1:
+            raise ContractError("exactly one image is accepted")
+        parse_image(raw_images[0])
+        images = (raw_images[0],)
     state = _json_data(obj["state"], "state", MAX_STATE_BYTES)
     raw = obj["questions"]
     if not isinstance(raw, dict) or len(raw) != 1:
         raise ContractError("a decision carries exactly one question (reference contract limit)")
     (ident, value), = raw.items()
-    return Decision(str(obj["id"]), state, parse_question(ident, value, model))
+    return Decision(str(obj["id"]), state, parse_question(ident, value, model), images)
 
 
 def normalize_answer(question: Question, answer: dict[str, Any]) -> dict[str, Any]:

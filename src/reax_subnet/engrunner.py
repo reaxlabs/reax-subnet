@@ -40,12 +40,13 @@ from . import engreview
 from .engcomp import EvalResult, TrackParams, check_correctness, copyline_active, max_distance, median, speed_score
 from .s1backends import SidecarBackend
 from .s1contract import Decision, parse_decision
-from .s1items import S1Item, generate_s1_items
+from .s1items import S1Item, generate_s1_items, items_for_pool
 
 log = logging.getLogger("reax.engines")
 
 SOCKET_NAME = "engine.sock"
 HOTKEY_LABEL = "ai.reax.engine.hotkey"
+MODELS_LABEL = "ai.reax.engine.models"  # composite tracks: the models an image serves (engcomposite.MODELS_LABEL)
 DEFAULT_REGISTRIES = ("ghcr.io", "docker.io", "quay.io")
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
@@ -308,7 +309,7 @@ class DockerRunner:
                  registries: Sequence[str] = DEFAULT_REGISTRIES, pull_timeout_s: float = 1800.0,
                  nvml_check: bool = False, max_compressed_bytes: int = MAX_IMAGE_COMPRESSED_BYTES,
                  protected_images: Sequence[str] = (), release_mode: bool = False, review_dir: str = "",
-                 reference_ref: str = "", fla_config_root: str = ""):
+                 reference_ref: str = "", fla_config_root: str = "", model_env: Optional[dict[str, str]] = None):
         """``release_mode`` (finney): no engine starts unless ``docker_runtime`` is ``runsc`` and ``docker info`` lists it, and
         a digest only runs once ``<review_dir>/REVIEWED/<digest>`` exists. ``review_dir``: where the pre-run submission
         check keeps its records (empty = no check). ``reference_ref``: the reference image, the source of the expected
@@ -317,6 +318,7 @@ class DockerRunner:
         self.workdir = workdir
         self.fla_config_root = os.path.abspath(fla_config_root or host_config_root())
         self.weights_dir = os.path.abspath(weights_dir)
+        self.model_env = dict(model_env or {})  # composite tracks: REAX_MODEL=<model id> (engcomposite.MODEL_ENV)
         self.gpu = gpu
         self.memory = memory
         self.cpus = cpus
@@ -426,6 +428,16 @@ class DockerRunner:
         if code == 0 and free_mib < need:
             raise InfraError(f"GPU {self.gpu} has {free_mib} MiB free, an evaluation needs about {need} MiB "
                              "(two s1-fast engines next to the serving runtimes)")
+
+    async def gpu_used_mib(self) -> Optional[int]:
+        """Used memory of this runner's GPU in MiB, as the driver reports it for the whole device (independent of the
+        container runtime, so it also works under runsc); None when it cannot be read."""
+        try:
+            code, out, _ = await _run(["nvidia-smi", f"--id={self.gpu}", "--query-gpu=memory.used",
+                                       "--format=csv,noheader,nounits"], 30)
+            return int(out.strip().splitlines()[0]) if code == 0 else None
+        except (OSError, ValueError, IndexError):
+            return None
 
     async def discard(self, ref: str) -> None:
         """Remove an image this runner pulled (never raises): not-owner images, failed starts and aborted pulls must not
@@ -679,6 +691,19 @@ class DockerRunner:
         value = labels.get(HOTKEY_LABEL, "") if isinstance(labels, dict) else ""
         return value if isinstance(value, str) else ""
 
+    async def models_label(self, ref: str) -> Optional[str]:
+        """The image's ``ai.reax.engine.models`` label (composite tracks, engcomposite.parse_declared), None if absent."""
+        await self._ensure_image(ref)
+        code, out, err = await _run(["docker", "image", "inspect", "--format", "{{json .Config.Labels}}", ref], 60)
+        if code != 0:
+            raise InfraError(f"docker inspect failed: {clean(err)}")
+        try:
+            labels = json.loads(out) or {}
+        except ValueError:
+            labels = {}
+        value = labels.get(MODELS_LABEL) if isinstance(labels, dict) else None
+        return value if isinstance(value, str) else None
+
     async def start(self, ref: str, model: str, params: TrackParams, keep_image: bool = False) -> Engine:
         try:
             return await self._start(ref, model, params, keep_image)
@@ -710,6 +735,8 @@ class DockerRunner:
                "-e", "FLA_CACHE_MODE=strict", "-e", f"FLA_CONFIG_DIR={config_dir}",
                "-e", "PLUMB_MODEL_DIR=/model", "-e", "HF_HUB_OFFLINE=1", "-e", "OPENAI_API_KEY=",
                "-e", "NVIDIA_DRIVER_CAPABILITIES=compute,utility"]
+        for k, v in sorted(self.model_env.items()):
+            cmd += ["-e", f"{k}={v}"]
         if self.docker_runtime:
             cmd += ["--runtime", self.docker_runtime]
         cmd.append(ref)
@@ -819,8 +846,9 @@ def _perturb_state(state: Any, nonce: str) -> Any:
 
 def fresh_decisions(n: int, model: str) -> list[Decision]:
     out = []
-    for it in generate_s1_items(n):
-        it = S1Item(it.item_id, _perturb_state(it.state, secrets.token_hex(4)), it.kind, it.instructions, it.criteria)
+    for it in items_for_pool(model, n):
+        it = S1Item(it.item_id, _perturb_state(it.state, secrets.token_hex(4)), it.kind, it.instructions, it.criteria,
+                    it.images)
         out.append(parse_decision(it.decision(), model))
     return out
 
@@ -865,17 +893,25 @@ class ItemTape:
 def probe_decisions(pairs: int, model: str) -> tuple[list[Decision], list[Decision]]:
     """Base items, then variants that reuse a base item's state with another item's question, or its question with
     another item's state. An engine that caches by state (or by question) answers the variant from its cache."""
-    a = generate_s1_items(pairs)
-    b = generate_s1_items(pairs)
+    a = items_for_pool(model, pairs)
+    b = items_for_pool(model, pairs)
     base, variants = [], []
     for i, (x, y) in enumerate(zip(a, b)):
+        # the variant must really differ from its base item (the vision pool has few question templates): redraw
+        for _ in range(16):
+            if (y.kind, y.instructions, y.criteria) != (x.kind, x.instructions, x.criteria) \
+                    and (not x.images or y.images != x.images):
+                break
+            y = items_for_pool(model, 1)[0]
         nonce = secrets.token_hex(4)
         state = _perturb_state(x.state, nonce)
-        base.append(parse_decision(S1Item(x.item_id, state, x.kind, x.instructions, x.criteria).decision(), model))
-        if i % 2 == 0:  # same state, other question
-            v = S1Item(secrets.token_hex(16), state, y.kind, y.instructions, y.criteria)
-        else:  # same question, other state
-            v = S1Item(secrets.token_hex(16), _perturb_state(y.state, nonce), x.kind, x.instructions, x.criteria)
+        base.append(parse_decision(S1Item(x.item_id, state, x.kind, x.instructions, x.criteria, x.images).decision(),
+                                   model))
+        if i % 2 == 0:  # same state (and same image on s1-vision), other question
+            v = S1Item(secrets.token_hex(16), state, y.kind, y.instructions, y.criteria, x.images)
+        else:  # same question, other state (and other image on s1-vision)
+            v = S1Item(secrets.token_hex(16), _perturb_state(y.state, nonce), x.kind, x.instructions, x.criteria,
+                       y.images)
         variants.append(parse_decision(v.decision(), model))
     return base, variants
 
@@ -984,6 +1020,8 @@ async def evaluate(runner: Runner, reference_ref: str, candidate_ref: str, track
         await reference_self_check(ref, params)
         baseline = await reference_baseline(ref, params)  # the reference ALONE on the GPU, before the candidate exists
         lat_baseline = await reference_latency_baseline(ref, params)
+        used_mib = getattr(runner, "gpu_used_mib", None)  # composite tracks: memory budget per model
+        before_mib = await _stable_mib(used_mib) if used_mib is not None else -1
         try:
             cand = await runner.start(candidate_ref, model, params)
         except EngineError as exc:
@@ -992,13 +1030,25 @@ async def evaluate(runner: Runner, reference_ref: str, candidate_ref: str, track
         if not await wait_ready(cand, params.start_timeout_s):
             res.reason = "not ready within the start timeout (or failed the authenticated test decision)"
             return res
+        sampler = _PeakSampler(used_mib) if used_mib is not None and before_mib is not None else None
         try:
-            return await _measure(ref, cand, params, res, baseline, lat_baseline, progress)
+            if sampler is not None:
+                sampler.start()
+            res = await _measure(ref, cand, params, res, baseline, lat_baseline, progress)
+            if sampler is not None:
+                peak = await sampler.stop()
+                res.cand_memory_mib = None if peak is None else max(0, peak - before_mib)
+            elif used_mib is not None:
+                res.cand_memory_mib = None  # the reading before the candidate started failed
+            return res
         except ReferenceError_ as exc:
             raise ReferenceFailedWithCandidate(str(exc)) from None
         except EngineError as exc:  # replaced socket, GPU use while paused: the candidate cheats or is broken
             res.reason = clean(str(exc))
             return res
+        finally:
+            if sampler is not None and sampler.task is not None and not sampler.task.done():
+                sampler.task.cancel()
     finally:
         for eng in (cand, ref):
             if eng is None:
@@ -1017,7 +1067,7 @@ async def evaluate(runner: Runner, reference_ref: str, candidate_ref: str, track
 async def reference_self_check(ref: Engine, params: TrackParams) -> None:
     """Repeat a fixed, public check set before any candidate is loaded (not a scoring set)."""
     decisions = [parse_decision(it.decision(), params.pool)
-                 for it in generate_s1_items(params.timed_items, seed=0x52454158)]
+                 for it in items_for_pool(params.pool, params.timed_items, seed=0x52454158)]
     first = await _answers(ref.client, decisions)
     second = await _answers(ref.client, decisions)
     if len(first) != len(decisions) or len(second) != len(decisions) or not _complete(first) or not _complete(second):
@@ -1046,6 +1096,58 @@ async def reference_latency_baseline(ref: Engine, params: TrackParams) -> float:
     if not _complete(ans) or not lat:
         raise ReferenceError_("reference engine failed on the latency baseline")
     return median(lat)
+
+
+MEM_SAMPLE_S = 1.0
+
+
+async def _stable_mib(read: Callable[[], Awaitable[Optional[int]]], tries: int = 10, tol_mib: int = 64) -> Optional[int]:
+    """Device memory once two readings MEM_SAMPLE_S apart agree within ``tol_mib`` (a container of the previous model
+    may still be tearing down); None when a reading fails."""
+    last = await read()
+    for _ in range(tries):
+        if last is None:
+            return None
+        await asyncio.sleep(MEM_SAMPLE_S)
+        now = await read()
+        if now is not None and abs(now - last) <= tol_mib:
+            return now
+        last = now
+    return last
+
+
+class _PeakSampler:
+    """Peak device memory while the candidate is measured (sampled every MEM_SAMPLE_S, so an engine that frees memory
+    after its last timed request is still charged its peak). stop() -> peak MiB, or None if any reading failed."""
+
+    MAX_MISSES = 3  # consecutive failed readings before the measurement's memory is "unknown" (one nvidia-smi hiccup is not)
+
+    def __init__(self, read: Callable[[], Awaitable[Optional[int]]]):
+        self.read, self.peak, self.failed, self.task, self.misses = read, -1, False, None, 0
+
+    def start(self) -> None:
+        self.task = asyncio.create_task(self._loop())
+
+    async def _sample(self) -> None:
+        v = await self.read()
+        if v is None or v < 0:
+            self.misses += 1
+            self.failed = self.failed or self.misses >= self.MAX_MISSES
+        else:
+            self.misses = 0
+            self.peak = max(self.peak, v)
+
+    async def _loop(self) -> None:
+        while True:
+            await self._sample()
+            await asyncio.sleep(MEM_SAMPLE_S)
+
+    async def stop(self) -> Optional[int]:
+        if self.task is not None:
+            self.task.cancel()
+            await asyncio.gather(self.task, return_exceptions=True)  # never swallows a cancellation of the caller
+        await self._sample()  # both engines still loaded
+        return None if self.failed or self.peak < 0 else self.peak
 
 
 def _check_drift(tp: float, baseline: Optional[float], params: TrackParams) -> None:

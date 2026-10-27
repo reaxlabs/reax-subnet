@@ -65,12 +65,15 @@ def make_app(variant: str, token: str, delay: float, model: str = "s1-fast", jit
                 await asyncio.wait_for(asyncio.open_connection("1.1.1.1", 443), 0.2)
             except Exception:  # noqa: BLE001
                 pass
-        d = parse_decision({"id": "d", "state": body["state"], "questions": {qid: question}}, model)
+        req = {"id": "d", "state": body["state"], "questions": {qid: question}}
+        if "images" in body:  # s1-vision: the production field (a list of one data URL)
+            req["images"] = body["images"]
+        d = parse_decision(req, model)
         async with lanes:
             await asyncio.sleep(cost)
             z = backend.logits(d)
         if variant in ("broken", "jitter"):
-            base = json.dumps([d.state, d.question.author_dict()], sort_keys=True)
+            base = json.dumps([d.state, d.question.author_dict(), *([list(d.images)] if d.images else [])], sort_keys=True)
             off = logits_off(base, d.question.keys, 0.6 if variant == "broken" else jitter, variant == "jitter")
             z = [a + b for a, b in zip(z, off)]
         import math
@@ -96,10 +99,10 @@ def make_app(variant: str, token: str, delay: float, model: str = "s1-fast", jit
     return app
 
 
-async def serve(variant: str, delay: float, jitter: float) -> None:
+async def serve(variant: str, delay: float, jitter: float, model: str = "s1-fast") -> None:
     token = open(os.environ["S1M_INTERNAL_TOKEN_FILE"], encoding="ascii").read().strip()
     path = os.environ["RUNTIME_UDS"]
-    runner = web.AppRunner(make_app(variant, token, delay, jitter=jitter), access_log=None)
+    runner = web.AppRunner(make_app(variant, token, delay, model=model, jitter=jitter), access_log=None)
     await runner.setup()
     await web.UnixSite(runner, path).start()
     os.chmod(path, 0o666)
@@ -111,8 +114,9 @@ def main() -> None:
     ap.add_argument("--variant", required=True, choices=sorted(LANES))
     ap.add_argument("--delay", type=float, default=0.02)
     ap.add_argument("--jitter", type=float, default=0.08, help="jitter variant: logit noise amplitude")
+    ap.add_argument("--model", default="s1-fast", help="contract pool of the items (s1-vision: image items)")
     args = ap.parse_args()
-    asyncio.run(serve(args.variant, args.delay, args.jitter))
+    asyncio.run(serve(args.variant, args.delay, args.jitter, args.model))
 
 
 if __name__ == "__main__":

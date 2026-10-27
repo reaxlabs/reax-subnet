@@ -207,7 +207,8 @@ def _waiting_state(block=1990):
     return TrackState(first_seen={DA: (block, "w1"), DB: (block, "w2")}, owners={DA: "w1", DB: "w2"})
 
 
-def test_waiting_uids_guards():
+def test_waiting_uids_guards(monkeypatch):
+    monkeypatch.setattr(CS, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 engine windows/count; the hotfix: test_waiting_ka_hotfix.py
     w1, w2 = _sub(4, "w1", DA, 1990), _sub(5, "w2", DB, 1991)
     st = _waiting_state()
     assert EC.waiting_uids(st, [w1, w2], 2000, {4: "ck1", 5: "ck2"}) == [4, 5]

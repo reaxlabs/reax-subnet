@@ -37,6 +37,48 @@ log = logging.getLogger("reax.config")
 # override it with REAX_ENGINE_REFERENCE. Only the competition worker (or a validator in REAX_COMPETITIONS_MODE=local)
 # pulls it; a validator in remote mode never does.
 ENGINE_REFERENCE_IMAGE = "ghcr.io/reaxlabs/reax-engine-s1-fast@sha256:9bd41632e33bd90377f7e29bdb9410b18cfe1fb557200160b9ebe9222abcecea"
+# Engine competition v2 (composite track dm-all, docs/ENGINE-COMPETITION-V2.md): the reference engine per model, release
+# constants like ENGINE_REFERENCE_IMAGE. None = not published yet (the track is then not release-ready); release mode
+# refuses a None for any slot of the active weights variant (engcomposite.COMPOSITE_WEIGHTS_VARIANT; ``plumb`` is only
+# a slot in the approved-1021 variant). A single multi-model reference image may later replace all of them.
+ENGINE_COMPOSITE_REFERENCE_IMAGES: dict = {
+    "plumb": ENGINE_REFERENCE_IMAGE,
+    # reax-engine PR #9 @4230e50 (docker/ref-blink: vLLM 0.30 preset ref-prod; docker/ref-qwen35: one image for the three
+    # 27B slots, FP8, REAX_MAX_WAIT_MS=4; -pplx and -reax1 are the same digest under other names)
+    "blink": "ghcr.io/reaxlabs/reax-engine-ref-blink@sha256:ab02e141ffb5672dc68e137736be0a6fa15445c7cc824a51f6ad2a6664c0e10a",
+    "reax1": "ghcr.io/reaxlabs/reax-engine-ref-d3turbo@sha256:503cd9e00114dada655691de44b5a4ff1a08a985bcaf0021121967a73e436eac",  # REAX 1 joint v1.2 path, decisionmodels/reax-1@ca2a0cc5
+    "pplx": "ghcr.io/reaxlabs/reax-engine-ref-d3turbo@sha256:503cd9e00114dada655691de44b5a4ff1a08a985bcaf0021121967a73e436eac",
+    "d3": "ghcr.io/reaxlabs/reax-engine-ref-d3turbo@sha256:503cd9e00114dada655691de44b5a4ff1a08a985bcaf0021121967a73e436eac",  # d3-turbo (vllm-sr/d3-turbo@cfa0d41d...), prefix_bidir + state-once
+    # v2.2 (25 Oct): reax-engine PR #9 @33db8c3 (CI-built, public). docker/ref-quyet: vLLM 0.30, FP8 weights + FP8 KV,
+    # template quyet, util 0.45 (chinhnc/Quyet-1.0-Large@d997d589). docker/ref-blink @33db8c3 serves text AND one-image
+    # s1-vision requests (label "blink,vision"); slot blink keeps the calibrated text digest above until the GPU check shows
+    # the new digest answers text bit-identically. The slots stay release_calibrated False until the GPU calibration.
+    "quyet": "ghcr.io/reaxlabs/reax-engine-ref-quyet@sha256:da746016917b4f8a7adb3aeace03e8985278d277b8308ea380ec8f8318b8512f",
+    # v2.0 (25 Oct): reax-engine PR #9 @6741836 (mammoth: @5467286, noul answer fix) (CI-built, public). ref-blink @3582925 (eager; = 6741836 + ENV REAX_VLLM_EXTRA=--enforce-eager) pins the Gemma4 vision encoder
+    # chunk budget to total//10 (cross-process determinism with two co-resident engines); vision items only, slot blink
+    # keeps ab02e141. ref-mammoth = ref-qwen35 built for REAX_MODEL mammoth-1 (baselabs/mammoth-1@61cec44c, state-once,
+    # cap 16384 = the s1-pro canary engine 5117ec3); ref-jeffan = vLLM 0.30 preset fp8-kv-colo-bi
+    # (tattrongvu/Jeffan-31b-1710@cebfa86c). The slots stay release_calibrated False until the GPU calibration.
+    "vision": "ghcr.io/reaxlabs/reax-engine-ref-blink@sha256:97d06a91453979d6756176aba4a1cb1d78b38390643c37ed1b83f79a4ff9f606",
+    "mammoth": "ghcr.io/reaxlabs/reax-engine-ref-mammoth@sha256:3080a593060542bccbdaf7cf0c66593fc182d9753b3facd50206df86d93b8588",
+    "jeffan": "ghcr.io/reaxlabs/reax-engine-ref-jeffan@sha256:fdebc6e594788aa48bc228083e71c5084d86ca71ce856f6dd1f59ce106db0f13",
+}
+# The reference digest each calibrated slot's noise, gates and memory were measured on (explicit strings, not read from the
+# dict above, so a later digest bump there does NOT carry the calibration over: ``CompositeTrack.release_ready()`` then
+# reports "slot X calibrated on a different digest" until the GPU check re-measures and this entry is updated).
+# A slot without an entry is not calibrated (mammoth, jeffan, vision: GPU check pending).
+ENGINE_COMPOSITE_CALIBRATED_ON: dict = {
+    "plumb": "ghcr.io/reaxlabs/reax-engine-s1-fast@sha256:9bd41632e33bd90377f7e29bdb9410b18cfe1fb557200160b9ebe9222abcecea",
+    "blink": "ghcr.io/reaxlabs/reax-engine-ref-blink@sha256:ab02e141ffb5672dc68e137736be0a6fa15445c7cc824a51f6ad2a6664c0e10a",
+    "reax1": "ghcr.io/reaxlabs/reax-engine-ref-d3turbo@sha256:503cd9e00114dada655691de44b5a4ff1a08a985bcaf0021121967a73e436eac",
+    "pplx": "ghcr.io/reaxlabs/reax-engine-ref-d3turbo@sha256:503cd9e00114dada655691de44b5a4ff1a08a985bcaf0021121967a73e436eac",
+    "d3": "ghcr.io/reaxlabs/reax-engine-ref-d3turbo@sha256:503cd9e00114dada655691de44b5a4ff1a08a985bcaf0021121967a73e436eac",
+    "quyet": "ghcr.io/reaxlabs/reax-engine-ref-quyet@sha256:da746016917b4f8a7adb3aeace03e8985278d277b8308ea380ec8f8318b8512f",
+    # v2.0 lineup, GPU check 26 Oct (gpucheck-lineup / -b, Verda, runsc, subnet 57d2774)
+    "mammoth": "ghcr.io/reaxlabs/reax-engine-ref-mammoth@sha256:3080a593060542bccbdaf7cf0c66593fc182d9753b3facd50206df86d93b8588",
+    "jeffan": "ghcr.io/reaxlabs/reax-engine-ref-jeffan@sha256:fdebc6e594788aa48bc228083e71c5084d86ca71ce856f6dd1f59ce106db0f13",
+    "vision": "ghcr.io/reaxlabs/reax-engine-ref-blink@sha256:97d06a91453979d6756176aba4a1cb1d78b38390643c37ed1b83f79a4ff9f606",
+}
 
 # Where the competitions (engine competition, specialist tracks) run: "local" = inside the validator process (needs the
 # docker socket and the sealed data on the validator host), "remote" = in a separate `reax-competition-worker`; the

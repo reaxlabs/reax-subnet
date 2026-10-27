@@ -10,6 +10,8 @@ from typing import Callable, Mapping, Optional, Sequence
 
 import pytest
 
+from reax_subnet import competition_split as _CS_KA
+
 from reax_subnet import competition_split as cs
 from reax_subnet.competition_split import (
     KEEPALIVE_MAX_ENTRIES, PROFILES, PROVISIONAL_KA_FRACTION, PROVISIONAL_KA_MAX_SHARE, KEEPALIVE_MAX_SHARE,
@@ -220,7 +222,8 @@ def test_no_typical_serving_uid_the_cap_decides():
     _same(w, _expect(base, {50: each}))
 
 
-def test_top_up_when_the_cap_binds():
+def test_top_up_when_the_cap_binds(monkeypatch):
+    monkeypatch.setattr(_CS_KA, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 8-slot cut; the hotfix: test_waiting_ka_hotfix.py
     base = {7: 0.01, 8: 0.99}
     # 8 pure entrants + one dual (uid 7, own 0.01): n = 9, each = 0.25 x 0.15 / 9 = 0.0041667 < per_entry (inf: 7 and 8 compete)
     pure = [(50 + i, 30.0 - i) for i in range(8)]
@@ -243,7 +246,8 @@ def test_crowd_out_attempt_by_big_serving_hotkeys_fails():
     assert w == only_pure
 
 
-def test_pure_entrants_come_first_then_dual_role_in_the_given_order_cut_to_eight():
+def test_pure_entrants_come_first_then_dual_role_in_the_given_order_cut_to_eight(monkeypatch):
+    monkeypatch.setattr(_CS_KA, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 8-slot cut; the hotfix: test_waiting_ka_hotfix.py
     dual = {100 + i: 0.001 for i in range(10)}
     base = _serving(dual)
     ka = [(100 + i, 40.0 - i) for i in range(10)] + [(50, 5.0), (51, 4.0), (52, 3.0)]
@@ -280,7 +284,8 @@ def test_approved_ranked_entry_gets_no_keepalive_slot():
 
 # ---------------------------------------------------------------- median
 
-def test_median_ignores_every_keepalive_candidate_even_when_cut_or_ineligible():
+def test_median_ignores_every_keepalive_candidate_even_when_cut_or_ineligible(monkeypatch):
+    monkeypatch.setattr(_CS_KA, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 8-slot cut; the hotfix: test_waiting_ka_hotfix.py
     typical_only = _serving()
     pure_pay = combine_weights(typical_only, None, 0.0, {}, keepalive={DF: [(50, 30.0)]})[50]
     assert pure_pay == pytest.approx(0.004)
@@ -297,7 +302,8 @@ def test_median_ignores_every_keepalive_candidate_even_when_cut_or_ineligible():
     _same(w, _expect(base, {50: each, **{100 + i: each - 0.0001 for i in range(7)}}))
 
 
-def test_median_ignores_provisional_ranked_and_champion_uids():
+def test_median_ignores_provisional_ranked_and_champion_uids(monkeypatch):
+    monkeypatch.setattr(_CS_KA, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     base = _serving({400: 0.0001, 401: 0.0001, 402: 0.0001, 403: 0.0001})
     w = combine_weights(base, 403, 1.0, {DF: [(402, 40.0)]}, provisional={DF: [400, 401]}, keepalive={DF: [(50, 30.0)]})
     # all four small uids are competition-paid and left out of the median: per_entry stays 0.004
@@ -312,8 +318,9 @@ def test_median_ignores_provisional_ranked_and_champion_uids():
 
 # ---------------------------------------------------------------- provisional
 
-def test_provisional_goes_to_pure_entrants_only():
+def test_provisional_goes_to_pure_entrants_only(monkeypatch):
     """Critic round 1 F9: provisional pay protects an unserved entry from pruning; a serving hotkey is not at risk."""
+    monkeypatch.setattr(_CS_KA, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     base = _serving({100: 0.001, 101: 0.003})
     w = combine_weights(base, None, 0.0, {}, provisional={DF: [50, 100, 101]})
     each = min(PROVISIONAL_KA_FRACTION * 0.004, PROVISIONAL_KA_MAX_SHARE * 0.15 / 1)  # n_prov = 1 (50 only)
@@ -365,7 +372,8 @@ def test_totals_sum_to_one_over_random_dual_role_inputs():
 
 # ---------------------------------------------------------------- bit-identical to the frozen v1 without dual-role uids
 
-def test_bit_identical_to_the_previous_function_without_dual_role_uids():
+def test_bit_identical_to_the_previous_function_without_dual_role_uids(monkeypatch):
+    monkeypatch.setattr(_CS_KA, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 8-slot cut; the hotfix: test_waiting_ka_hotfix.py
     rng = random.Random(20261020)
     for it in range(3000):
         owner = rng.choice([None, 0])
@@ -528,7 +536,8 @@ def test_engine_first_committer_survives_an_inference_rewrite_in_the_persisted_s
 
 # ---------------------------------------------------------------- engine keep-alive (release line, miner report 21903)
 
-def test_engine_keepalive_goes_to_pure_entrants_only_and_serving_waiters_stay_out_of_the_median():
+def test_engine_keepalive_goes_to_pure_entrants_only_and_serving_waiters_stay_out_of_the_median(monkeypatch):
+    monkeypatch.setattr(_CS_KA, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     from reax_subnet.competition_split import ENGINE_KA_FRACTION, ENGINE_KA_MAX_SHARE
     base = _serving({100: 0.0001, 101: 0.0001})
     w = combine_weights(base, None, 0.0, {}, engine_waiting=[50, 100, 101])
@@ -540,7 +549,8 @@ def test_engine_keepalive_goes_to_pure_entrants_only_and_serving_waiters_stay_ou
 
 # ---------------------------------------------------------------- critic round 2 NEW-2: slots only for payable entries
 
-def test_a_serving_provisional_candidate_does_not_take_a_track_slot_from_a_pure_entrant():
+def test_a_serving_provisional_candidate_does_not_take_a_track_slot_from_a_pure_entrant(monkeypatch):
+    monkeypatch.setattr(_CS_KA, "WAITING_KA_HOTFIX", False)   # pins the rc11.post4 windows; the hotfix: test_waiting_ka_hotfix.py
     base = _serving({100: 0.001})
     prov = {DF: [100], RA: [50], "x_track": [51]}  # 50/50 profile: two slots, three tracks with entries
     with_dual = combine_weights(base, None, 0.0, {}, provisional=prov)

@@ -1,5 +1,50 @@
 # Changelog
 
+## 1.2.0rc11.post8 - engine competition v2.0 (`dm-all`): fusion package a1de327 merged onto post7.2
+Miner-side release of engine v2.0, published Tue 27 Oct 2026. REAX validators switch with post8.1 on Wed 28 Oct 2026 12:00 UTC;
+the first `dm-all` crowning is Fri 30 Oct 2026 14:30 UTC. Miners can measure a `dm-all` engine locally now:
+`reax-engine-eval --track dm-all` runs the validator's own session loop on every model the image declares (docs/ENGINE-COMPETITION-V2.md).
+Validator + worker release. rc11.post7.2 (s1-pro / s1-fast caps x4, post7.1 waiting-state keep-alive, post7.2 commit-reveal payment
+readers; both unchanged here) plus the frozen engine v2.0 package
+`fusion/engine-composite-open-20261023-subnet` @ a1de327 (docs/ENGINE-COMPETITION-V2.md, engcomposite.py, s1vision.py, composite switch and
+bridge in engvalidator.py / remote.py / worker.py / cli.py). The merge had no textual conflicts; the package touches no scoring-of-inference
+file (tiers.py, s1validator.py, probe cadence, caps, miner defaults).
+- Nothing changes while `REAX_ENGINE_COMPOSITE` is unset: validator and worker run the v1 `s1-fast` engine competition exactly as in post7
+  (differential check: tests/test_v2_integration.py). With `REAX_ENGINE_COMPOSITE=1` a validator pays the composite champion of
+  the worker's `dm-all` state; before the first `dm-all` crowning the payout bridge pays the v1 `s1-fast` champion and its former
+  champions from the frozen v1 file (`REAX_ENGINE_V1_STATE_PATH`, sha256 pinned in `competition_split.ENGINE_V1_BRIDGE_STATE_SHA256`).
+  Finney refuses to start the composite while that constant is None. Pinned in this release to the frozen v1 state after the Tue 27 Oct
+  14:30Z slot: sha256 1faccee3... (tests/data/engine-competition.v1-final-1faccee3.json).
+- Calendar in code: `ENGINE_V2_START_UTC` Tue 27 Oct 14:30Z (last v1 crowning), first possible `dm-all` crowning Fri 30 Oct 14:30Z (needs
+  `weights_ok`, Option A), `ENGINE_V1_BRIDGE_END_UTC` Tue 3 Nov 14:30Z at the latest. Lineup v20 (`engcomposite.COMPOSITE_WEIGHTS["v20"]`):
+  mammoth .37, blink .33, reax1 .10, jeffan .10, vision .10 (a 10 % floor for every served model).
+  `release_ready()` is empty.
+- Operational (this integration): one start-up log line for composite tracks, `engine v2 composite rules sha256 ... measurement context
+  sha256 ...`, so that validators can be compared (a remote validator logged neither value before).
+- Every validator must run this release before the first `dm-all` crowning: after it an older validator pays differently.
+- `WEIGHTS_VERSION_KEY` 1260 -> 1270 (consensus release): v2 changes what a validator pays (carried places, bridge end at the latest Tue 3 Nov
+  14:30Z, the first `dm-all` champion), and an older validator would pay differently (the v1 champion share for ever from the v1 file, or nothing from a dm-all-only file). The owner raises the chain
+  hyperparameter `weights_version` to 1270 only after every validator runs this release, before Fri 30 Oct 14:30Z; until then post7 and
+  post8 weights are both accepted. Rollback = revert this line (the composite stays off without `REAX_ENGINE_COMPOSITE`).
+
+## 1.2.0rc11.post7.2 — commit-reveal payment readers
+- Ports the validator-side commit-reveal readers onto the post7.1 line: `state.reveal_allows_payment` gates
+  `compute_leaders`, keep-alive, provisional keep-alive, `mark_provisional` and `_committed_waiting`. Entries without a
+  commit-reveal record (`reveal_due_ts` unset or public) are paid exactly as in post7.1.
+- New optional submission fields are omitted from the state file at their defaults: the state stays wire-compatible with
+  post7.1 in both directions (rollback safe). No worker code, no cutoff. `WEIGHTS_VERSION_KEY` remains 1260.
+- Runtime/image version is `1.2.0rc11.post7.2`; Python distribution version is `1.2.0rc11.post7+hotfix.2`.
+
+## 1.2.0rc11.post7.1 — waiting-state keep-alive hotfix
+- Keeps the published post7 GPU capacity caps and background probe cadence. No engine v2 composite is included.
+- Ports the live post4.1 waiting-state fix: bounded keep-alive while an entry waits for evaluation, confirmation,
+  its deciding slot or award approval; each waiting engine digest has its own bounded window. Share and coldkey
+  caps remain enforced. Operator keep-alive overrides are read next to the award approvals.
+- `competition_split.WAITING_KA_HOTFIX = False` restores post7 waiting-state behavior, including ignoring operator
+  overrides. No worker state migration. `WEIGHTS_VERSION_KEY` remains 1260, as published for post7.
+- Runtime/image version is `1.2.0rc11.post7.1`; Python distribution version is `1.2.0rc11.post7+hotfix.1`
+  because the runtime spelling is not a valid Python package version.
+
 ## 1.2.0rc11.post7 — s1-pro cap x4 (640/s) and s1-fast cap x4 (2560/s)
 Validator + miner release, `WEIGHTS_VERSION_KEY` 1260 (was 1250), shipped as its own consensus release after a live probe bench
 (Florian, card 17931 "All 3", board #21849; s1-fast x4: board #26839 "way higher caps"). Start: Tue 27 Oct 2026 16:00 UTC (dated #92 notice, >= 24 h). Rollback: `tiers.S1_PRO_CAP_MULTIPLIER = 2.0` and / or `tiers.CAPACITY_CAP_MULTIPLIER = 2.0` (+ key bump).

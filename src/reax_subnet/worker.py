@@ -26,13 +26,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping, Optional
 
+from . import competition_split as _csplit
 from . import elements
-from .competition_split import COMPETITIONS_START_UTC, ENGINE_HELD, SPLIT_PROFILE, release_engine_start
+from .competition_split import COMPETITIONS_START_UTC, ENGINE_HELD, SPLIT_PROFILE, release_engine_start, release_v2_start
 from .competitions import CompetitionDriver, SpecialistAdapter
 from .config import (ENGINE_STATE_FILE, LOCAL_NETWORK_NAMES, MAINNET_NAMES, SPEC_STATE_FILE, CommonConfig, ConfigError,
                      EngineConfig, _bool, _engine, _int, _is_mainnet, load_common)
 from .engcomp import RewardParams, sync_start_block_hash
 from .engvalidator import TRACKS, EngineCompetition
+from .engcomposite import composite_rules_sha256
 
 log = logging.getLogger("reax.worker")
 
@@ -103,6 +105,22 @@ def build_local_stack(e: EngineConfig, sealed_dir: str, env: Mapping[str, str], 
                               protected_images=(e.reference, env.get("REAX_SPEC_VLLM_IMAGE", VLLM_IMAGE)),
                               release_mode=e.release_mode, review_dir=e.review_dir, reference_ref=e.reference)
     tracks, reward = engine_params(e)
+    composite = composite_from_env(env, e, runner) if _csplit.engine_composite_enabled(env) else None
+    if composite is not None:
+        runner, track = composite
+        log.info("engine competition: composite track %s (%s), rules %s", track.name,
+                 ", ".join(f"{s.name} {s.weight:g}" for s in track.slots), composite_rules_sha256(track))
+        refs = composite_references(env, e.release_mode)
+        engine = EngineCompetition(runner, {track.name: e.reference}, e.state_path, reward=reward,
+                                   slot_references={track.name: refs},
+                                   interval_s=e.interval_s, max_evals=e.max_evals, start_utc=start, specialist=adapter,
+                                   engine_start_utc=engine_start, award_gate=award_gate,
+                                   chain_id=_chain_id(env), cycle_gate_file=e.cycle_gate_file,
+                                   cycle_gate_max_age_s=float(e.cycle_gate_max_age_s), composites={track.name: track},
+                                   v1_bridge=(v1_bridge_from_env(env, e.state_path, {track.name: track}, e.release_mode)
+                                              if award_gate is not None else None),  # the worker pays nothing
+                                   composite_start_utc=release_v2_start() if e.release_mode else None)
+        return engine, adapter, adapter.evaluator if adapter else None
     log.info("engine competition: %s runner, reference %s, split profile %s, starts %s", e.runner, e.reference,
              SPLIT_PROFILE, "NEVER: the engine track is HELD (no engine cycle runs)" if engine_start == ENGINE_HELD
              else (engine_start or start).isoformat() if (engine_start or start) else "immediately (development network)")
@@ -112,6 +130,113 @@ def build_local_stack(e: EngineConfig, sealed_dir: str, env: Mapping[str, str], 
                                chain_id=_chain_id(env), cycle_gate_file=e.cycle_gate_file,
                                cycle_gate_max_age_s=float(e.cycle_gate_max_age_s))
     return engine, adapter, adapter.evaluator if adapter else None
+
+
+def v1_bridge_from_env(env: Mapping[str, str], state_path: str, composites: Any, release_mode: bool = False):
+    """The v1 payout bridge tuple ``(frozen v1 state path, end time, pinned sha256)`` or None, the same for the remote validator
+    and the local competitions mode (both must pay the same weights). The frozen file is ``REAX_ENGINE_V1_STATE_PATH`` (default
+    ``engine-competition-v1.json`` next to the engine state); every validator needs the same bytes. On finney a configured but
+    missing, mismatching or unfinished file refuses the start (ConfigError); at runtime an unusable file still pays nothing."""
+    if not (composites and _csplit.ENGINE_V1_BRIDGE_END_UTC is not None and _csplit.ENGINE_V1_BRIDGE_STATE_SHA256):
+        return None
+    bridge = (env.get("REAX_ENGINE_V1_STATE_PATH")
+              or os.path.join(os.path.dirname(os.path.abspath(state_path)), "engine-competition-v1.json"),
+              _csplit.ENGINE_V1_BRIDGE_END_UTC, _csplit.ENGINE_V1_BRIDGE_STATE_SHA256)
+    if release_mode:
+        from .engvalidator import read_frozen_v1
+
+        try:
+            read_frozen_v1(bridge[0], bridge[2])
+        except Exception as exc:  # noqa: BLE001
+            raise ConfigError(f"frozen v1 engine state {bridge[0]} is unusable ({type(exc).__name__}: {exc}); every validator needs "
+                              "the pinned bytes (REAX_ENGINE_V1_STATE_PATH), else the v1 rights are not paid") from exc
+    return bridge
+
+
+def composite_track_from_env(env: Mapping[str, str], release_mode: bool):
+    """The composite track (worker and remote validator use the same definition). ``REAX_ENGINE_COMPOSITE_CALIBRATION``:
+    JSON file with per-slot calibration, development networks only; on finney the track is the release constant and
+    must be release-ready, otherwise this refuses (ConfigError)."""
+    from .engcomposite import default_track
+
+    cal = None
+    path = env.get("REAX_ENGINE_COMPOSITE_CALIBRATION", "")
+    if path:
+        if release_mode:
+            raise ConfigError("REAX_ENGINE_COMPOSITE_CALIBRATION is not allowed on finney (release constant)")
+        with open(path, encoding="utf-8") as fh:
+            cal = json.load(fh)
+    track = default_track(cal)
+    if release_mode and track.release_ready():
+        raise ConfigError("composite engine track is not release-ready: " + "; ".join(track.release_ready()))
+    if release_mode:
+        from .competition_split import release_bridge_problem
+
+        problem = release_bridge_problem()
+        if problem:
+            raise ConfigError("composite engine track: " + problem)
+    return track
+
+
+def composite_references(env: Mapping[str, str], release_mode: bool) -> dict[str, str]:
+    """Reference image per slot: the release constants (config.ENGINE_COMPOSITE_REFERENCE_IMAGES); development networks
+    may override them with ``REAX_ENGINE_COMPOSITE_REFS=slot=<image@sha256:...>,...``. Every slot of the active weights
+    variant needs one (a constant of a slot the variant does not use, e.g. plumb in v2.1, may stay unset)."""
+    from .config import ENGINE_COMPOSITE_REFERENCE_IMAGES
+    from .engcomposite import COMPOSITE_WEIGHTS, COMPOSITE_WEIGHTS_VARIANT
+
+    refs = {k: v for k, v in ENGINE_COMPOSITE_REFERENCE_IMAGES.items() if v}
+    over = env.get("REAX_ENGINE_COMPOSITE_REFS", "")
+    if over:
+        if release_mode:
+            raise ConfigError("REAX_ENGINE_COMPOSITE_REFS is not allowed on finney (release constants)")
+        for part in over.split(","):
+            name, _, ref = part.strip().partition("=")
+            if name:
+                refs[name.strip()] = ref.strip()
+    active = COMPOSITE_WEIGHTS[COMPOSITE_WEIGHTS_VARIANT]
+    missing = [k for k in (*ENGINE_COMPOSITE_REFERENCE_IMAGES, *active) if k in active and not refs.get(k)]  # every slot of the variant, also one without a dict key
+    missing = list(dict.fromkeys(missing))
+    bad = [k for k, v in refs.items() if "@sha256:" not in v]
+    if missing or bad:
+        raise ConfigError("composite reference images missing or not pinned by digest: " + ", ".join(missing + bad))
+    return refs
+
+
+def composite_from_env(env: Mapping[str, str], e: EngineConfig, base: Any):
+    """(CompositeRunner, CompositeTrack) for engine competition v2 (REAX_ENGINE_COMPOSITE=1; docs/ENGINE-COMPETITION-V2.md).
+
+    ``REAX_ENGINE_COMPOSITE_WEIGHTS``: ``slot=/weights/dir,...`` for every slot of the track (``vision`` may be left out:
+    it uses the ``blink`` directory; one DockerRunner per model,
+    same GPU, gates and image settings as ``base``; the engine gets ``REAX_MODEL=<model id>``).
+    ``REAX_ENGINE_COMPOSITE_CALIBRATION``: JSON file with per-slot calibration (development networks only); on finney the
+    track is the release constant and must be release-ready, otherwise this refuses (ConfigError)."""
+    from .engcomposite import MODEL_ENV, SLOT_WEIGHTS_FROM, CompositeRunner
+    from .engrunner import DockerRunner
+
+    track = composite_track_from_env(env, e.release_mode)
+    dirs = {}
+    for part in (env.get("REAX_ENGINE_COMPOSITE_WEIGHTS") or "").split(","):
+        name, _, d = part.strip().partition("=")
+        if name:
+            dirs[name.strip()] = d.strip()
+    for slot, source in SLOT_WEIGHTS_FROM.items():  # vision runs the Blink weights: no second directory to configure
+        if source in dirs and not dirs.get(slot):
+            dirs[slot] = dirs[source]
+    missing = [s.name for s in track.slots if not dirs.get(s.name)]
+    if missing:
+        raise ConfigError("REAX_ENGINE_COMPOSITE_WEIGHTS lacks a weights directory for: " + ", ".join(missing))
+    if not isinstance(base, DockerRunner):
+        raise ConfigError("the composite engine track needs the docker runner")
+    protected = tuple(base.protected_images) + tuple(composite_references(env, e.release_mode).values())
+    runners = {}
+    for s in track.slots:
+        runners[s.params.name] = DockerRunner(
+            e.workdir, dirs[s.name], gpu=base.gpu, docker_runtime=base.docker_runtime, registries=base.registries,
+            memory=base.memory, cpus=base.cpus, nvml_check=base.nvml_check, protected_images=protected,
+            release_mode=base.release_mode, review_dir=base.review_dir, reference_ref=base.reference_ref,
+            fla_config_root=base.fla_config_root, model_env={MODEL_ENV: s.model})
+    return CompositeRunner(runners), track
 
 
 class IdleEngine:
