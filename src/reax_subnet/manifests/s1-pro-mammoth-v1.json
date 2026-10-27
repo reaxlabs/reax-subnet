@@ -1,69 +1,73 @@
 {
-  "schema": "reax-s1-manifest/1",
-  "model": "s1-pro",
-  "name": "Mammoth-1 (System1 s1-pro candidate; not registered)",
-  "hardware": {
-    "min_gpu_memory_gb": 80,
-    "note": "About 54 GB bf16 weights plus KV cache; 80 GB GPU minimum."
+ "hardware": {
+  "min_gpu_memory_gb": 80,
+  "note": "About 54 GB bf16 weights plus KV cache; 80 GB GPU minimum."
+ },
+ "licence": {
+  "note": "baselabs/mammoth-1 model card declares MIT.",
+  "notices": [],
+  "spdx": "MIT"
+ },
+ "limits": {
+  "max_input_tokens": 16384,
+  "max_options": 64,
+  "max_state_bytes": 16384,
+  "min_options": 2
+ },
+ "model": "s1-pro",
+ "name": "Mammoth-1 (System1 s1-pro candidate; not registered)",
+ "production_reference": "DRAFT: parity and release approval required; not a production reference",
+ "readout": {
+  "attention_mask": "block-bidirectional: prefix and question suffix are separate full-attention blocks; linear attention causal",
+  "labels": "A..Z then two-letter slot labels",
+  "prompt": "qev-labels-v2; fixed system turn; user <state> block and question/options suffix; chat template with enable_thinking=False",
+  "softmax": "slot_lm over LM-head slot-token logits at last position; temperature 1",
+  "temperature": 1.0
+ },
+ "runtime": {
+  "args": [
+   "--served-model-name",
+   "mammoth-1",
+   "--dtype",
+   "bfloat16",
+   "--max-model-len",
+   "16384",
+   "--no-enable-chunked-prefill",
+   "--max-num-batched-tokens",
+   "16384",
+   "--max-num-seqs",
+   "256",
+   "--logprobs-mode",
+   "raw_logprobs",
+   "--no-enable-prefix-caching"
+  ],
+  "base_image": "vllm/vllm-openai:v0.32.0",
+  "base_image_digest": "sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34",
+  "dtype": "bfloat16",
+  "engine": "vllm-deterministic",
+  "env": {
+   "VLLM_BATCH_INVARIANT": "1"
   },
-  "licence": {
-    "spdx": "MIT",
-    "notices": [],
-    "note": "baselabs/mammoth-1 model card declares MIT."
+  "note": "vllm-mammoth forces the Triton GDN prefill kernels under VLLM_BATCH_INVARIANT=1 (bit-identical across batches, measured 27 Oct 2026); prefix caching must stay off (vLLM 0.32 needs chunked prefill for it on hybrid models).",
+  "plugin": "vllm-mammoth==0.1.0",
+  "plugin_source": "git+https://github.com/reaxlabs/vllm-mammoth@v0.1.0",
+  "vllm": "0.32.0"
+ },
+ "schema": "reax-s1-manifest/1",
+ "weights": {
+  "files": {
+   "chat_template.jinja": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+   "config.json": "bab5a8ceb73fd6a8f191afaf23afbf689d931da5b3c7c9d5153cf1e4b5024502",
+   "generation_config.json": "eb67f249756eede535dd6f8c941570e91a2a73f0c8d05d00c6012216ecfca869",
+   "model-00001-of-00002.safetensors": "29701f9a7b131bedb3fe1d565dad69b912d9128c6fc27e3d8fb0aedc47ae0e06",
+   "model-00002-of-00002.safetensors": "4da0ff5476813bbd9898454f0d7f7ba3c82914c42e32e2b87577c6d69daae671",
+   "model.safetensors.index.json": "0424520f63f04816eee4d229a4487dc9744866ceb46513e591dd987e401b1663",
+   "processor_config.json": "bfbc24af59a3e73a9cd0653b8d4ae758dfaec4e3e6c15dfb1c6c8ee8d5683c85",
+   "readout.json": "96ea8a5c6ecfc30c20cdd369762db5997c5f4fb9821ce0a0318941343eb5e8ba",
+   "tokenizer.json": "a5cd9732badce41de57e6efce8302930ded1c1188c5f81feb2bd6c24c4a1941f",
+   "tokenizer_config.json": "2984c03425a28d242744e234a5003786fd289b3713db79fe0958c65eb59d85b2"
   },
-  "limits": {
-    "max_input_tokens": 16384,
-    "max_options": 64,
-    "min_options": 2,
-    "max_state_bytes": 16384
-  },
-  "weights": {
-    "hf_repo": "baselabs/mammoth-1",
-    "revision": "03007ab3c4481bf01c71ef63adbbbc4b2093d71a",
-    "files": {
-      "chat_template.jinja": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
-      "config.json": "bab5a8ceb73fd6a8f191afaf23afbf689d931da5b3c7c9d5153cf1e4b5024502",
-      "generation_config.json": "eb67f249756eede535dd6f8c941570e91a2a73f0c8d05d00c6012216ecfca869",
-      "model-00001-of-00002.safetensors": "29701f9a7b131bedb3fe1d565dad69b912d9128c6fc27e3d8fb0aedc47ae0e06",
-      "model-00002-of-00002.safetensors": "4da0ff5476813bbd9898454f0d7f7ba3c82914c42e32e2b87577c6d69daae671",
-      "model.safetensors.index.json": "0424520f63f04816eee4d229a4487dc9744866ceb46513e591dd987e401b1663",
-      "processor_config.json": "bfbc24af59a3e73a9cd0653b8d4ae758dfaec4e3e6c15dfb1c6c8ee8d5683c85",
-      "readout.json": "96ea8a5c6ecfc30c20cdd369762db5997c5f4fb9821ce0a0318941343eb5e8ba",
-      "tokenizer.json": "a5cd9732badce41de57e6efce8302930ded1c1188c5f81feb2bd6c24c4a1941f",
-      "tokenizer_config.json": "2984c03425a28d242744e234a5003786fd289b3713db79fe0958c65eb59d85b2"
-    }
-  },
-  "production_reference": "DRAFT: parity and release approval required; not a production reference",
-  "readout": {
-    "prompt": "qev-labels-v2; fixed system turn; user <state> block and question/options suffix; chat template with enable_thinking=False",
-    "labels": "A..Z then two-letter slot labels",
-    "softmax": "slot_lm over LM-head slot-token logits at last position; temperature 1",
-    "temperature": 1.0,
-    "attention_mask": "block-bidirectional: prefix and question suffix are separate full-attention blocks; linear attention causal"
-  },
-  "runtime": {
-    "engine": "vllm-deterministic",
-    "vllm": "0.32.0",
-    "base_image": "vllm/vllm-openai:v0.32.0",
-    "base_image_digest": "sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34",
-    "plugin": "vllm-mammoth==0.1.0",
-    "dtype": "bfloat16",
-    "env": {
-      "VLLM_BATCH_INVARIANT": "1"
-    },
-    "args": [
-      "--served-model-name",
-      "mammoth-1",
-      "--dtype",
-      "bfloat16",
-      "--max-model-len",
-      "16384",
-      "--no-enable-chunked-prefill",
-      "--max-num-batched-tokens",
-      "16384",
-      "--logprobs-mode",
-      "raw_logprobs",
-      "--no-enable-prefix-caching"
-    ]
-  }
+  "hf_repo": "baselabs/mammoth-1",
+  "revision": "03007ab3c4481bf01c71ef63adbbbc4b2093d71a"
+ }
 }

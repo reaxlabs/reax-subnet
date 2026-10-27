@@ -46,7 +46,7 @@ relay mode are separate sidecar features.
 
 ## vLLM with Mammoth
 
-Install `vllm-mammoth==0.1.0` into `vllm/vllm-openai:v0.32.0`, mount the weights
+Install `vllm-mammoth==0.1.0` (`pip install --no-deps "vllm-mammoth @ git+https://github.com/reaxlabs/vllm-mammoth@v0.1.0"`) into `vllm/vllm-openai:v0.32.0`, mount the weights
 from `baselabs/mammoth-1` at revision
 `03007ab3c4481bf01c71ef63adbbbc4b2093d71a`, and start vLLM with:
 
@@ -54,14 +54,20 @@ from `baselabs/mammoth-1` at revision
 VLLM_BATCH_INVARIANT=1 vllm serve /weights/mammoth-1 \
   --served-model-name mammoth-1 --dtype bfloat16 \
   --max-model-len 16384 --no-enable-chunked-prefill \
-  --max-num-batched-tokens 16384 --logprobs-mode raw_logprobs \
+  --max-num-batched-tokens 16384 --max-num-seqs 256 --logprobs-mode raw_logprobs \
   --no-enable-prefix-caching
 ```
 
 The plugin supplies the qev-labels-v2 prompt, slot_lm readout at temperature 1,
-and block-bidirectional full-attention mask. Prefix caching is disabled for
-repeatability. An 80 GB GPU is the minimum planned configuration; the weights
-alone occupy about 54 GB. This CPU transport test does not establish GPU parity.
+and block-bidirectional full-attention mask. Prefix caching must stay off (vLLM 0.32
+needs chunked prefill for it on this hybrid model). An 80 GB GPU is the minimum; the
+weights alone occupy about 51 GB.
+
+GPU check (27 Oct 2026, 1x RTX PRO 6000): this backend against a live vLLM 0.32.0 +
+vllm-mammoth server answered 1,000 validator-shaped decisions (s1items) with 0
+contract failures, probabilities identical to direct `/v1/systemone` calls,
+32.6 decisions/s at 64 in flight. The plugin's parity against the authors' reference
+runtime and its batch invariance are documented in the vllm-mammoth README.
 
 ## Mapping and failures
 
