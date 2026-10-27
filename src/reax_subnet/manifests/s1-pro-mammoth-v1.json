@@ -39,7 +39,9 @@
    "256",
    "--logprobs-mode",
    "raw_logprobs",
-   "--no-enable-prefix-caching"
+   "--no-enable-prefix-caching",
+   "--attention-backend",
+   "TRITON_ATTN"
   ],
   "base_image": "vllm/vllm-openai:v0.32.0",
   "base_image_digest": "sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34",
@@ -50,7 +52,7 @@
   },
   "note": "vllm-mammoth forces the Triton GDN prefill kernels under VLLM_BATCH_INVARIANT=1 (bit-identical across batches, measured 27 Oct 2026); prefix caching must stay off (vLLM 0.32 needs chunked prefill for it on hybrid models).",
   "plugin": "vllm-mammoth==0.1.0",
-  "plugin_source": "git+https://github.com/reaxlabs/vllm-mammoth@v0.1.0",
+  "plugin_source": "git+https://github.com/reaxlabs/vllm-mammoth@e43b3cc6a4aaf9a91b060c6809e0a01bd4a8458e",
   "vllm": "0.32.0"
  },
  "schema": "reax-s1-manifest/1",

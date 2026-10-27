@@ -55,7 +55,7 @@ VLLM_BATCH_INVARIANT=1 vllm serve /weights/mammoth-1 \
   --served-model-name mammoth-1 --dtype bfloat16 \
   --max-model-len 16384 --no-enable-chunked-prefill \
   --max-num-batched-tokens 16384 --max-num-seqs 256 --logprobs-mode raw_logprobs \
-  --no-enable-prefix-caching
+  --no-enable-prefix-caching --attention-backend TRITON_ATTN
 ```
 
 The plugin supplies the qev-labels-v2 prompt, slot_lm readout at temperature 1,
