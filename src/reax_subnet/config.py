@@ -9,6 +9,7 @@ from __future__ import annotations
 import ipaddress
 import logging
 import os
+import re
 from dataclasses import dataclass, field
 from typing import Mapping, Optional
 
@@ -94,6 +95,148 @@ S1_MODELS = ("s1-fast", "s1-pro", "s1-lite", "s1-cpu")
 # model, so only these accept a runtime URL list.
 POOL_MODELS = ("s1-fast", "s1-pro")
 TIERED_MODELS = ("s1-lite", "s1-cpu")
+
+# Release constant: the runtime image the miner kit starts as the sidecar of each GPU pool by default (docs/MINER.md
+# "Which runtime image"). ``source`` "reference" = the release's reference runtime (runtimes/<pool>); "champion" = an
+# approved engine-competition champion, which needs ``engine_uid``, ``award`` (board id / approval ref, see
+# deploy/approvals) and ``licence`` (MIT or Apache-2.0) and must be pinned by digest. A reference entry with
+# ``image`` None means "build runtimes/<pool>/Dockerfile locally and use REFERENCE_RUNTIME_TAGS" - exactly what the kit did
+# before this constant existed, so today nothing changes. Validators and scoring never read this: the pool is still scored
+# against the validator's own reference (selfcheck, s1validator.POOL_PARAMS); the default only decides which image a kit
+# user runs, and a faster champion that stays inside the pool tolerances only makes miners cheaper/faster.
+# A champion entry also names the GPUs it was measured on (``gpus``: compute capability + a name substring): its native
+# kernels may exist for one architecture only, so on any other GPU the kit keeps the reference (``kit_gpu_matches``).
+# s1-fast: the approved v1 champion uid 62 (release owner #29385; lead code check: native cubins sm_120a only, tuned for the
+# RTX PRO 6000, validators measured it only there). Bumping a pin: the checklist in docs/MINER.md ("Bumping the pool
+# runtime pin"). s1-pro has no champion yet (the engine track scores the s1-pro pool model from v2.1).
+REFERENCE_RUNTIME_TAGS: dict = {"s1-fast": "reax-s1-fast-runtime:1.2.0rc5", "s1-pro": "reax-s1-pro-runtime:1.2.0rc6"}
+CHAMPION_LICENCES = ("MIT", "Apache-2.0")
+POOL_RUNTIME_IMAGES: dict = {
+    "s1-fast": {"image": "ghcr.io/reaxlabs/reax-engine-champion-s1-fast@sha256:8467e642812347a6c34f5c3f26eb7dd42678e4a4a532aad09f3d22d9fa0138a7",
+                "source": "champion", "engine_uid": 62, "award": "approved 26 Oct 2026 14:02Z (board #22 #29385)",
+                # byte-identical mirror (same digest) of the author's ghcr.io/masterdev777/s1r, made by reax-engine CI
+                # (mirrors/champions.txt); source: johnkell9801-hub/reax-uid62-kernels@5d09f148 (MIT), byte-identical rebuild
+                "licence": "MIT", "licence_note": "kernels MIT; engine under LicenseRef-REAX-Engine-License-1.0 (image label)",
+                "gpus": {"compute_capability": "12.0", "name_contains": "RTX PRO 6000"}},
+    "s1-pro": {"image": None, "source": "reference", "engine_uid": None, "award": None, "licence": "Apache-2.0"},
+}
+# Timed kit pins (joint plan #29586/#29589): from a pool's manifest switch time (manifest.POOL_MANIFEST_SWITCH, the same
+# constant the validators use) the kit default for that pool is the entry below, and ``reference`` means its ``image``.
+# An entry for a pool without a switch in this release stays inert: the release owner arms it by adding the pool to
+# POOL_MANIFEST_SWITCH (one place, so the kit can never switch before or after the validators). The previous champion is
+# dropped at the switch, because it serves the old model. ``gpus_note`` is shown by ``reax-kit show`` and in docs/MINER.md.
+# s1-pro: mammoth-1 reference (config.ENGINE_COMPOSITE_REFERENCE_IMAGES mammoth, 0a6e827), one GPU >= 48 GB (peak 35.2 GB).
+# s1-fast: Blink reference ab02e141 (Blink text slot); gpucheck-blinkhw 27 Oct: RTX PRO 6000 exact, RTX 5090 passes the gates
+# only with --gpu-memory-utilization 0.70, H100 does not start the batch-invariant recipe (no Hopper/Ada/Ampere).
+POOL_RUNTIME_IMAGES_NEXT: dict = {
+    "s1-pro": {"image": "ghcr.io/reaxlabs/reax-engine-ref-mammoth@sha256:3080a593060542bccbdaf7cf0c66593fc182d9753b3facd50206df86d93b8588",
+               "source": "reference", "engine_uid": None, "award": None,
+               "licence": "LicenseRef-REAX-Engine-1.1 AND Apache-2.0 AND MIT", "model": "baselabs/mammoth-1",
+               "gpus_note": "one NVIDIA GPU with >= 48 GB (RTX PRO 6000 96 GB measured)"},
+    "s1-fast": {"image": "ghcr.io/reaxlabs/reax-engine-ref-blink@sha256:ab02e141ffb5672dc68e137736be0a6fa15445c7cc824a51f6ad2a6664c0e10a",
+                "source": "reference", "engine_uid": None, "award": None,
+                "licence": "LicenseRef-REAX-Engine-1.1 AND Apache-2.0", "model": "Blink v0.3 26B-A4B NVFP4",
+                "gpus_note": "Blackwell (compute capability 12.0) with >= 32 GB only: RTX PRO 6000; RTX 5090 with "
+                             "REAX_VLLM_EXTRA=--gpu-memory-utilization 0.70; not H100/L40S/A6000/4090/3090"},
+}
+_DIGEST_REF = re.compile(r"^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$")
+
+
+def pool_runtime_entry(pool: str, now=None) -> tuple:
+    """(entry, reference image) of ``pool`` at ``now`` (default: now, UTC): the release entry and REFERENCE_RUNTIME_TAGS
+    before the pool's manifest switch, POOL_RUNTIME_IMAGES_NEXT from the switch on."""
+    from datetime import datetime, timezone
+    from .manifest import POOL_MANIFEST_SWITCH
+    sw = POOL_MANIFEST_SWITCH.get(pool)
+    nxt = POOL_RUNTIME_IMAGES_NEXT.get(pool)
+    if sw is not None and nxt is not None and (now or datetime.now(timezone.utc)) >= sw.at:
+        return nxt, nxt["image"]
+    return POOL_RUNTIME_IMAGES[pool], REFERENCE_RUNTIME_TAGS[pool]
+
+
+def pool_runtime_switch_at(pool: str):
+    """The time the kit default of ``pool`` changes (the pool's manifest switch), or None when nothing is armed."""
+    from .manifest import POOL_MANIFEST_SWITCH
+    sw = POOL_MANIFEST_SWITCH.get(pool)
+    return sw.at if sw is not None and pool in POOL_RUNTIME_IMAGES_NEXT else None
+
+
+def validate_pool_runtime_images(images: Mapping[str, Mapping] = POOL_RUNTIME_IMAGES,
+                                 next_images: Mapping[str, Mapping] = POOL_RUNTIME_IMAGES_NEXT) -> None:
+    """Raise ConfigError unless every GPU pool has a valid entry (a champion needs award, licence, engine_uid, digest);
+    a timed entry (POOL_RUNTIME_IMAGES_NEXT) must name a known pool and always carries a digest image."""
+    if set(images) != set(POOL_MODELS):
+        raise ConfigError(f"POOL_RUNTIME_IMAGES must have exactly the pools {', '.join(POOL_MODELS)}")
+    for pool, e in next_images.items():
+        if pool not in POOL_MODELS:
+            raise ConfigError(f"POOL_RUNTIME_IMAGES_NEXT: unknown pool {pool!r}")
+        if not e.get("image"):
+            raise ConfigError(f"POOL_RUNTIME_IMAGES_NEXT[{pool}]: a timed entry needs an image digest (nothing to build)")
+    entries = [(f"POOL_RUNTIME_IMAGES[{p}]", e) for p, e in images.items()]
+    entries += [(f"POOL_RUNTIME_IMAGES_NEXT[{p}]", e) for p, e in next_images.items()]
+    for where, e in entries:
+        source, image = e.get("source"), e.get("image")
+        if source not in ("reference", "champion"):
+            raise ConfigError(f"{where}: source must be 'reference' or 'champion'")
+        if image is not None and not (isinstance(image, str) and _DIGEST_REF.match(image)):
+            raise ConfigError(f"{where}: image must be a digest reference (name@sha256:<64 hex>), not a tag")
+        if source == "champion":
+            if image is None:
+                raise ConfigError(f"{where}: a champion entry needs an image digest")
+            if not e.get("award"):
+                raise ConfigError(f"{where}: a champion entry needs an award reference")
+            if not e.get("engine_uid"):
+                raise ConfigError(f"{where}: a champion entry needs the engine uid")
+            if e.get("licence") not in CHAMPION_LICENCES:
+                raise ConfigError(f"{where}: a champion entry needs a licence of {' / '.join(CHAMPION_LICENCES)}")
+            g = e.get("gpus") or {}
+            if not (g.get("compute_capability") and g.get("name_contains")):
+                raise ConfigError(f"{where}: a champion entry needs gpus (compute_capability and name_contains)")
+
+
+def kit_gpu_matches(gpus: Mapping, smi_lines: Optional[list]) -> bool:
+    """True if every local GPU matches a champion's ``gpus``. ``smi_lines`` = the lines of
+    ``nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader``; None/empty (no nvidia-smi) = no match."""
+    if not smi_lines:
+        return False
+    for line in smi_lines:
+        name, _, cap = line.rpartition(",")
+        if cap.strip() != gpus["compute_capability"] or gpus["name_contains"] not in name:
+            return False
+    return True
+
+
+def local_gpus() -> Optional[list]:
+    """The local nvidia-smi name,compute_cap lines, or None when nvidia-smi is missing or fails."""
+    import subprocess
+    try:
+        out = subprocess.run(["nvidia-smi", "--query-gpu=name,compute_cap", "--format=csv,noheader"],
+                             capture_output=True, text=True, timeout=20, check=True).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return [ln.strip() for ln in out.splitlines() if ln.strip()]
+
+
+def pool_runtime_image(pool: str, env: Mapping[str, str] = os.environ, gpus: Optional[list] = None, now=None) -> str:
+    """The image the kit starts for ``pool`` at ``now`` (default: now; a timed pin applies from the pool's manifest
+    switch). ``REAX_<POOL>_RUNTIME_IMAGE``: ``reference`` = the reference runtime, a digest reference = your own choice (at
+    your own risk, the same selfcheck applies), unset = the release default: a champion only when every local GPU
+    (``gpus`` = nvidia-smi name,compute_cap lines) matches its measured GPUs, else the reference."""
+    validate_pool_runtime_images()
+    if pool not in POOL_RUNTIME_IMAGES:
+        raise ConfigError(f"unknown pool {pool!r}; expected one of {', '.join(POOL_MODELS)}")
+    e, reference = pool_runtime_entry(pool, now)
+    override = (env.get(f"REAX_{pool.upper().replace('-', '_')}_RUNTIME_IMAGE") or "").strip()
+    if override == "reference":
+        return reference
+    if override:
+        if not _DIGEST_REF.match(override):
+            raise ConfigError(f"REAX_{pool.upper().replace('-', '_')}_RUNTIME_IMAGE must be 'reference' or a digest reference")
+        return override
+    if e["source"] == "champion" and not kit_gpu_matches(e["gpus"], gpus):
+        return reference
+    return e["image"] or reference
+
 
 MAINNET_NAMES = {"finney", "archive", "wss://entrypoint-finney.opentensor.ai:443", "wss://entrypoint-finney.opentensor.ai"}
 _TRUE = {"1", "true", "yes", "on"}

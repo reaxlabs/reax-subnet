@@ -25,7 +25,7 @@ from .protocol import ProtocolError, _loads
 from .s1contract import ContractError, parse_decision
 from .s1protocol import MAX_DECISIONS, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES, S1_DECIDE_PATH, S1Request, parse_s1_response
 from .s1scoring import score_round
-from .s1validator import POOL_PARAMS, s1_endpoint_url
+from .s1validator import pool_params, s1_endpoint_url
 from .state import STATE_VERSION
 from .router_tokens import InputTokenLimitError
 from .validator import _read_limited, ip_allowed
@@ -221,7 +221,7 @@ class Router:
         try:
             result = await asyncio.wait_for(backend.decide([d]), self.cfg.timeout_s)
             ref = {d.ident: tuple(result[0]["probabilities"][k] for k in d.question.keys)}
-            outcome = score_round(probabilities, ref, 0, POOL_PARAMS[req.model])
+            outcome = score_round(probabilities, ref, 0, pool_params(req.model))
             if not outcome.strike:
                 return
         except Exception:

@@ -9,8 +9,79 @@ This release ships two mechanisms:
   [the mpm1 section below](#the-mpm1-rc3-miner-fallback) and [MPM.md](MPM.md).
 
 Your score depends on how closely your answers match the validators' reference computation (see
-[DESIGN-v1.1.md](DESIGN-v1.1.md)). There is nothing to tune: run the pinned model with the code in this
-repository, stay online, answer fast.
+[DESIGN-v1.1.md](DESIGN-v1.1.md)). There is nothing to tune: run the pinned model with the kit's default runtime
+image (next section), stay online, answer fast.
+
+## Which runtime image
+
+The kit starts the release's **pool runtime** by default: either the reference runtime (`runtimes/s1-fast`,
+`runtimes/s1-pro`) or an approved engine-competition champion that is licensed MIT or Apache-2.0, passed review and
+passed `reax-selfcheck` on the GPU types it is pinned for. Which one is a release constant
+(`config.POOL_RUNTIME_IMAGES`); a champion is always pinned by digest and names the GPUs it was measured on. On any other
+GPU the kit keeps the reference runtime (`reax-kit` reads `nvidia-smi`; every GPU of the machine must match).
+
+| Pool | Default | On these GPUs | Elsewhere |
+|---|---|---|---|
+| s1-fast | engine champion uid 62, `ghcr.io/reaxlabs/reax-engine-champion-s1-fast@sha256:8467e642812347a6c34f5c3f26eb7dd42678e4a4a532aad09f3d22d9fa0138a7` (kernels MIT, engine under the REAX Engine License 1.0; approved 26 Oct 2026; measured mean distance 0.076 against the reference; our mirror of the author's image, same digest) | RTX PRO 6000 Blackwell (compute capability 12.0; its native kernels are built for sm_120a only) | reference runtime |
+| s1-pro | reference runtime (Rune) | all | - |
+
+**Timed pins (pool switches).** When a pool changes its model, the kit default changes at the same second as the
+validators (`manifest.POOL_MANIFEST_SWITCH`; release constant `config.POOL_RUNTIME_IMAGES_NEXT`). The old default (also an
+engine champion) is dropped at that moment, because it serves the old model. `REAX_<POOL>_RUNTIME_IMAGE=reference` then
+means the new model's reference.
+
+| Pool | From | Default | GPUs |
+|---|---|---|---|
+| s1-pro | **Fri 30 Oct 2026 09:00 UTC** (this release) | mammoth-1 reference `ghcr.io/reaxlabs/reax-engine-ref-mammoth@sha256:3080a593060542bccbdaf7cf0c66593fc182d9753b3facd50206df86d93b8588` | one NVIDIA GPU with 48 GB or more (RTX PRO 6000 96 GB measured; peak 35.2 GB) |
+| s1-fast | not armed yet: the Blink switch time comes with a later release and at least 24 h notice in #92 | Blink reference `ghcr.io/reaxlabs/reax-engine-ref-blink@sha256:ab02e141ffb5672dc68e137736be0a6fa15445c7cc824a51f6ad2a6664c0e10a` | **Blackwell with 32 GB or more only** (measured 27 Oct): RTX PRO 6000 (reference card); RTX 5090 32 GB passes with `REAX_VLLM_EXTRA=--gpu-memory-utilization 0.70` (0.45 does not start). H100 does not start the reference recipe; L40S, A6000, 4090 and 3090 are not supported. |
+
+Until a pool's switch, `reax-kit` prints the next default and its time (`reax-kit show`). Prepare it in advance and
+switch at or after the time, as in the s1-pro section above:
+
+```bash
+reax-kit show                                            # current default + "from <time>: ..." line
+reax-kit env --at 2026-10-30T09:00Z > deploy/runtime-image.next.env   # the lines that apply from the switch
+docker pull "$(reax-kit image s1-pro --at 2026-10-30T09:00Z)"          # pull early (about 30 GB image + 55 GB weights)
+# at or after 09:00 UTC: swap the file in and restart the sidecar
+reax-kit env > deploy/runtime-image.env
+```
+
+```bash
+reax-kit show                  # source, award and licence per pool
+reax-kit env > deploy/runtime-image.env   # rerun after every release update and after any GPU change
+# keep your own deploy/.env (REAX_UID, weights path, ...) as the first --env-file; the image line comes second
+docker compose --env-file deploy/.env --env-file deploy/runtime-image.env -f deploy/docker-compose.s1.yml pull s1-fast-runtime
+docker compose --env-file deploy/.env --env-file deploy/runtime-image.env -f deploy/docker-compose.s1.yml up -d
+# never add --build while a champion digest is set (it would build the reference under the champion's name);
+# --build only for the reference:
+REAX_S1_FAST_RUNTIME_IMAGE=reference reax-kit env > deploy/runtime-image.env
+```
+
+The default applies only through `reax-kit env` and `--env-file` as above. Without that file, compose starts the reference,
+as before. On a machine where you expose only some GPUs to the sidecar (`CUDA_VISIBLE_DEVICES`, `--gpus device=K`), `reax-kit`
+still looks at every GPU of the machine. Set `REAX_S1_FAST_RUNTIME_IMAGE=<digest>` yourself if the exposed GPUs match.
+Several machines behind one hotkey: run `reax-kit env` on each machine. `REAX_S1_PRO_RUNTIME_IMAGE` is printed for
+completeness. This compose file runs only s1-fast. The s1-pro quickstart (docs/hardware.md) builds the reference.
+
+**The champion default is third-party code.** It runs with host networking next to your miner, as your uid, with the runtime
+token and the weights mounted (no wallet). Its source is public and its native kernels rebuild byte for byte. The engine
+passed our award review, and the compose file drops every Linux capability. If you do not want it, or if pulling it fails,
+set `REAX_S1_FAST_RUNTIME_IMAGE=reference`.
+
+Any other image is **at your own risk**. Scoring does not change: validators compare your answers with their own
+reference, and `reax-selfcheck` checks the same published reference answers whatever image you run, so a faster engine
+only helps you if it stays inside the pool tolerances (mean 0.20, item 2.0). Engine champions are held to stricter gates
+(mean 0.10, item 1.0, `engthresholds.THRESHOLDS`) before they can be approved (uid 62: mean 0.076 on the RTX PRO 6000).
+
+### Bumping the pool runtime pin (release owner)
+
+1. The engine award is approved (`reax-award-approve`, approval ref recorded; board id in `award`).
+2. The licence is MIT or Apache-2.0 (code and weights), recorded in `licence`; the measured GPUs go into `gpus`.
+3. The image is rebuilt byte-identically from the approved source and pinned by digest (`name@sha256:...`).
+4. `reax-selfcheck` passes on every GPU type of docs/CALIBRATION.md, not only on one card.
+5. Edit `POOL_RUNTIME_IMAGES` (`validate_pool_runtime_images` refuses a champion without award, licence, engine uid or digest).
+6. Announce on #92 (netuid 92) before the release goes out.
+7. Our own serving rolls out by our internal runbook.
 
 ## How the s1 miner fits together
 
@@ -58,8 +129,33 @@ runtime. Nothing changes for s1-fast, s1-lite and s1-cpu.
 1. Download the weights with `hf download baselabs/mammoth-1 --revision 61cec44c281c693992e3d6ebeb44dd3402dfa186 --local-dir <dir>`
    (about 55 GB, public). The runtime verifies every pinned file against the manifest at start.
 2. Pull the reference runtime image by the digest above and test it next to your Rune sidecar if your GPU has room
-   (35 GB), or on a second machine. Run `reax-selfcheck --model s1-pro` once the miner kit update (Wed 28 Oct) has
-   published the mammoth reference answers; it must print PASS before you switch.
+   (35 GB), or on a second machine. The line below tests on port 8112 next to Rune on 8102; at the switch start it
+   on 8102 (`RUNTIME_PORT=8102`) in Rune's place. Run it with **no command-line
+   arguments** (the image runs the manifest recipe through `REAX_PROFILE=reference`; the manifest's `runtime.args` are
+   the engine's internal flags and the image rejects them), with `REAX_MODEL=mammoth-1`, and with the pinned FLA kernel
+   configs in strict mode. Without strict mode every restart picks other kernel configurations, the answers drift
+   (measured: median distance 0.07, 97 % of simulated rounds score) and `reax-selfcheck` fails. The configs ship in this
+   repository (`runtimes/s1-fast/fla-configs/`, check `sha256sum -c SHA256SUMS` in the directory); they exist for the
+   RTX PRO 6000 Blackwell Server Edition only, which is the card the reference answers come from:
+
+   ```bash
+   docker run -d --name s1-pro-mammoth --gpus device=0 --network host --init --read-only \
+     --tmpfs /tmp:rw,exec,nosuid,nodev,size=16g --cap-drop ALL --security-opt no-new-privileges --pids-limit 4096 \
+     --shm-size 2g -v <weights dir>:/model:ro -v <token file>:/run/s1m-token:ro \
+     -v $PWD/runtimes/s1-fast/fla-configs/rtx-pro-6000-blackwell-server:/opt/reax/fla-configs/rtx-pro-6000-blackwell-server:ro \
+     -e S1M_INTERNAL_TOKEN_FILE=/run/s1m-token -e RUNTIME_UDS= -e RUNTIME_HOST=127.0.0.1 -e RUNTIME_PORT=8112 \
+     -e REAX_MODEL=mammoth-1 \
+     -e REAX_PROFILE=reference -e CIE_LAZY_LOAD=1 -e REAX_MAX_WAIT_MS=4 \
+     -e FLA_CACHE_MODE=strict -e FLA_CONFIG_DIR=/opt/reax/fla-configs/rtx-pro-6000-blackwell-server \
+     ghcr.io/reaxlabs/reax-engine-ref-mammoth@sha256:3080a593060542bccbdaf7cf0c66593fc182d9753b3facd50206df86d93b8588
+   ```
+
+   The first start takes about 8 minutes (kernel compilation). Run `reax-selfcheck --model s1-pro` against it; this
+   release ships the mammoth reference answers (640 items, `selfcheck_data/s1-pro-3f3558e583b0a1d6.json`). Before
+   09:00 UTC add `--at 2026-10-30T09:00Z`, so the tool checks against mammoth instead of Rune:
+   `reax-selfcheck --model s1-pro --url http://127.0.0.1:8112 --at 2026-10-30T09:00Z`. It must print PASS before you
+   switch. Measured on our reference box (one RTX PRO 6000 Server Edition host): 640/640 answers bit-identical after a restart,
+   distance 0.0, 100 % of rounds score. Check with `ss -ltn` that the port listens on 127.0.0.1 only.
 3. **Switch at or after 09:00 UTC, not before.** Stop the Rune sidecar, start the mammoth sidecar on the same loopback
    port, update the miner image to 1.2.0rc11.post8.1 and restart it: the miner commits the new manifest on its own.
    A miner of this release started before 09:00 UTC still commits the Rune manifest.

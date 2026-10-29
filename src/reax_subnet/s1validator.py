@@ -77,6 +77,17 @@ POOL_SWITCH_PARAMS: dict[str, PoolParams] = {
     "s1-pro": PoolParams("s1-pro", temperature=1.0, tau_mean=0.20, tau_strike=0.50, tau_item=2.0,
                          items_per_round=8, verified_per_round=3, latency_fast_s=1.0, latency_slow_s=12.0),
 }
+def pool_params(model: str, now: datetime | None = None) -> PoolParams:
+    """The pool parameters current for ``model`` at ``now`` (default: the wall clock): POOL_SWITCH_PARAMS from the
+    pool's manifest switch on (manifest.POOL_MANIFEST_SWITCH), else POOL_PARAMS. Same rule as the validator's
+    _apply_pool_switches, for code without a validator (selfcheck, router shadow checks)."""
+    from .manifest import POOL_MANIFEST_SWITCH
+    sw = POOL_MANIFEST_SWITCH.get(model)
+    if sw is not None and model in POOL_SWITCH_PARAMS and (now or datetime.now(timezone.utc)) >= sw.at:
+        return POOL_SWITCH_PARAMS[model]
+    return POOL_PARAMS[model]
+
+
 TIERED_POOLS = ("s1-lite", "s1-cpu")
 SHARES_FAST_ONLY = {"s1-fast": 1.0}
 # If our own runtime fails on more than this share of the verified items, nobody is scored this round.

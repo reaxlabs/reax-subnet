@@ -15,7 +15,12 @@
 #     docker compose -f deploy/docker-compose.s1.yml up -d --build
 # (always download with --local-dir and mount that directory; a HF *cache* snapshot path is made of
 #  relative symlinks into the cache's blob store, which does not exist inside the container, and the
-#  sidecar would fail its weights check and refuse to start)
+#  reference sidecar would fail its weights check and refuse to start; an engine champion image may not run that check,
+#  then `reax-selfcheck` is what catches wrong weights)
+# Runtime image: unset = the reference runtime built from runtimes/s1-fast (as above). `reax-kit env` prints the release's
+# default image for each pool on this machine's GPUs (config.POOL_RUNTIME_IMAGES: the reference, or an approved licensed
+# engine champion by digest). For a champion digest: `pull`, then `up -d` WITHOUT --build (--build would build the
+# reference under the champion's name); see docs/MINER.md "Which runtime image".
 # Paths below are relative to this deploy/ directory. The s1-pro sidecar mirrors the s1-fast service
 # on loopback 127.0.0.1:8102 (runtimes/s1-pro/Dockerfile, its own gated weights, an 80-96 GB GPU);
 # the s1-pro pool is on in 1.2 (docs/hardware.md has the s1-pro quickstart).
@@ -25,9 +30,12 @@ services:
     build:
       context: ..
       dockerfile: runtimes/s1-fast/Dockerfile
-    image: reax-s1-fast-runtime:1.2.0rc5
+    image: ${REAX_S1_FAST_RUNTIME_IMAGE:-reax-s1-fast-runtime:1.2.0rc5}  # release default: `reax-kit env > runtime-image.env`, then `docker compose --env-file runtime-image.env ...`
     user: "${REAX_UID:?set REAX_UID=$(id -u)}:${REAX_GID:?set REAX_GID=$(id -g)}"  # reads the 0600 token file
     init: true
+    cap_drop: [ALL]            # the sidecar needs no Linux capabilities (it may be a third-party engine champion)
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 4096
     network_mode: host         # one loopback namespace with the miner; the sidecar listens on 127.0.0.1:8101 only
     environment:
       S1M_INTERNAL_TOKEN_FILE: /run/s1m-internal-token

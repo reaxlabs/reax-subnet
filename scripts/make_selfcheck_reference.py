@@ -26,7 +26,8 @@ from reax_subnet.s1items import generate_s1_items
 
 
 async def main_async(args) -> int:
-    manifest = load_manifest(args.model)
+    # --manifest-name: write the file for a pool's next manifest (POOL_MANIFEST_SWITCH) before its switch time.
+    manifest = load_manifest(args.model, name=args.manifest_name)
     items = generate_s1_items(args.items, seed=args.seed)
     decisions = [parse_decision(it.decision(), args.model) for it in items]
     with open(os.path.expanduser(args.token_file), encoding="ascii") as fh:
@@ -65,6 +66,8 @@ def main() -> int:
     ap.add_argument("--items", type=int, default=640)
     ap.add_argument("--seed", type=int, default=20261003)
     ap.add_argument("--concurrency", type=int, default=1)
+    ap.add_argument("--manifest-name", default=None,
+                    help="manifest file to key the answers to (default: the manifest current now)")
     return asyncio.run(main_async(ap.parse_args()))
 
 

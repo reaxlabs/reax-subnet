@@ -110,3 +110,61 @@ def test_cli_s1_pro_without_reference_file_cannot_run(tmp_path, capsys, monkeypa
     tok = tmp_path / "tok"
     tok.write_text("t" * 32)
     assert selfcheck.main(["--model", "s1-pro", "--url", "http://127.0.0.1:9", "--token-file", str(tok), "--json"]) == 2
+
+
+@pytest.mark.real_switch
+def test_pool_params_follow_the_manifest_switch():
+    from datetime import datetime, timezone
+
+    from reax_subnet.manifest import POOL_MANIFEST_SWITCH
+    from reax_subnet.s1validator import POOL_SWITCH_PARAMS, pool_params
+
+    at = POOL_MANIFEST_SWITCH["s1-pro"].at
+    before = datetime(at.year, at.month, at.day, tzinfo=timezone.utc).replace(hour=0)
+    assert pool_params("s1-pro", before) is POOL_PARAMS["s1-pro"]
+    assert pool_params("s1-pro", at) is POOL_SWITCH_PARAMS["s1-pro"]
+    assert pool_params("s1-pro", at).temperature == 1.0
+    assert pool_params("s1-fast", at) is POOL_PARAMS["s1-fast"]  # no switch armed for s1-fast
+
+
+@pytest.mark.real_switch
+def test_reference_files_parse_and_match_their_manifest():
+    """Every shipped reference file belongs to one of the model's manifests (current or the timed next one)."""
+    from importlib import resources
+
+    from reax_subnet.manifest import POOL_MANIFEST_SWITCH, load_manifest
+
+    for path in resources.files("reax_subnet.selfcheck_data").iterdir():
+        if not path.name.endswith(".json"):
+            continue
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        model = doc["model"]
+        ids = {load_manifest(model).manifest_id}
+        if model in POOL_MANIFEST_SWITCH:
+            ids.add(load_manifest(model, name=POOL_MANIFEST_SWITCH[model].manifest_name).manifest_id)
+        assert doc["schema"] == selfcheck.SCHEMA
+        assert doc["manifest_id"] in ids, path.name
+        assert path.name == f"{model}-{doc['manifest_id']}.json"
+        for it in doc["items"]:
+            d = parse_decision({"id": it["id"], "state": it["state"], "questions": {"q": it["question"]}}, model)
+            assert len(d.question.keys) == len(it["p"])
+            assert abs(math.fsum(it["p"]) - 1.0) < 1e-3
+
+
+@pytest.mark.real_switch
+def test_at_view_selects_the_switched_manifest_and_params(monkeypatch):
+    from datetime import datetime, timezone
+
+    from reax_subnet import manifest
+    from reax_subnet.s1validator import POOL_SWITCH_PARAMS, pool_params
+
+    sw = manifest.POOL_MANIFEST_SWITCH["s1-pro"]
+    monkeypatch.setattr(manifest, "POOL_MANIFEST_SWITCH", dict(manifest.POOL_MANIFEST_SWITCH))
+    selfcheck._view_switches_at(sw.at)
+    nxt = manifest.load_manifest("s1-pro", name=sw.manifest_name).manifest_id
+    assert selfcheck.load_reference("s1-pro")["manifest_id"] == nxt
+    assert pool_params("s1-pro") is POOL_SWITCH_PARAMS["s1-pro"]
+    monkeypatch.setattr(manifest, "POOL_MANIFEST_SWITCH", {"s1-pro": sw})
+    selfcheck._view_switches_at(datetime(2026, 10, 1, tzinfo=timezone.utc))
+    assert manifest.POOL_MANIFEST_SWITCH == {}
+    assert selfcheck.load_reference("s1-pro")["manifest_id"] != nxt

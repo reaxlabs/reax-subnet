@@ -5,6 +5,9 @@ release calibration GPU) through the sidecar exactly as the miner does, and scor
 with the validator's release constants: per-item logit distance, and the share of simulated
 validator rounds (random draws of the pool's verified items) that would score or be struck.
 
+It checks against the published reference answers, whichever runtime image runs (the reference or the kit default from
+``reax-kit``, config.POOL_RUNTIME_IMAGES); pool gates (mean 0.20 / item 2.0) are looser than the engine gates (0.10 / 1.0).
+
 Uses the miner's settings: ``REAX_MODEL``, ``REAX_S1_FAST_RUNTIME_URL`` / ``REAX_S1_PRO_RUNTIME_URL`` (or the
 ``..._RUNTIME_URLS`` list for several machines or GPUs behind one hotkey: every backend is checked and reported on its
 own, and one that runs a different model fails the check) and ``REAX_RUNTIME_TOKEN_FILE``.
@@ -15,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import dataclasses
 import json
 import math
 import os
@@ -23,6 +27,7 @@ import sys
 import logging
 import time
 from importlib import resources
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from .manifest import load_manifest
@@ -94,7 +99,7 @@ def evaluate(reference: dict[str, Any], answers: list[Any], params: PoolParams) 
 
 
 async def run(model: str, url: str, token: str, limit: Optional[int], concurrency: int) -> dict[str, Any]:
-    from .s1validator import POOL_PARAMS
+    from .s1validator import pool_params
 
     reference = load_reference(model)
     if limit:
@@ -112,7 +117,7 @@ async def run(model: str, url: str, token: str, limit: Optional[int], concurrenc
         await backend.close()
     keyed = [a if isinstance(a, BaseException) else [float(a["probabilities"][k]) for k in d.question.keys]
              for d, a in zip(decisions, answers)]
-    report = evaluate(reference, keyed, POOL_PARAMS[model])
+    report = evaluate(reference, keyed, pool_params(model))
     report.update({"model": model, "manifest_id": reference["manifest_id"], "seconds": round(elapsed, 1),
                    "decisions_per_s": round(len(decisions) / elapsed, 1) if elapsed > 0 else None})
     return report
@@ -144,13 +149,13 @@ async def check_backend_identity(backend: Any, model: str, items: int = IDENTITY
     reference model). This is not a proof of the backend's weights (a sidecar could recognise the public items); the
     validators' scoring stays the enforcement. Fails closed: a model without published reference answers cannot be
     checked, which is reported as a problem."""
-    from .s1validator import POOL_PARAMS
+    from .s1validator import pool_params
 
     try:
         reference = load_reference(model)
     except ValueError as exc:
         return [f"{backend.url}: identity not checkable ({exc})"[:200]]
-    params = POOL_PARAMS[model]
+    params = pool_params(model)
     ref_items = reference["items"][:items]
     decisions = [parse_decision({"id": it["id"], "state": it["state"], "questions": {"q": it["question"]}}, model)
                  for it in ref_items]
@@ -194,6 +199,22 @@ def _print_report(report: dict[str, Any]) -> None:
         print(f"failed: {f}")
 
 
+def _at(text: str) -> datetime:
+    t = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def _view_switches_at(at: datetime) -> None:
+    """Check as of ``at`` (prepare a pool switch before it happens): every timed manifest switch (manifest.
+    POOL_MANIFEST_SWITCH) is applied if it is due at ``at`` and dropped otherwise, for the rest of this process. The
+    reference file, the manifest the sidecar must report and the pool parameters then all follow that view."""
+    from . import manifest as _m
+
+    past = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    _m.POOL_MANIFEST_SWITCH = {model: dataclasses.replace(sw, at=past)
+                               for model, sw in _m.POOL_MANIFEST_SWITCH.items() if at >= sw.at}
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(prog="reax-selfcheck", description=__doc__.split("\n\n")[0])
     ap.add_argument("--model", default=os.environ.get("REAX_MODEL", "s1-fast"), choices=("s1-fast", "s1-pro", "s1-lite", "s1-cpu"))
@@ -205,7 +226,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--concurrency", type=int, default=1,
                     help="parallel requests (the validator path sends one decision at a time per item)")
     ap.add_argument("--json", action="store_true", help="print one JSON object")
+    ap.add_argument("--at", type=_at, default=None,
+                    help="check as of this UTC time (ISO 8601), e.g. a sidecar for a pool switch before the switch time")
     args = ap.parse_args(argv)
+    if args.at is not None:
+        _view_switches_at(args.at)
     var = f"REAX_{args.model.upper().replace('-', '_')}_RUNTIME_URL"
     try:
         from .config import ConfigError, _runtime_endpoints

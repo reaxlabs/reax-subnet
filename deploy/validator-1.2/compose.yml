@@ -85,15 +85,25 @@ services:
     depends_on:
       s1-fast-runtime:
         condition: service_healthy
+    # Measured start contract of 3080a593 (mammoth-selfcheck, 28 Oct 2026, RTX PRO 6000 SE): no command-line args (the
+    # image runs the manifest recipe via its baked REAX_PROFILE=reference), REAX_MODEL=mammoth-1 (not baked; without it
+    # engine.serve looks for /model/jevk5_config.json), RUNTIME_UDS empty for TCP, and FLA strict mode with the pinned
+    # configs: without them every restart picks other kernel configs (0/640 bit-identical, median distance 0.073);
+    # with them 640/640 bit-identical to the published selfcheck answers. Configs exist for the Server Edition only.
     environment:
       S1M_INTERNAL_TOKEN_FILE: /run/s1m-internal-token
       RUNTIME_HOST: "127.0.0.1"
       RUNTIME_PORT: "8112"
+      RUNTIME_UDS: ""
+      REAX_MODEL: mammoth-1
+      FLA_CACHE_MODE: strict
+      FLA_CONFIG_DIR: /opt/reax/fla-configs/rtx-pro-6000-blackwell-server
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
     volumes:
       - ../secrets/runtime-token:/run/s1m-internal-token:ro
       - ${REAX_S1_PRO_NEXT_WEIGHTS:?set REAX_S1_PRO_NEXT_WEIGHTS to the baselabs/mammoth-1 hf download --local-dir directory}:/model:ro
+      - ../../runtimes/s1-fast/fla-configs/rtx-pro-6000-blackwell-server:/opt/reax/fla-configs/rtx-pro-6000-blackwell-server:ro
     shm_size: "8gb"
     deploy:
       resources:
