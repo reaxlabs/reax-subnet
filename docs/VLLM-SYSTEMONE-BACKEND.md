@@ -39,6 +39,16 @@ with this setup), 2 = cannot run (server not ready, served model not listed by
 Validators strike a miner whose answers fall outside the gates whatever its
 self-check said; the check is a pre-flight, not an approval.
 
+**Measured (30 Oct 2026, 1x RTX PRO 6000 Blackwell Server Edition, vLLM 0.32.0 +
+vllm-mammoth 0.1.0, weights at `61cec44`, hashes verified, the command above at
+`--concurrency 16`): FAIL.** bf16 (the documented start line): 640/640 answered, median
+distance 0.081, p99 0.346, max 0.491, no item over the strike line, 96.3 % of simulated
+rounds score (the pass line is 99 %), 0 % strike. With vLLM's online
+`--quantization fp8` (per-tensor): median 0.108, max 1.29, 82.8 % score, 0.27 % strike.
+The reference runs anchored FP8 linears, which vLLM does not reproduce; for scale, the
+reference engine itself without its pinned kernel configs measures median 0.07 and 97 %.
+Until the vLLM path passes, a vLLM miner should not commit to `3f3558e583b0a1d6`.
+
 ## Miner settings
 
 Use the existing miner wallet/network settings and set these environment variables:
