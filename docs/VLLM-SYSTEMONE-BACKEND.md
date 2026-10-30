@@ -5,14 +5,39 @@ The miner can obtain decisions from `POST /v1/systemone` instead of a
 request limits and response signatures remain in the miner process. vLLM never
 receives the miner's keys or the validator's authentication headers.
 
-## Release status
+## Release status (timed switch, 30 Oct 2026 09:00 UTC)
 
-This is a transport adapter and a **draft** Mammoth manifest. The registered
-`s1-pro` release still pins Rune. Do not advertise Mammoth as that release or
-publish a commitment for it: operators must wait for parity checks, approved
-manifest registration, reference updates and coordinated validator release.
-Changing the served model setting alone does not change the manifest identity.
-The example below is for isolated integration testing until that release exists.
+Since the timed pool switch (`manifest.POOL_MANIFEST_SWITCH`, 30 Oct 2026 09:00 UTC) the
+live `s1-pro` manifest is `s1-pro-v2-mammoth.json`, id **`3f3558e583b0a1d6`** (mammoth-1,
+revision `61cec44c281c693992e3d6ebeb44dd3402dfa186`). A vLLM miner declares that live
+manifest; there is no separate vLLM manifest and no second validator reference runtime.
+The validators keep scoring against the production reference
+`ghcr.io/reaxlabs/reax-engine-ref-mammoth@sha256:3080a593…` (anchored FP8 linears).
+
+`src/reax_subnet/manifests/s1-pro-mammoth-v1.json` is an unregistered draft from before
+the switch. It is not in `RELEASE_MANIFESTS`, its id is never published, and a miner
+must not commit to it.
+
+**Parity prerequisite.** The vLLM path (bf16, vllm-mammoth) is not the reference runtime.
+Before the hotkey commits to `3f3558e583b0a1d6`, the exact server it will use must pass
+the self-check against the published reference answers (640 items, pool gates
+mean 0.20 / item 2.0 at T = 1; `selfcheck_data/s1-pro-3f3558e583b0a1d6.json`):
+
+```sh
+REAX_S1_PRO_BACKEND=vllm-systemone \
+REAX_S1_PRO_RUNTIME_URL=http://10.0.0.2:8000 \
+REAX_S1_PRO_SERVED_MODEL=mammoth-1 \
+reax-selfcheck --model s1-pro
+```
+
+The same check without environment variables:
+`reax-selfcheck --model s1-pro --backend vllm-systemone --url http://10.0.0.2:8000 --served-model mammoth-1`.
+No token file is needed. Exit code 0 = PASS (commit and mine), 1 = FAIL (do not mine
+with this setup), 2 = cannot run (server not ready, served model not listed by
+`GET /v1/models`, bad URL). The check runs through the miner's backend factory
+(`s1backends.load_s1_backend`), so it calls the server exactly as the miner will.
+Validators strike a miner whose answers fall outside the gates whatever its
+self-check said; the check is a pre-flight, not an approval.
 
 ## Miner settings
 
@@ -47,8 +72,10 @@ relay mode are separate sidecar features.
 ## vLLM with Mammoth
 
 Install `vllm-mammoth==0.1.0` (`pip install --no-deps "vllm-mammoth @ git+https://github.com/reaxlabs/vllm-mammoth@v0.1.0"`) into `vllm/vllm-openai:v0.32.0`, mount the weights
-from `baselabs/mammoth-1` at revision
-`03007ab3c4481bf01c71ef63adbbbc4b2093d71a`, and start vLLM with:
+from `baselabs/mammoth-1` at the live manifest's revision
+`61cec44c281c693992e3d6ebeb44dd3402dfa186` (the safetensors, config and tokenizer files are
+byte-identical to the earlier draft pin `03007ab3…`; only the authors' engine helper files
+differ, and the plugin does not use them), and start vLLM with:
 
 ```sh
 VLLM_BATCH_INVARIANT=1 vllm serve /weights/mammoth-1 \
@@ -85,6 +112,13 @@ probabilities, mismatched model/question/type, or non-finite values are refused.
 
 Upstream HTTP 400 is a request refusal (`SidecarError`, not a backend health
 fault); 5xx, 408, 429, connection errors and timeouts are backend faults.
+Redirects are not followed. A keep-alive connection that the server closed between
+requests is retried once on a fresh connection, only before any answer byte
+arrived; once HTTP 200 arrived nothing is retried (truncated or malformed bodies,
+bodies over 1 MiB and timeouts after the headers fail the item). Readiness
+(`ready()`, used by `reax-selfcheck` and at miner start) is `GET /health` = 200
+plus the served model in `GET /v1/models`. Only `Content-Type` goes upstream: no
+sidecar token, link signature or validator header.
 `decide_each` reports exceptions per item using the existing retry interface.
 For validator requests, the existing miner returns unsigned HTTP 500
 `{"error":"inference failed"}` for a failed batch, with no fabricated or partial
@@ -92,23 +126,21 @@ signed answers. No hotkey signature is added to an upstream refusal.
 
 ## Draft provenance and validation
 
-`src/reax_subnet/manifests/s1-pro-mammoth-v1.json` is deliberately absent from
-`RELEASE_MANIFESTS`. Its model/schema are accepted by `load_manifest` when the
-filename is temporarily registered in an isolated test. The loader checks only
-model/schema and computes the manifest hash; it does not verify GPU parity or
-validate arbitrary runtime metadata.
-
-File hashes come from the pinned [Hugging Face tree API](https://huggingface.co/api/models/baselabs/mammoth-1/tree/03007ab3c4481bf01c71ef63adbbbc4b2093d71a?recursive=true&limit=1000):
-LFS oids are SHA-256; small runtime files were downloaded from that revision and
-hashed with SHA-256. Art, documentation and the authors' executable setup files
-are unused by this plugin and excluded. The image index digest was resolved via
-Docker Hub's anonymous registry API on 2026-10-26; `base_image_digest` stores it
-alongside the requested `base_image` tag. The plugin version is a draft pin,
-not a package/source integrity proof.
+The unregistered draft `s1-pro-mammoth-v1.json` loads only when a test registers it
+explicitly; the loader checks model/schema and computes the manifest hash, nothing
+more. Its file hashes come from the pinned [Hugging Face tree API](https://huggingface.co/api/models/baselabs/mammoth-1/tree/03007ab3c4481bf01c71ef63adbbbc4b2093d71a?recursive=true&limit=1000)
+(LFS oids are SHA-256; small files hashed after download). It is kept as provenance
+for the parity work only.
 
 CPU-only checks, using an aiohttp stub and throwaway development signing keys:
 
 ```sh
-python3 -m pytest tests/test_vllm_systemone.py tests/test_s1.py \
-  tests/test_sidecar_reconnect.py tests/test_config.py -q
+python3 -m pytest tests/test_vllm_systemone.py tests/test_sidecar_reconnect.py \
+  tests/test_config.py -q
 ```
+
+`tests/test_vllm_systemone.py` includes an end-to-end `reax-selfcheck` run against a
+stand-in vLLM server that answers all 640 reference items (no token file), and the
+transport edge cases above (stale keep-alive, connection refused, 408, truncated and
+malformed JSON, the 1 MiB cap, redirects, timeout after headers, upstream headers).
+GPU parity is the self-check above on the operator's server.

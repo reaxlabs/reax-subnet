@@ -282,18 +282,36 @@ class SidecarBackend:
 class VllmSystemOneBackend(SidecarBackend):
     """External vLLM decision source; hotkeys and validator signatures stay in the miner.
 
-    The release manifest is deliberately unchanged. This transport does not approve
-    new weights for a production pool.
+    It answers for the pool's current manifest (since the 30 Oct 2026 switch: the live s1-pro mammoth-1 manifest);
+    ``reax-selfcheck --model s1-pro`` against the published reference answers is the parity gate before mining. This
+    transport does not approve new weights for a production pool.
     """
 
     def __init__(self, model: str, url: str, served_model: str, max_inflight: int = 16,
-                 timeout_s: float = 60.0):
+                 timeout_s: float = 60.0, *, manifest: Optional[Manifest] = None):
         if not served_model.strip():
             raise ValueError("vllm-systemone needs a served model name")
         if max_inflight < 1 or not math.isfinite(timeout_s) or timeout_s <= 0:
             raise ValueError("vllm-systemone needs positive concurrency and timeout")
-        super().__init__(model, url, "", max_inflight, timeout_s)
+        super().__init__(model, url, "", max_inflight, timeout_s, manifest=manifest)
+        # Token-free: no sidecar token, link or validator header ever goes upstream.
+        self._headers = {"Content-Type": "application/json"}
         self.served_model = served_model
+
+    async def ready(self) -> bool:
+        """vLLM's own readiness: ``GET /health`` is 200 and ``GET /v1/models`` lists the served model."""
+        try:
+            s = await self._client()
+            async with s.get(self.url + "/health", allow_redirects=False) as r:
+                if r.status != 200:
+                    return False
+            async with s.get(self.url + "/v1/models", allow_redirects=False) as r:
+                if r.status != 200:
+                    return False
+                info = json.loads(await _read_capped(r.content, 64 * 1024))
+            return any(m.get("id") == self.served_model for m in info.get("data", ()) if isinstance(m, dict))
+        except Exception:
+            return False
 
     async def _send(self, d: Decision, started: list) -> dict[str, Any]:
         import aiohttp
@@ -301,17 +319,26 @@ class VllmSystemOneBackend(SidecarBackend):
         async with self._sem:
             body = {"model": self.served_model, "state": d.state,
                     "questions": {d.question.ident: d.question.author_dict()}}
-            try:
-                client = await self._client()
-                async with client.post(self.url + "/v1/systemone", json=body, allow_redirects=False) as response:
-                    if response.status != 200:
-                        raise SidecarError(f"vllm-systemone returned HTTP {response.status}",
-                                           answer_started=False,
-                                           backend_fault=response.status >= 500 or response.status in (408, 429))
-                    started[0] = True
-                    raw = await _read_capped(response.content, MAX_RUNTIME_RESPONSE_BYTES)
-            except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
-                raise SidecarError("vllm-systemone transport failed", answer_started=started[0]) from exc
+            data = json.dumps(body, ensure_ascii=False).encode()
+            # As in SidecarBackend: a keep-alive connection closed by the server between requests fails on first
+            # use; one retry on a fresh connection, only before any answer byte arrived (decisions are pure).
+            for attempt in (0, 1):
+                try:
+                    client = await self._client()
+                    async with client.post(self.url + "/v1/systemone", data=data, headers=self._headers,
+                                           allow_redirects=False) as response:
+                        if response.status != 200:
+                            raise SidecarError(f"vllm-systemone returned HTTP {response.status}",
+                                               answer_started=False,
+                                               backend_fault=response.status >= 500 or response.status in (408, 429))
+                        started[0] = True
+                        raw = await _read_capped(response.content, MAX_RUNTIME_RESPONSE_BYTES)
+                    break
+                except (aiohttp.ServerDisconnectedError, aiohttp.ClientOSError) as exc:
+                    if attempt or started[0]:
+                        raise SidecarError("vllm-systemone transport failed", answer_started=started[0]) from exc
+                except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+                    raise SidecarError("vllm-systemone transport failed", answer_started=started[0]) from exc
         try:
             result = json.loads(raw)
             if result["model"] != self.served_model or set(result["answers"]) != {d.question.ident}:
@@ -770,7 +797,7 @@ def load_s1_backend(model: str, url: Optional[str], token: str, allow_dev: bool,
     if kind == "vllm-systemone":
         if not url or endpoints:
             raise ValueError("vllm-systemone needs one runtime URL (runtime URLS pools are unsupported)")
-        return VllmSystemOneBackend(model, url, served_model, max_inflight, timeout_s)
+        return VllmSystemOneBackend(model, url, served_model, max_inflight, timeout_s, manifest=manifest)
     if kind != "sidecar":
         raise ValueError(f"unknown s1 backend kind {kind!r}")
     if endpoints:

@@ -31,11 +31,13 @@ async def serve(app):
 
 @pytest.fixture
 async def upstream():
-    control = {'status': 200, 'delay': 0.005, 'calls': [], 'active': 0, 'peak': 0, 'mutate': lambda a: a, 'mutate_response': lambda r: r}
+    control = {'status': 200, 'delay': 0.005, 'calls': [], 'headers': [], 'active': 0, 'peak': 0,
+               'mutate': lambda a: a, 'mutate_response': lambda r: r, 'models': ['mammoth-1'], 'health': 200}
 
     async def handle(request):
         body = await request.json()
         control['calls'].append(body)
+        control['headers'].append(dict(request.headers))
         control['active'] += 1
         control['peak'] = max(control['peak'], control['active'])
         try:
@@ -56,8 +58,16 @@ async def upstream():
         finally:
             control['active'] -= 1
 
+    async def health(request):
+        return web.Response(status=control['health'])
+
+    async def models(request):
+        return web.json_response({'object': 'list', 'data': [{'id': m, 'object': 'model'} for m in control['models']]})
+
     app = web.Application()
     app.router.add_post('/v1/systemone', handle)
+    app.router.add_get('/health', health)
+    app.router.add_get('/v1/models', models)
     async with serve(app) as url:
         control['url'] = url
         yield control
@@ -108,7 +118,7 @@ async def test_batch_16_preserves_order_and_bounds_concurrency(upstream):
         await backend.close()
 
 
-@pytest.mark.parametrize('status,fault', [(400, False), (503, True), (429, True)])
+@pytest.mark.parametrize('status,fault', [(400, False), (503, True), (429, True), (408, True)])
 async def test_http_failure(upstream, status, fault):
     upstream['status'] = status
     backend = VllmSystemOneBackend('s1-pro', upstream['url'], 'mammoth-1')
@@ -149,9 +159,8 @@ async def test_invalid_probabilities_are_refused(upstream, bad):
 
 
 @pytest.mark.parametrize('status', [200, 400, 503, 'timeout'])
-async def test_signed_miner_path(upstream, make_wallet, monkeypatch, status):
-    # Only this isolated test registers the candidate; the release stays on Rune.
-    monkeypatch.setitem(RELEASE_MANIFESTS, "s1-pro", "s1-pro-mammoth-v1.json")
+async def test_signed_miner_path(upstream, make_wallet, status):
+    # The backend answers for the pool's current manifest (the live mammoth-1 manifest since the 30 Oct switch).
     mw, vw = make_wallet('//M'), make_wallet('//V')
     if status == 'timeout':
         upstream['delay'] = .05
@@ -174,6 +183,11 @@ async def test_signed_miner_path(upstream, make_wallet, monkeypatch, status):
                     auth.verify_response(response.headers, raw, req.request_id, vw.hotkey.ss58_address,
                                          mw.hotkey.ss58_address, auth.NonceStore(), 30, path=S1_DECIDE_PATH)
                     assert len(parse_s1_response(raw, req)) == 16
+                    # Nothing of the validator's request (signature headers) or of the sidecar contract goes upstream.
+                    for h in upstream['headers']:
+                        names = {k.lower() for k in h}
+                        assert not any(k.startswith(('x-bittensor', 'x-s1m', 'x-reax')) for k in names), names
+                        assert 'authorization' not in names and 'cookie' not in names
                 else:
                     assert response.status == 500
                     assert json.loads(raw) == {'error': 'inference failed'}
@@ -261,3 +275,288 @@ async def test_operator_config_runs_startup_probe(upstream):
         assert upstream['calls'][0]['model'] == 'mammoth-1'
     finally:
         await backend.close()
+
+
+# --- readiness, selfcheck through the backend factory, transport edge cases (review of PR #8, 30 Oct 2026) ---
+
+async def test_ready_is_vllm_health_and_served_model(upstream):
+    backend = VllmSystemOneBackend('s1-pro', upstream['url'], 'mammoth-1')
+    try:
+        assert await backend.ready()
+        upstream['models'] = ['some-other-model']
+        assert not await backend.ready()
+        upstream['models'] = ['mammoth-1']
+        upstream['health'] = 503
+        assert not await backend.ready()
+    finally:
+        await backend.close()
+
+
+def test_factory_keeps_sidecar_and_pool_behaviour():
+    from reax_subnet.s1backends import PooledBackend, SidecarBackend, load_s1_backend
+
+    single = load_s1_backend('s1-pro', 'http://127.0.0.1:9000', 'tok', False)
+    assert type(single) is SidecarBackend and single._headers['X-S1M-Internal-Token'] == 'tok'
+    pool = load_s1_backend('s1-pro', None, 'tok', False, endpoints=(('http://127.0.0.1:9000', ''),
+                                                                     ('http://127.0.0.1:9001', 'other')))
+    assert isinstance(pool, PooledBackend)
+    with pytest.raises(ValueError, match='TOKEN_FILE'):
+        load_s1_backend('s1-pro', 'http://127.0.0.1:9000', '', False)
+    vllm = load_s1_backend('s1-pro', 'http://10.0.0.2:8000', '', False, 4, kind='vllm-systemone',
+                           served_model='mammoth-1', timeout_s=7)
+    assert isinstance(vllm, VllmSystemOneBackend) and vllm.max_inflight == 4 and vllm._timeout == 7
+    assert 'X-S1M-Internal-Token' not in vllm._headers
+    assert vllm.manifest.manifest_id == load_manifest('s1-pro').manifest_id
+
+
+class _ReferenceVllm:
+    """A thread-run stand-in for vLLM + vllm-mammoth that answers every reference item with its published
+    probabilities (the selfcheck must then pass with distance 0)."""
+
+    def __init__(self, served='mammoth-1', listed=('mammoth-1',), skew=0.0):
+        import threading
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        from reax_subnet.selfcheck import load_reference
+
+        ref = {(json.dumps(it['state'], sort_keys=True), it['question']['instructions']): it
+               for it in load_reference('s1-pro')['items']}
+        outer = self
+        self.headers = []
+
+        class H(BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def _json(self, code, obj):
+                raw = json.dumps(obj).encode()
+                self.send_response(code)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+            def do_GET(self):
+                if self.path == '/health':
+                    self._json(200, {})
+                elif self.path == '/v1/models':
+                    self._json(200, {'data': [{'id': m} for m in listed]})
+                else:
+                    self._json(404, {})
+
+            def do_POST(self):
+                outer.headers.append(dict(self.headers))
+                body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+                qid, q = next(iter(body['questions'].items()))
+                it = ref[(json.dumps(body['state'], sort_keys=True), q['instructions'])]
+                p = list(it['p'])
+                if skew:
+                    p = [x + skew if i == 0 else x for i, x in enumerate(p)]
+                    p = [x / sum(p) for x in p]
+                keys = ('yes', 'no') if q['type'] == 'noul' else tuple(
+                    q['criteria']) if q['type'] == 'choice' else tuple(str(i) for i in range(len(q['criteria'])))
+                self._json(200, {'model': served, 'answers': {qid: {'type': q['type'],
+                                                                     'probabilities': dict(zip(keys, p))}}})
+
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), H)
+        self.url = f'http://127.0.0.1:{self.server.server_address[1]}'
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+
+    def __enter__(self):
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self.server.shutdown()
+        self.server.server_close()
+
+
+def _selfcheck(monkeypatch, capsys, url, *extra, env_kind=True):
+    from reax_subnet import manifest as manifest_mod
+    from reax_subnet.selfcheck import main
+
+    # --at mutates the switch table for the process; monkeypatch restores it.
+    monkeypatch.setattr(manifest_mod, 'POOL_MANIFEST_SWITCH', dict(manifest_mod.POOL_MANIFEST_SWITCH))
+    for k in ('REAX_RUNTIME_TOKEN_FILE', 'REAX_S1_PRO_RUNTIME_URLS'):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv('REAX_S1_PRO_RUNTIME_URL', url)
+    if env_kind:
+        monkeypatch.setenv('REAX_S1_PRO_BACKEND', 'vllm-systemone')
+        monkeypatch.setenv('REAX_S1_PRO_SERVED_MODEL', 'mammoth-1')
+    code = main(['--model', 's1-pro', '--at', '2026-10-31T00:00:00Z', '--json', '--concurrency', '16', *extra])
+    out = capsys.readouterr().out.strip().splitlines()
+    return code, json.loads(out[-1]) if out else {}
+
+
+@pytest.mark.real_switch
+def test_selfcheck_vllm_end_to_end_without_token(monkeypatch, capsys):
+    with _ReferenceVllm() as fake:
+        code, report = _selfcheck(monkeypatch, capsys, fake.url)
+    assert code == 0, report
+    assert report['pass'] and report['manifest_id'] == '3f3558e583b0a1d6'
+    assert report['answered'] == report['items'] == 640 and report['distance_max'] == 0
+    assert all(not any(k.lower().startswith(('x-s1m', 'x-bittensor')) for k in h) for h in fake.headers)
+
+
+@pytest.mark.real_switch
+def test_selfcheck_vllm_flags_instead_of_env(monkeypatch, capsys):
+    with _ReferenceVllm(served='m1', listed=('m1',)) as fake:
+        code, report = _selfcheck(monkeypatch, capsys, 'http://10.9.9.9:1', '--url', fake.url,
+                                  '--backend', 'vllm-systemone', '--served-model', 'm1', '--limit', '64',
+                                  env_kind=False)
+    assert code == 0 and report['pass'] and report['items'] == 64
+
+
+@pytest.mark.real_switch
+def test_selfcheck_vllm_fails_on_wrong_probabilities(monkeypatch, capsys):
+    with _ReferenceVllm(skew=0.5) as fake:
+        code, report = _selfcheck(monkeypatch, capsys, fake.url)
+    assert code == 1 and not report['pass']
+
+
+@pytest.mark.real_switch
+@pytest.mark.parametrize('listed,extra', [(('other',), ()), (('mammoth-1',), ('--served-model', '')),
+                                          (('mammoth-1',), ('--timeout', '0'))])
+def test_selfcheck_vllm_cannot_run(monkeypatch, capsys, listed, extra):
+    with _ReferenceVllm(listed=listed) as fake:
+        code, report = _selfcheck(monkeypatch, capsys, fake.url, *extra)
+    assert code == 2 and report['pass'] is False and report['error']
+
+
+def test_selfcheck_vllm_refuses_public_url_and_lists(monkeypatch, capsys):
+    code, report = _selfcheck(monkeypatch, capsys, 'http://8.8.8.8:8000')
+    assert code == 2 and 'private network' in report['error']
+    code, report = _selfcheck(monkeypatch, capsys, 'http://10.0.0.2:8000', '--url', 'http://10.0.0.2:1,http://10.0.0.3:1')
+    assert code == 2 and 'one base URL' in report['error']
+
+
+def test_selfcheck_sidecar_still_needs_token(monkeypatch, capsys):
+    code, report = _selfcheck(monkeypatch, capsys, 'http://127.0.0.1:9', env_kind=False)
+    assert code == 2 and 'token' in report['error']
+
+
+@asynccontextmanager
+async def raw_server(handler):
+    """A bare TCP server: ``handler(reader, writer, n)`` gets the n-th connection (for broken HTTP replies)."""
+    count = [0]
+
+    async def on_conn(reader, writer):
+        count[0] += 1
+        try:
+            await handler(reader, writer, count[0])
+        finally:
+            writer.close()
+
+    server = await asyncio.start_server(on_conn, '127.0.0.1', 0)
+    try:
+        yield f'http://127.0.0.1:{server.sockets[0].getsockname()[1]}', count
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
+async def _read_request(reader):
+    head = await reader.readuntil(b'\r\n\r\n')
+    length = next(int(l.split(b':')[1]) for l in head.split(b'\r\n') if l.lower().startswith(b'content-length'))
+    return json.loads(await reader.readexactly(length))
+
+
+def _http(body: bytes, status=b'200 OK', length=None, extra=b''):
+    return (b'HTTP/1.1 ' + status + b'\r\nContent-Type: application/json\r\nContent-Length: '
+            + str(len(body) if length is None else length).encode() + b'\r\n' + extra + b'\r\n' + body)
+
+
+def _noul_answer(body):
+    qid = next(iter(body['questions']))
+    return json.dumps({'model': body['model'], 'answers': {qid: {'type': 'noul',
+                                                                 'probabilities': {'yes': .8, 'no': .2}}}}).encode()
+
+
+@pytest.mark.parametrize('drops', [1, 2])
+async def test_stale_keepalive_is_retried_once(drops):
+    async def handler(reader, writer, n):
+        while True:
+            try:
+                body = await _read_request(reader)
+            except (asyncio.IncompleteReadError, ConnectionError):
+                return
+            if n <= drops:
+                return  # close without answering: what a keep-alive timeout on the server looks like
+            writer.write(_http(_noul_answer(body)))
+            await writer.drain()
+
+    async with raw_server(handler) as (url, count):
+        backend = VllmSystemOneBackend('s1-pro', url, 'mammoth-1')
+        try:
+            if drops == 1:
+                answer, = await backend.decide([decision('noul')])
+                assert answer['noul'] == .8 and count[0] == 2
+            else:
+                err, = await backend.decide_each([decision('noul')], retries=0)
+                assert isinstance(err, SidecarError) and 'transport failed' in str(err)
+                assert err.answer_started is False and err.backend_fault and count[0] == 2
+        finally:
+            await backend.close()
+
+
+async def test_connection_refused():
+    import socket
+
+    s = socket.socket()
+    s.bind(('127.0.0.1', 0))
+    port = s.getsockname()[1]
+    s.close()
+    backend = VllmSystemOneBackend('s1-pro', f'http://127.0.0.1:{port}', 'mammoth-1')
+    try:
+        err, = await backend.decide_each([decision('noul')], retries=0)
+        assert isinstance(err, SidecarError) and err.backend_fault and err.answer_started is False
+        assert not await backend.ready()
+    finally:
+        await backend.close()
+
+
+@pytest.mark.parametrize('case', ['truncated', 'malformed', 'oversize', 'stall_after_headers'])
+async def test_broken_bodies(case):
+    async def handler(reader, writer, n):
+        body = await _read_request(reader)
+        good = _noul_answer(body)
+        if case == 'truncated':
+            writer.write(_http(good[:20], length=len(good)))
+        elif case == 'malformed':
+            writer.write(_http(good[:-3] + b'   '))
+        elif case == 'oversize':
+            big = b'{"pad": "' + b'x' * (1 << 20) + b'"}'
+            writer.write(_http(big))
+        else:
+            writer.write(_http(b'', length=len(good)))
+            await writer.drain()
+            await asyncio.sleep(1)
+        await writer.drain()
+
+    async with raw_server(handler) as (url, count):
+        backend = VllmSystemOneBackend('s1-pro', url, 'mammoth-1', timeout_s=.3)
+        try:
+            err, = await backend.decide_each([decision('noul')], retries=0)
+            assert isinstance(err, SidecarError), err
+            assert err.answer_started is True  # HTTP 200 arrived: never failed over or retried
+            assert count[0] == 1
+            expected = {'truncated': 'transport failed', 'malformed': 'invalid answer',
+                        'oversize': 'too large', 'stall_after_headers': 'transport failed'}[case]
+            assert expected in str(err)
+        finally:
+            await backend.close()
+
+
+async def test_redirect_is_not_followed(upstream):
+    async def redirect(request):
+        return web.Response(status=307, headers={'Location': upstream['url'] + '/v1/systemone'})
+
+    app = web.Application()
+    app.router.add_post('/v1/systemone', redirect)
+    async with serve(app) as url:
+        backend = VllmSystemOneBackend('s1-pro', url, 'mammoth-1')
+        try:
+            err, = await backend.decide_each([decision('noul')], retries=0)
+            assert isinstance(err, SidecarError) and 'HTTP 307' in str(err) and not err.backend_fault
+            assert upstream['calls'] == []
+        finally:
+            await backend.close()
