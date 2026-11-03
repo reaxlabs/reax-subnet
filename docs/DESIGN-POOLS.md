@@ -433,6 +433,8 @@ prototype.
   scoring parameters, so every validator runs the same numbers.
 - A change is announced **at least 14 days in advance** in the release notes, the miner docs and on
   mine.decisionmodels.io / reax.co. This follows the 80/20 rule. A change starts with a release that validators adopt.
+- Adding a model to the inference list needs no advance notice. It still comes with a release. Removing or replacing a
+  model is not covered by this exception.
 - Data used to tune the budgets: miners per pool, measured capacity per pool, router demand per model. The ratio rule
   (≤ ½ per tier step) stays fixed unless it is announced the same way.
 
