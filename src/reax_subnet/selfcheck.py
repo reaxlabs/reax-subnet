@@ -11,6 +11,9 @@ It checks against the published reference answers, whichever runtime image runs 
 Uses the miner's settings: ``REAX_MODEL``, ``REAX_S1_FAST_RUNTIME_URL`` / ``REAX_S1_PRO_RUNTIME_URL`` (or the
 ``..._RUNTIME_URLS`` list for several machines or GPUs behind one hotkey: every backend is checked and reported on its
 own, and one that runs a different model fails the check) and ``REAX_RUNTIME_TOKEN_FILE``.
+The backend comes from the miner's factory (``s1backends.load_s1_backend``), so ``REAX_<MODEL>_BACKEND=vllm-systemone``
+(with ``REAX_<MODEL>_SERVED_MODEL`` and ``REAX_<MODEL>_RUNTIME_TIMEOUT``) checks an external, token-free vLLM
+``/v1/systemone`` server exactly as the miner will call it.
 Exit code 0 = pass, 1 = fail, 2 = cannot run.
 """
 
@@ -31,7 +34,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from .manifest import load_manifest
-from .s1backends import SidecarBackend
+from .s1backends import load_s1_backend
 from .s1contract import parse_decision
 from .s1scoring import PoolParams, logit_distance
 
@@ -98,7 +101,8 @@ def evaluate(reference: dict[str, Any], answers: list[Any], params: PoolParams) 
     return report
 
 
-async def run(model: str, url: str, token: str, limit: Optional[int], concurrency: int) -> dict[str, Any]:
+async def run(model: str, url: str, token: str, limit: Optional[int], concurrency: int, *, kind: str = "sidecar",
+              served_model: str = "", timeout_s: float = 60.0) -> dict[str, Any]:
     from .s1validator import pool_params
 
     reference = load_reference(model)
@@ -106,10 +110,12 @@ async def run(model: str, url: str, token: str, limit: Optional[int], concurrenc
         reference = dict(reference, items=reference["items"][:limit])
     decisions = [parse_decision({"id": it["id"], "state": it["state"], "questions": {"q": it["question"]}}, model)
                  for it in reference["items"]]
-    backend = SidecarBackend(model, url, token, max_inflight=concurrency)
+    backend = load_s1_backend(model, url, token, False, concurrency, kind=kind, served_model=served_model,
+                              timeout_s=timeout_s)
     try:
         if not await backend.ready():
-            raise ConnectionError(f"runtime sidecar at {url} is not healthy")
+            raise ConnectionError(f"{'vllm-systemone server' if kind == 'vllm-systemone' else 'runtime sidecar'} "
+                                  f"at {url} is not healthy")
         started = time.monotonic()
         answers = await backend.decide_each(decisions, retries=0)
         elapsed = time.monotonic() - started
@@ -222,6 +228,12 @@ def main(argv: Optional[list[str]] = None) -> int:
                                   "comma-separated, each URL or URL|TOKEN_FILE (default: REAX_<MODEL>_RUNTIME_URLS). Every backend is checked "
                                   "against the published reference decisions: a smoke test, not a proof of its weights; validator scoring is the enforcement")
     ap.add_argument("--token-file", default=os.environ.get("REAX_RUNTIME_TOKEN_FILE", ""))
+    ap.add_argument("--backend", choices=("sidecar", "vllm-systemone"), default=None,
+                    help="runtime kind (default: REAX_<MODEL>_BACKEND, else sidecar); vllm-systemone needs no token")
+    ap.add_argument("--served-model", default=None,
+                    help="vllm-systemone: the vLLM served model name (default: REAX_<MODEL>_SERVED_MODEL)")
+    ap.add_argument("--timeout", type=float, default=None,
+                    help="per-request timeout in seconds (default: REAX_<MODEL>_RUNTIME_TIMEOUT, else 60)")
     ap.add_argument("--limit", type=int, default=0, help="use only the first N reference items")
     ap.add_argument("--concurrency", type=int, default=1,
                     help="parallel requests (the validator path sends one decision at a time per item)")
@@ -236,10 +248,32 @@ def main(argv: Optional[list[str]] = None) -> int:
         from .config import ConfigError, _runtime_endpoints
 
         env = dict(os.environ)
+        prefix = var[: -len("_RUNTIME_URL")]
+        kind = args.backend or env.get(prefix + "_BACKEND") or "sidecar"
+        if kind not in ("sidecar", "vllm-systemone"):
+            raise ValueError(f"unknown {prefix}_BACKEND {kind!r} (sidecar or vllm-systemone)")
+        served_model = (args.served_model if args.served_model is not None else env.get(prefix + "_SERVED_MODEL", "")).strip()
+        timeout_s = args.timeout if args.timeout is not None else float(env.get(prefix + "_RUNTIME_TIMEOUT") or 60.0)
+        if not (math.isfinite(timeout_s) and 0 < timeout_s <= 3600):
+            raise ValueError("the runtime timeout must be in (0, 3600] seconds")
+        allow_public = env.get("REAX_ALLOW_PUBLIC_RUNTIME", "") in ("1", "true")
+        if kind == "vllm-systemone":
+            # Same rules as the miner config (config.load_common): one base URL, no token.
+            from .config import _check_runtime_endpoint
+
+            url = args.url or env.get(var, "")
+            if not url or "," in url or "|" in url or (env.get(var + "S") and not args.url):
+                raise ValueError(f"vllm-systemone needs exactly one base URL: pass --url or set {var}")
+            if not served_model:
+                raise ValueError(f"vllm-systemone needs the served model: pass --served-model or set {prefix}_SERVED_MODEL")
+            _check_runtime_endpoint(url, allow_public)
+            report = asyncio.run(run(args.model, url, "", args.limit or None, max(1, args.concurrency),
+                                     kind=kind, served_model=served_model, timeout_s=timeout_s))
+            return _finish(args, report)
         if args.url:
             env[var + "S"] = args.url
             env.pop(var, None)
-        endpoints = _runtime_endpoints(env, args.model, env.get("REAX_ALLOW_PUBLIC_RUNTIME", "") in ("1", "true"))
+        endpoints = _runtime_endpoints(env, args.model, allow_public)
         if not endpoints:
             if not env.get(var):
                 raise ValueError(f"no runtime URL: pass --url or set {var} (or {var}S)")
@@ -255,7 +289,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             pairs.append((u, token))
         concurrency = max(1, args.concurrency)
         if len(pairs) == 1:
-            report = asyncio.run(run(args.model, pairs[0][0], pairs[0][1], args.limit or None, concurrency))
+            report = asyncio.run(run(args.model, pairs[0][0], pairs[0][1], args.limit or None, concurrency,
+                                     timeout_s=timeout_s))
         else:
             report = asyncio.run(run_many(args.model, pairs, args.limit or None, concurrency))
     except (OSError, ValueError, ConnectionError) as exc:  # ConfigError is a ValueError
@@ -264,6 +299,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         else:
             print(f"reax-selfcheck: cannot run: {exc}", file=sys.stderr)
         return 2
+    return _finish(args, report)
+
+
+def _finish(args: argparse.Namespace, report: dict[str, Any]) -> int:
     if args.json:
         print(json.dumps(report, sort_keys=True))
     elif "backends" in report:

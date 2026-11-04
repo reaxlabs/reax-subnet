@@ -352,6 +352,8 @@ class CommonConfig:
     # for a pool from its switch time on (REAX_<MODEL>_NEXT_RUNTIME_URL). A separate URL, so the previous runtime can
     # never answer for the new manifest.
     next_runtime_urls: tuple[tuple[str, str], ...] = ()
+    # Per-model (backend kind, vLLM served model, request timeout seconds).
+    runtime_backends: tuple[tuple[str, tuple[str, str, float]], ...] = ()
 
     def runtime_url(self, model: str) -> str:
         return dict(self.runtime_urls).get(model, "")
@@ -605,7 +607,23 @@ def load_common(env: Mapping[str, str] = os.environ) -> CommonConfig:
     urls = tuple(
         (m, _env(env, f"REAX_{m.upper().replace('-', '_')}_RUNTIME_URL", "") or "") for m in S1_MODELS
     )
+    backends = []
+    for m in S1_MODELS:
+        prefix = f"REAX_{m.upper().replace('-', '_')}"
+        kind = _choice(env, prefix + "_BACKEND", "sidecar", ("sidecar", "vllm-systemone"))
+        served_model = _env(env, prefix + "_SERVED_MODEL", "") or ""
+        timeout_s = _float(env, prefix + "_RUNTIME_TIMEOUT", 60.0, 0.001, 3600.0)
+        if kind == "vllm-systemone" and not served_model.strip():
+            raise ConfigError(prefix + "_SERVED_MODEL is required for vllm-systemone")
+        backends.append((m, (kind, served_model, timeout_s)))
+    backend_map = dict(backends)
+    allow_public = _bool(env, "REAX_ALLOW_PUBLIC_RUNTIME", False)
     for _m, url in urls:
+        if backend_map[_m][0] == "vllm-systemone":
+            if not url or url == "hash":
+                raise ConfigError("vllm-systemone requires a runtime base URL")
+            _check_runtime_endpoint(url, allow_public)
+            continue
         if url and url != "hash" and not _is_loopback_url(url):
             raise ConfigError("runtime URLs must be loopback (the model runtime must not be reachable from outside)")
         if url == "hash" and not _bool(env, "REAX_ALLOW_DEV_MODELS", False):
@@ -616,10 +634,11 @@ def load_common(env: Mapping[str, str] = os.environ) -> CommonConfig:
         if url and not _is_loopback_url(url):
             raise ConfigError("runtime URLs must be loopback (the model runtime must not be reachable from outside)")
     next_urls = tuple((m, u) for m, u in next_urls if u)
-    allow_public = _bool(env, "REAX_ALLOW_PUBLIC_RUNTIME", False)
     endpoints = tuple((m, _runtime_endpoints(env, m, allow_public)) for m in S1_MODELS)
     endpoints = tuple((m, eps) for m, eps in endpoints if eps)
     for m, eps in endpoints:
+        if backend_map[m][0] == "vllm-systemone":
+            raise ConfigError("vllm-systemone supports one RUNTIME_URL, not RUNTIME_URLS")
         if len(eps) > 1 and m not in POOL_MODELS:
             raise ConfigError(f"several backends need the published identity references; available for "
                               f"{' and '.join(POOL_MODELS)} (REAX_{m.upper().replace('-', '_')}_RUNTIME_URLS "
@@ -628,7 +647,8 @@ def load_common(env: Mapping[str, str] = os.environ) -> CommonConfig:
     urls = tuple((m, dict(endpoints)[m][0][0] if m in dict(endpoints) else url) for m, url in urls)
     token_file = os.path.expanduser(_env(env, "REAX_RUNTIME_TOKEN_FILE", "") or "")
     if mechanism == "s1":
-        needs_shared = any(url and url != "hash" for m, url in urls if m not in dict(endpoints))
+        needs_shared = any(url and url != "hash" for m, url in urls
+                           if m not in dict(endpoints) and backend_map[m][0] == "sidecar")
         needs_shared = needs_shared or any(not tf for _m, eps in endpoints for _u, tf in eps)
         if needs_shared and not _readable_token(token_file):
             raise ConfigError("REAX_RUNTIME_TOKEN_FILE must name a readable, non-empty token file shared with the "
@@ -651,6 +671,7 @@ def load_common(env: Mapping[str, str] = os.environ) -> CommonConfig:
         log_level=log_level,
         log_json=_bool(env, "REAX_LOG_JSON", False),
         runtime_urls=urls,
+        runtime_backends=tuple(backends),
         runtime_token_file=token_file,
         runtime_endpoints=endpoints,
         runtime_inflight=_int(env, "REAX_RUNTIME_INFLIGHT", 16, 1, 1024),

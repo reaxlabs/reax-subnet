@@ -10,6 +10,10 @@ decision contract on loopback (``POST /internal/v1/decide`` with the
 * s1-pro: ``runtimes/s1-pro`` = the reference Rune image recipe (vLLM 0.30.0 digest,
   deterministic flags) with the reference decision adapter, unchanged.
 
+An optional ``vllm-systemone`` backend instead calls an external vLLM
+``POST /v1/systemone`` endpoint and derives the subnet answer fields from its
+probabilities. It does not register or approve a new model manifest.
+
 This module sends each decision to the sidecar exactly as the reference engine
 does (``Question.author_dict``) and applies the reference ``normalize_answer``.
 """
@@ -26,7 +30,7 @@ import time
 from typing import Any, Awaitable, Callable, Optional, Protocol, Sequence
 
 from .manifest import Manifest, load_manifest
-from .s1contract import Decision, normalize_answer, parse_decision
+from .s1contract import Decision, check_answer, normalize_answer, parse_decision
 
 
 class S1Backend(Protocol):
@@ -273,6 +277,94 @@ class SidecarBackend:
             await self._session.close()
         if self._health_session is not None:
             await self._health_session.close()
+
+
+class VllmSystemOneBackend(SidecarBackend):
+    """External vLLM decision source; hotkeys and validator signatures stay in the miner.
+
+    It answers for the pool's current manifest (since the 30 Oct 2026 switch: the live s1-pro mammoth-1 manifest);
+    ``reax-selfcheck --model s1-pro`` against the published reference answers is the parity gate before mining. This
+    transport does not approve new weights for a production pool.
+    """
+
+    def __init__(self, model: str, url: str, served_model: str, max_inflight: int = 16,
+                 timeout_s: float = 60.0, *, manifest: Optional[Manifest] = None):
+        if not served_model.strip():
+            raise ValueError("vllm-systemone needs a served model name")
+        if max_inflight < 1 or not math.isfinite(timeout_s) or timeout_s <= 0:
+            raise ValueError("vllm-systemone needs positive concurrency and timeout")
+        super().__init__(model, url, "", max_inflight, timeout_s, manifest=manifest)
+        # Token-free: no sidecar token, link or validator header ever goes upstream.
+        self._headers = {"Content-Type": "application/json"}
+        self.served_model = served_model
+
+    async def ready(self) -> bool:
+        """vLLM's own readiness: ``GET /health`` is 200 and ``GET /v1/models`` lists the served model."""
+        try:
+            s = await self._client()
+            async with s.get(self.url + "/health", allow_redirects=False) as r:
+                if r.status != 200:
+                    return False
+            async with s.get(self.url + "/v1/models", allow_redirects=False) as r:
+                if r.status != 200:
+                    return False
+                info = json.loads(await _read_capped(r.content, 64 * 1024))
+            return any(m.get("id") == self.served_model for m in info.get("data", ()) if isinstance(m, dict))
+        except Exception:
+            return False
+
+    async def _send(self, d: Decision, started: list) -> dict[str, Any]:
+        import aiohttp
+
+        async with self._sem:
+            body = {"model": self.served_model, "state": d.state,
+                    "questions": {d.question.ident: d.question.author_dict()}}
+            data = json.dumps(body, ensure_ascii=False).encode()
+            # As in SidecarBackend: a keep-alive connection closed by the server between requests fails on first
+            # use; one retry on a fresh connection, only before any answer byte arrived (decisions are pure).
+            for attempt in (0, 1):
+                try:
+                    client = await self._client()
+                    async with client.post(self.url + "/v1/systemone", data=data, headers=self._headers,
+                                           allow_redirects=False) as response:
+                        if response.status != 200:
+                            raise SidecarError(f"vllm-systemone returned HTTP {response.status}",
+                                               answer_started=False,
+                                               backend_fault=response.status >= 500 or response.status in (408, 429))
+                        started[0] = True
+                        raw = await _read_capped(response.content, MAX_RUNTIME_RESPONSE_BYTES)
+                    break
+                except (aiohttp.ServerDisconnectedError, aiohttp.ClientOSError) as exc:
+                    if attempt or started[0]:
+                        raise SidecarError("vllm-systemone transport failed", answer_started=started[0]) from exc
+                except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+                    raise SidecarError("vllm-systemone transport failed", answer_started=started[0]) from exc
+        try:
+            result = json.loads(raw)
+            if result["model"] != self.served_model or set(result["answers"]) != {d.question.ident}:
+                raise ValueError("response model or question ids do not match")
+            answer = result["answers"][d.question.ident]
+            q = d.question
+            if answer["type"] != q.kind:
+                raise ValueError("answer type does not match")
+            given = answer["probabilities"]
+            keys = ("yes", "no") if q.kind == "noul" else q.keys
+            if not isinstance(given, dict) or set(given) != set(keys):
+                raise ValueError("probabilities must cover exactly the option keys")
+            # Validate the raw values before normalization (which coerces numbers).
+            if any(isinstance(v, bool) or not isinstance(v, (int, float)) or
+                   not math.isfinite(v) or not 0 <= v <= 1 for v in given.values()):
+                raise ValueError("invalid probability")
+            if abs(math.fsum(given.values()) - 1) > 1e-6:
+                raise ValueError("probabilities must sum to 1")
+            # Ignore all upstream derived fields, including confidence. The wire
+            # contract requires top probability, rather than qev or vLLM confidence.
+            source = {"noul": given["yes"]} if q.kind == "noul" else {"probabilities": given}
+            normalized = normalize_answer(q, source)
+            check_answer(q, normalized)
+            return normalized
+        except (KeyError, TypeError, ValueError, OverflowError, RuntimeError) as exc:
+            raise SidecarError("vllm-systemone returned an invalid answer") from exc
 
 
 def aiohttp_timeout(total: float):
@@ -697,9 +789,17 @@ class S1HashBackend:
 
 
 def load_s1_backend(model: str, url: Optional[str], token: str, allow_dev: bool, max_inflight: int = 16,
-                    endpoints: Sequence[tuple[str, str]] = (), manifest: Optional[Manifest] = None) -> S1Backend:
+                    endpoints: Sequence[tuple[str, str]] = (), manifest: Optional[Manifest] = None, *,
+                    kind: str = "sidecar", served_model: str = "", timeout_s: float = 60.0) -> S1Backend:
     """One sidecar from ``url``, or a ``PooledBackend`` over ``endpoints`` ((url, token) pairs; an empty token falls
-    back to ``token``). A single endpoint is a plain ``SidecarBackend``."""
+    back to ``token``). A single endpoint is a plain ``SidecarBackend``.
+    ``kind="vllm-systemone"`` selects a single external, token-free endpoint."""
+    if kind == "vllm-systemone":
+        if not url or endpoints:
+            raise ValueError("vllm-systemone needs one runtime URL (runtime URLS pools are unsupported)")
+        return VllmSystemOneBackend(model, url, served_model, max_inflight, timeout_s, manifest=manifest)
+    if kind != "sidecar":
+        raise ValueError(f"unknown s1 backend kind {kind!r}")
     if endpoints:
         members = []
         for ep_url, ep_token in endpoints:
