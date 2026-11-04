@@ -431,9 +431,11 @@ prototype.
 
 - The tier budgets and capacity targets are **release constants**. Validators refuse overrides on finney, as with all
   scoring parameters, so every validator runs the same numbers.
-- A change is announced **at least 14 days in advance** in the release notes, the miner docs and on
-  mine.decisionmodels.io / reax.co. This follows the 80/20 rule. A change starts with a release that validators adopt.
-- Adding a model to the inference list needs no advance notice. It still comes with a release. Removing or replacing a
+- A change is announced **at least 24 hours before it starts** in #92, the release notes, the miner docs and on
+  mine.decisionmodels.io / reax.co (Florian, 4 Nov 2026, notice-24h-default-1104; this replaces the earlier 14 days).
+  Dates already announced stay as announced. This follows the 80/20 rule. A change starts with a release that validators adopt. Where a release
+  needs more time for technical reasons, for example for miners to upgrade, the release names that gate itself.
+- Adding a model to the inference list needs no notice. It still comes with a release. Removing or replacing a
   model is not covered by this exception.
 - Data used to tune the budgets: miners per pool, measured capacity per pool, router demand per model. The ratio rule
   (≤ ½ per tier step) stays fixed unless it is announced the same way.
@@ -444,5 +446,5 @@ prototype.
    (written, untested).
 2. Testnet with ≥ 2 validators, real GGUF sidecars on x86 CPU, ARM CPU and a CUDA card, and the first outside beta testers
    (for example Jetson owners).
-3. Release (1.2): manifests pinned by digest, kit support, docs, the 14-day budget notice, then mainnet with an Owner
+3. Release (1.2): manifests pinned by digest, kit support, docs, the dated budget notice, then mainnet with an Owner
    decision. (The tiered pools are part of the 1.2 release candidate on every network; see the status note at the top.)
