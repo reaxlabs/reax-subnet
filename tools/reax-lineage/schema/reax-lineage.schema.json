@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reax.example/schema/reax-lineage.schema.json",
+  "title": "reax-lineage.json (v2) - the one lineage declaration of a Generalist entry: up to 4 parents, or none (from scratch)",
+  "description": "RULES-v2 2.2 / 3.1: an entry has at most 4 parents, each with a share of at least 0.10, shares add up to 1 (+/- 0.02), or none (from_scratch). The limits (more than 4 parents, a share below 0.10) are deliberately NOT enforced by this schema: the check answers them with REFUSED parents_rule (RULES 3.3), not with a schema correction. The share sum is checked by the check (NEEDS_CORRECTION parent_shares). v1 records (reax-lineage/1, one `start`) are still read, as one parent with share 1 (reax-lineage-1.schema.json).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "hotkey", "entry", "parents", "own_models", "architecture_changes", "teachers", "datasets",
+               "mentioned_not_used", "licence"],
+  "properties": {
+    "schema": {"const": "reax-lineage/2"},
+    "hotkey": {"type": "string", "pattern": "^5[1-9A-HJ-NP-Za-km-z]{46,47}$",
+               "description": "ss58 address of the committing hotkey (RULES-v2 3.1)"},
+    "entry": {
+      "type": "object", "additionalProperties": false, "required": ["repo", "revision"],
+      "properties": {"repo": {"$ref": "#/definitions/repo"}, "revision": {"$ref": "#/definitions/sha"}}
+    },
+    "from_scratch": {"type": "boolean", "description": "true = trained from no parent at all (RULES 2.2 `none`); then `parents` is empty. false or absent = `parents` has at least one item"},
+    "parents": {
+      "type": "array",
+      "description": "1 to 4 parents (the count limit is enforced by the check: REFUSED parents_rule). kind list = a model marked start on the list; entry = an earlier entry of this round (its uid); own = your own earlier entry or public model, with ITS parents in `parents` so the check can verify that its weights come only from allowed parents",
+      "items": {"$ref": "#/definitions/parent"}
+    },
+    "own_models": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": false, "required": ["repo", "how"],
+                "properties": {"repo": {"$ref": "#/definitions/repo"}, "revision": {"$ref": "#/definitions/sha"},
+                               "how": {"type": "string", "minLength": 1}}}
+    },
+    "averaged_own_checkpoints": {"type": "boolean"},
+    "architecture_changes": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "added_tokens": {"type": "array", "items": {"type": "string"}},
+        "layer_map": {"type": ["array", "object", "null"],
+                      "description": "entry layer -> parent layer (list index = entry layer, or {\"entry\": parent})"},
+        "pruned": {"type": ["object", "null"]},
+        "config_fields": {"type": "object", "description": "config.json fields that differ from the parents, with the new values"},
+        "quantisation_aware_training": {"type": "boolean"}
+      }
+    },
+    "teachers": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": false, "required": ["name", "repo_or_api", "use"],
+                "properties": {"name": {"type": "string", "minLength": 1}, "repo_or_api": {"type": "string", "minLength": 1},
+                               "use": {"enum": ["distillation", "synthetic data", "labels", "preference", "judge"]}}}
+    },
+    "datasets": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": false, "required": ["name", "source", "licence"],
+                "properties": {"name": {"type": "string", "minLength": 1}, "source": {"type": "string", "minLength": 1},
+                               "licence": {"type": "string", "minLength": 1},
+                               "approx_tokens": {"type": "integer", "minimum": 0}}}
+    },
+    "mentioned_not_used": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": false, "required": ["id", "reason"],
+                "properties": {"id": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1}}}
+    },
+    "licence": {"enum": ["Apache-2.0"], "description": "RULES-v2 2.6: your model is published under Apache-2.0"},
+    "corrects": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$"},
+    "signature": {"type": ["string", "null"], "pattern": "^(0x)?[0-9a-fA-F]{128}$",
+                  "description": "sr25519 over the canonical JSON (sorted keys, UTF-8, no whitespace, without this field); required for a correction"}
+  },
+  "allOf": [
+    {"if": {"properties": {"from_scratch": {"const": true}}, "required": ["from_scratch"]},
+     "then": {"properties": {"parents": {"maxItems": 0}}},
+     "else": {"properties": {"parents": {"minItems": 1}}}}
+  ],
+  "definitions": {
+    "repo": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "parent": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "repo", "revision", "share"],
+      "properties": {
+        "kind": {"enum": ["list", "entry", "own"]},
+        "repo": {"$ref": "#/definitions/repo"},
+        "revision": {"$ref": "#/definitions/sha"},
+        "uid": {"type": "integer", "minimum": 0},
+        "share": {"type": "number", "description": "approximate share of this parent in your weights; at least 0.10 each, all add up to 1 +/- 0.02 (checked by the check, see the schema description)"},
+        "parents": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/parent_of_own"},
+                    "description": "kind own only: the parents of your own model (repo@revision each), so that the check can verify that its weights come only from allowed parents"}
+      },
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "entry"}}}, "then": {"required": ["uid"]}},
+        {"if": {"properties": {"kind": {"const": "own"}}}, "then": {"required": ["parents"]}},
+        {"if": {"properties": {"kind": {"enum": ["list", "entry"]}}}, "then": {"not": {"required": ["parents"]}}}
+      ]
+    },
+    "parent_of_own": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "repo", "revision"],
+      "properties": {
+        "kind": {"enum": ["list", "entry", "own"]},
+        "repo": {"$ref": "#/definitions/repo"},
+        "revision": {"$ref": "#/definitions/sha"},
+        "uid": {"type": "integer", "minimum": 0},
+        "parents": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/parent_of_own"}}
+      },
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "entry"}}}, "then": {"required": ["uid"]}},
+        {"if": {"properties": {"kind": {"const": "own"}}}, "then": {"required": ["parents"]}},
+        {"if": {"properties": {"kind": {"enum": ["list", "entry"]}}}, "then": {"not": {"required": ["parents"]}}}
+      ]
+    }
+  }
+}

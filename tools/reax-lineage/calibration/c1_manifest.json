@@ -1,0 +1,713 @@
+[
+ {
+  "repo": "Qwen/Qwen3.5-27B",
+  "asked_rev": "main",
+  "label": "root-qwen35",
+  "pinned": false,
+  "rev": "fc05daec18b0a78c049392ed2e771dde82bdf654",
+  "last_modified": "2026-04-24T02:54:49.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "baselabs/mammoth-1",
+  "asked_rev": "61cec44c",
+  "label": "root-mammoth1",
+  "pinned": true,
+  "rev": "61cec44c281c693992e3d6ebeb44dd3402dfa186",
+  "last_modified": "2026-10-22T18:40:29.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "xflud/sn92-decider-1",
+  "asked_rev": "db2e622a",
+  "label": "uid114-decider-1",
+  "pinned": true,
+  "rev": "db2e622aa508bd82350620bf165441fa4043f3cf",
+  "last_modified": "2026-10-26T13:07:57.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:baselabs/mammoth-1",
+   "base_model:finetune:baselabs/mammoth-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "isomsom/sn92-gen-m87b",
+  "asked_rev": "7f04058f",
+  "label": "uid60-m87b",
+  "pinned": true,
+  "rev": "7f04058f63745440fae3c10f8da249a0c55fea40",
+  "last_modified": "2026-10-27T08:27:02.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:baselabs/mammoth-1",
+   "base_model:finetune:baselabs/mammoth-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "isomsom/sn92-gen-v91a",
+  "asked_rev": "cf20e1cecdef06e815f2c4d58d1520c2442445c0",
+  "label": "uid60-v91a",
+  "pinned": true,
+  "rev": "cf20e1cecdef06e815f2c4d58d1520c2442445c0",
+  "last_modified": "2026-10-29T17:31:42.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:baselabs/mammoth-1",
+   "base_model:finetune:baselabs/mammoth-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "ronanlee777/sn92-gen-ma",
+  "asked_rev": "d4aa443d",
+  "label": "uid133-ma",
+  "pinned": true,
+  "rev": "d4aa443d03e12c073a176c84eb53096898943986",
+  "last_modified": "2026-10-27T17:40:25.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "ronanlee777/sn92-gen-mb",
+  "asked_rev": "bdccb1b8",
+  "label": "uid56-mb",
+  "pinned": true,
+  "rev": "bdccb1b8263e8407ce5fae081cfbb654b5345cef",
+  "last_modified": "2026-10-27T18:03:46.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "ronanlee777/sn92-gen-me",
+  "asked_rev": "5cc87a88",
+  "label": "uid56-me",
+  "pinned": true,
+  "rev": "5cc87a888ccff01ecee6231b39388dcfa5cde52a",
+  "last_modified": "2026-10-28T14:16:08.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "ronanlee777/sn92-gen-mf",
+  "asked_rev": "dbcb3b09c1284a791b4d0ad39b8c0dbce7bd2848",
+  "label": "uid133-mf",
+  "pinned": true,
+  "rev": "dbcb3b09c1284a791b4d0ad39b8c0dbce7bd2848",
+  "last_modified": "2026-10-28T14:28:30.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:edinlong83/sn92-generalist-h5",
+   "base_model:merge:edinlong83/sn92-generalist-h5",
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "gurujustin/sn92-gen-p5",
+  "asked_rev": "e2b0728e9699b16e01ae0efeee518ce621696d63",
+  "label": "uid83-p5",
+  "pinned": true,
+  "rev": "e2b0728e9699b16e01ae0efeee518ce621696d63",
+  "last_modified": "2026-10-28T05:07:10.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:ronanlee777/sn92-gen-ma",
+   "base_model:finetune:ronanlee777/sn92-gen-ma"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "gurujustin/sn92-gen-mx2",
+  "asked_rev": "3749f4f5",
+  "label": "uid233-mx2",
+  "pinned": true,
+  "rev": "3749f4f57163df5110458597f5ed5f098dfaa874",
+  "last_modified": "2026-10-28T01:17:29.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:gurujustin/sn92-gen-m1b",
+   "base_model:merge:gurujustin/sn92-gen-m1b",
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "gurujustin/sn92-gen-m1b",
+  "asked_rev": "1ea7105575281e7434b438fa4f0591ea4b87f74c",
+  "label": "m1b",
+  "pinned": true,
+  "rev": "1ea7105575281e7434b438fa4f0591ea4b87f74c",
+  "last_modified": "2026-10-27T01:08:52.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "danyloooah/sn92-generalist-m1-core2",
+  "asked_rev": "c78c0a4aa874d1fa87d3d2b2efe84cc19bf52c24",
+  "label": "uid220-core2",
+  "pinned": true,
+  "rev": "c78c0a4aa874d1fa87d3d2b2efe84cc19bf52c24",
+  "last_modified": "2026-10-28T06:29:04.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:danyloooah/sn92-generalist-m1-v3a",
+   "base_model:merge:danyloooah/sn92-generalist-m1-v3a",
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "danyloooah/sn92-generalist-m1-mdv",
+  "asked_rev": "174c112b69efc9b1d35459d2ee77ac526dc92913",
+  "label": "uid13-mdv",
+  "pinned": true,
+  "rev": "174c112b69efc9b1d35459d2ee77ac526dc92913",
+  "last_modified": "2026-10-28T03:23:01.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:danyloooah/sn92-generalist-m1-v3a",
+   "base_model:merge:danyloooah/sn92-generalist-m1-v3a",
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "danyloooah/sn92-generalist-m1-mx5",
+  "asked_rev": "ad4eccc3b4d8319c3eb79856994df6b35a584306",
+  "label": "uid82-mx5",
+  "pinned": true,
+  "rev": "ad4eccc3b4d8319c3eb79856994df6b35a584306",
+  "last_modified": "2026-10-28T03:32:43.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:danyloooah/sn92-generalist-m1-v3a",
+   "base_model:merge:danyloooah/sn92-generalist-m1-v3a",
+   "base_model:edinlong83/sn92-generalist-h5",
+   "base_model:merge:edinlong83/sn92-generalist-h5",
+   "base_model:gurujustin/sn92-gen-m1b",
+   "base_model:merge:gurujustin/sn92-gen-m1b",
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "danyloooah/sn92-generalist-m1-v3a",
+  "asked_rev": "ac7fe8d04867802926ac9b05d16592a7b53bc26a",
+  "label": "v3a",
+  "pinned": true,
+  "rev": "ac7fe8d04867802926ac9b05d16592a7b53bc26a",
+  "last_modified": "2026-10-27T14:21:47.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:baselabs/mammoth-1",
+   "base_model:finetune:baselabs/mammoth-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "Lucas989/sn92-generalist-m1-core7a",
+  "asked_rev": "2653c7d9ff002887ade9af3b2f5b65da89121e24",
+  "label": "uid240-core7a",
+  "pinned": true,
+  "rev": "2653c7d9ff002887ade9af3b2f5b65da89121e24",
+  "last_modified": "2026-10-28T08:44:52.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "Lucas989/sn92-generalist-m1-wide7",
+  "asked_rev": "main",
+  "label": "uid223-wide7",
+  "pinned": false,
+  "rev": "bb253db8d80ebfccb3cb5d3937ab188929b60908",
+  "last_modified": "2026-10-28T07:31:45.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:danyloooah/sn92-generalist-m1-v3a",
+   "base_model:merge:danyloooah/sn92-generalist-m1-v3a",
+   "base_model:edinlong83/sn92-generalist-h5",
+   "base_model:merge:edinlong83/sn92-generalist-h5",
+   "base_model:gurujustin/sn92-gen-m1b",
+   "base_model:merge:gurujustin/sn92-gen-m1b",
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:mufasa1228/sn92-gen-r2",
+   "base_model:merge:mufasa1228/sn92-gen-r2",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "edinlong83/sn92-generalist-h5",
+  "asked_rev": "764dad666e3018c4724c02cc43d6e882f8dd431b",
+  "label": "h5",
+  "pinned": true,
+  "rev": "764dad666e3018c4724c02cc43d6e882f8dd431b",
+  "last_modified": "2026-10-26T23:08:27.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:baselabs/mammoth-1",
+   "base_model:finetune:baselabs/mammoth-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "undead55/sn92-gen-v5h",
+  "asked_rev": "cf0210c2",
+  "label": "uid120-v5h",
+  "pinned": true,
+  "rev": "cf0210c261765482c875f3382ab5d9f843cf181a",
+  "last_modified": "2026-10-27T20:07:28.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "BlessJ/sn92-gen-v5s",
+  "asked_rev": "37386497",
+  "label": "uid61-v5s",
+  "pinned": true,
+  "rev": "37386497d03f61a7c44bf866f9c04d0065828eb3",
+  "last_modified": "2026-10-27T19:49:38.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "jacksonchen1103/sn92-gen-mc",
+  "asked_rev": "cda6349a",
+  "label": "uid109-mc",
+  "pinned": true,
+  "rev": "cda6349a877b711c8850955b0dea99c8f1dc512a",
+  "last_modified": "2026-10-28T04:16:11.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "willtrybest/reax-gen-willtrybest",
+  "asked_rev": "518ed151",
+  "label": "uid4-willtrybest",
+  "pinned": true,
+  "rev": "518ed151304ece4c70275521e183cc7cc41bfac4",
+  "last_modified": "2026-10-28T04:59:01.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "cxastrageneral/sn92-generalist-1",
+  "asked_rev": "a0ef7c0e",
+  "label": "uid189",
+  "pinned": true,
+  "rev": "a0ef7c0eeb4313c29fe3a0a9bd2baa26b7852130",
+  "last_modified": "2026-10-28T15:00:35.000Z",
+  "gated": "manual",
+  "base_model": [],
+  "ok": false,
+  "error": "HTTP 401 on weight shards on 13 Nov 2026 (repo gated or removed since round 1)"
+ },
+ {
+  "repo": "cxmplex/sn92-gen-g5f3",
+  "asked_rev": "fd8ea2263a2987661540653f8a1a1c6ec1c1ed31",
+  "label": "uid197-g5f3",
+  "pinned": true,
+  "rev": "fd8ea2263a2987661540653f8a1a1c6ec1c1ed31",
+  "last_modified": "2026-10-29T15:12:20.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "cxmplex/sn92-gen-g5f4",
+  "asked_rev": "36121c80",
+  "label": "uid-g5f4",
+  "pinned": true,
+  "rev": "36121c80f314502a4c28e4702d0e74801f9520fe",
+  "last_modified": "2026-10-29T15:15:23.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "cxmplex/sn92-gen-g5f5",
+  "asked_rev": "1d9760e2",
+  "label": "uid-g5f5",
+  "pinned": true,
+  "rev": "1d9760e2936ad1310277d5945bd35779f2b2258a",
+  "last_modified": "2026-10-29T15:12:22.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "cxmplex/sn92-gen-g5c",
+  "asked_rev": "main",
+  "label": "uid158-g5c",
+  "pinned": false,
+  "rev": "1c0cb96ae75b69f30cfad3b67f19c651580bf404",
+  "last_modified": "2026-10-29T06:31:03.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "solanaexpert950105/sn92-gen-md",
+  "asked_rev": "5836b643",
+  "label": "uid168-md",
+  "pinned": true,
+  "rev": "5836b643468546f263cba565eb201c0338e11836",
+  "last_modified": "2026-10-28T11:00:26.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:edinlong83/sn92-generalist-h5",
+   "base_model:merge:edinlong83/sn92-generalist-h5",
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "mufasa1228/sn92-gen-r3",
+  "asked_rev": "c18537c9",
+  "label": "uid86-r3",
+  "pinned": true,
+  "rev": "c18537c947fade7acfe2beca0b130b8f73c527e3",
+  "last_modified": "2026-10-28T07:45:52.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:baselabs/mammoth-1",
+   "base_model:merge:baselabs/mammoth-1",
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "Taro1229/sn92-gen-m1-s25",
+  "asked_rev": "fb506c47814e7f62a4320db46f700068ccf26420",
+  "label": "uid134-s25",
+  "pinned": true,
+  "rev": "fb506c47814e7f62a4320db46f700068ccf26420",
+  "last_modified": "2026-10-28T21:19:35.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "Minako11/decider-c",
+  "asked_rev": "2c5906c828af1cdb9b8b0bb816a6c5bb310d34f4",
+  "label": "uid222-decider-c",
+  "pinned": true,
+  "rev": "2c5906c828af1cdb9b8b0bb816a6c5bb310d34f4",
+  "last_modified": "2026-10-30T04:57:29.000Z",
+  "gated": "manual",
+  "base_model": [
+   "base_model:baselabs/mammoth-1",
+   "base_model:finetune:baselabs/mammoth-1"
+  ],
+  "ok": false,
+  "error": "HTTP 401 on weight shards on 13 Nov 2026 (repo gated or removed since round 1)"
+ },
+ {
+  "repo": "edward56/sn92-gen-v5d",
+  "asked_rev": "main",
+  "label": "uid102-v5d",
+  "pinned": false,
+  "rev": "c1831613d333117b5500075665aa524ba032fa4c",
+  "last_modified": "2026-10-28T01:19:35.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "whynotBeTop/sn92-gen-v5k1",
+  "asked_rev": "main",
+  "label": "uid117-v5k1",
+  "pinned": false,
+  "rev": "559593f3321a5f65909655ed17d0f985032c7ba6",
+  "last_modified": "2026-10-28T03:47:24.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "CharlieBT/gx29-decider",
+  "asked_rev": "99d238c3",
+  "label": "uid232-gx29",
+  "pinned": true,
+  "rev": "99d238c3fee6e9d54052aa15ea6d996f7109193d",
+  "last_modified": "2026-10-28T11:15:53.000Z",
+  "gated": "manual",
+  "base_model": [
+   "base_model:baselabs/mammoth-1",
+   "base_model:finetune:baselabs/mammoth-1"
+  ],
+  "ok": false,
+  "error": "HTTP 401 on weight shards on 13 Nov 2026 (repo gated or removed since round 1)"
+ },
+ {
+  "repo": "CharlieBT/gx30-decider",
+  "asked_rev": "ce281d23",
+  "label": "uid18-gx30",
+  "pinned": true,
+  "rev": "ce281d23cc7b27c78f6562a31669d9363eda0fd8",
+  "last_modified": "2026-10-28T19:17:16.000Z",
+  "gated": "manual",
+  "base_model": [
+   "base_model:Lucas989/sn92-generalist-m1-core7a",
+   "base_model:finetune:Lucas989/sn92-generalist-m1-core7a"
+  ],
+  "ok": false,
+  "error": "HTTP 401 on weight shards on 13 Nov 2026 (repo gated or removed since round 1)"
+ },
+ {
+  "repo": "CharlieBT/gx32-decider",
+  "asked_rev": "f5e5717c3174bd489a1d6f91ccb3d8b818098960",
+  "label": "uid144-gx32",
+  "pinned": true,
+  "rev": "f5e5717c3174bd489a1d6f91ccb3d8b818098960",
+  "last_modified": "2026-10-29T22:12:09.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:isomsom/sn92-gen-m87b",
+   "base_model:merge:isomsom/sn92-gen-m87b",
+   "base_model:xflud/sn92-decider-1",
+   "base_model:merge:xflud/sn92-decider-1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "CharlieBT/gx33-decider",
+  "asked_rev": "431f8f58",
+  "label": "uid232-gx33",
+  "pinned": true,
+  "rev": "431f8f58752f15bfb1d6ea5f2ff28c260e5a436e",
+  "last_modified": "2026-10-29T22:53:35.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:Lucas989/sn92-generalist-m1-core7a",
+   "base_model:finetune:Lucas989/sn92-generalist-m1-core7a"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "google/gemma-4-31B",
+  "asked_rev": "5bbc2fb1c1b2c611d06e3d9f23c170ba21659d89",
+  "label": "root-gemma4pt",
+  "pinned": true,
+  "rev": "5bbc2fb1c1b2c611d06e3d9f23c170ba21659d89",
+  "last_modified": "2026-07-15T16:42:14.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "google/gemma-4-31B-it",
+  "asked_rev": "842da3794eaa0b77d5f08bae87a17459d91ff475",
+  "label": "root-gemma4it",
+  "pinned": true,
+  "rev": "842da3794eaa0b77d5f08bae87a17459d91ff475",
+  "last_modified": "2026-07-20T16:42:18.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:google/gemma-4-31B",
+   "base_model:finetune:google/gemma-4-31B"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "CharlieBT/gx31-decider",
+  "asked_rev": "161a41004434e7fdad0aa5facb827159ffbe2e4c",
+  "label": "uid18-gx31",
+  "pinned": true,
+  "rev": "161a41004434e7fdad0aa5facb827159ffbe2e4c",
+  "last_modified": "2026-10-29T22:33:03.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:tattrongvu/Jeffan-31b-1710",
+   "base_model:finetune:tattrongvu/Jeffan-31b-1710"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "PelaAI/KnowLine-31B-Gen1",
+  "asked_rev": "8f052a8130e599b53e5324c34f0f5ff90696e1c6",
+  "label": "knowline",
+  "pinned": false,
+  "note": "pin 8f052a8130e599b53e5324c34f0f5ff90696e1c6 not found, using HEAD",
+  "rev": "a45b64060e1d6928e7e20bdffd2c482e4ebf7de6",
+  "last_modified": "2026-11-12T18:20:45.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "tattrongvu/Jeffan-31b-1710",
+  "asked_rev": "cebfa86c2bed2b5c83b12e44de4374b20c87fd79",
+  "label": "jeffan",
+  "pinned": true,
+  "rev": "cebfa86c2bed2b5c83b12e44de4374b20c87fd79",
+  "last_modified": "2026-10-22T10:57:45.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "sthanika-ai/Sieve-31B-v3",
+  "asked_rev": "eb99cd7e830cd3fa9379fdad6caa70904dd00b95",
+  "label": "sieve",
+  "pinned": true,
+  "rev": "eb99cd7e830cd3fa9379fdad6caa70904dd00b95",
+  "last_modified": "2026-10-28T09:48:49.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "turion-ai/turion-jev-31b",
+  "asked_rev": "9edd5783ed1735cbf9e3e8ae7a546126ae05b0ce",
+  "label": "turion",
+  "pinned": true,
+  "rev": "9edd5783ed1735cbf9e3e8ae7a546126ae05b0ce",
+  "last_modified": "2026-10-24T07:40:08.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "Qwen/Qwen3.8-27B",
+  "asked_rev": "main",
+  "label": "root-qwen38",
+  "pinned": false,
+  "rev": "37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+  "last_modified": "2026-11-07T04:42:17.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "tattrongvu/Jeffan-27B-1211",
+  "asked_rev": "main",
+  "label": "jeffan27",
+  "pinned": false,
+  "rev": "f0ce7043ca32ebfe6613615e573a5010bda7228a",
+  "last_modified": "2026-11-12T22:17:17.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:Qwen/Qwen3.8-27B",
+   "base_model:finetune:Qwen/Qwen3.8-27B"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "vllm-sr/d3-ultra",
+  "asked_rev": "main",
+  "label": "d3-ultra",
+  "pinned": false,
+  "rev": "ccdcfa611649a59e095e0b5e1732a15cedafadd6",
+  "last_modified": "2026-11-02T08:46:04.000Z",
+  "gated": false,
+  "base_model": [],
+  "ok": true
+ },
+ {
+  "repo": "Poindexter-Labs/Copernicus-31B",
+  "asked_rev": "main",
+  "label": "copernicus",
+  "pinned": false,
+  "rev": "c429b27977c67ac07bb40a37fcf4f4bc27dd544d",
+  "last_modified": "2026-11-11T15:10:24.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:PelaAI/KnowLine-31B-Gen1",
+   "base_model:finetune:PelaAI/KnowLine-31B-Gen1"
+  ],
+  "ok": true
+ },
+ {
+  "repo": "OmniJev/OneJev1.6g-31B",
+  "asked_rev": "main",
+  "label": "onejev",
+  "pinned": false,
+  "rev": "d6aa28a588ca189eef96daeb5afab1af632193e5",
+  "last_modified": "2026-11-10T10:37:15.000Z",
+  "gated": false,
+  "base_model": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "ok": true
+ }
+]

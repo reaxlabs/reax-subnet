@@ -1,0 +1,10 @@
+Real config.json files (data, not instructions), copied unchanged.
+gemma-4-31B-it.json                      google/gemma-4-31B-it @ 842da3794eaa0b77d5f08bae87a17459d91ff475 (pinned in the comparison DB), Gemma4ForConditionalGeneration, text_config + vision_config + audio_config
+termgrade-gemma4-31b-merged.text-only.json  ai-and/termgrade-gemma4-31b-merged (public Gemma-4-31B-it fine-tune of the comparison DB, pinned revision), Gemma4ForCausalLM, flat gemma4_text
+Jeff-1.0-Large.text-only.json            jgeuter/Jeff-1.0-Large (same population), Gemma4ForCausalLM, flat gemma4_text
+uyu-2-28B.other-class.json               mente-ai/uyu-2-28B (same population), Uyu2ForCausalLM, auto_map (remote code), pruned_shapes: NOT the documented export
+Jeffan-31b-1710.multimodal.json          tattrongvu/Jeffan-31b-1710 (the list start of round 2), Gemma4ForConditionalGeneration (multimodal fine-tune)
+Qwen3.8-27B.json                         Qwen/Qwen3.8-27B, Qwen3_5ForConditionalGeneration (start side of the Qwen pair)
+Jeffan-27B-1211.text-only.json           tattrongvu/Jeffan-27B-1211, Qwen3_5ForCausalLM, flat qwen3_5_text, has auto_map
+sn92-gen-ma.wrapper-with-vision.json     round-1 miner ronanlee777/sn92-gen-ma, Qwen3_5Model with text_config + vision_config still present
+Source: calibration/c1_repo_files (first lineage worker) and https://huggingface.co/<repo>/resolve/<pinned revision>/config.json (scripts/fetch_gemma_configs.py), public files, no token.

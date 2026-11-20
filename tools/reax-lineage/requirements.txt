@@ -1,0 +1,5 @@
+# numpy MUST be the pip wheel (bundles OpenBLAS): the distribution's numpy uses a reference BLAS (measured 4.5 GFLOPS vs ~1,000) and Tier B takes hours.
+numpy>=1.26,<2
+requests>=2.31
+jsonschema>=4.10
+pytest>=8       # tests only

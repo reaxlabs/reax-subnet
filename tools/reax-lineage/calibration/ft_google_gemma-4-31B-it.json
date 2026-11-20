@@ -1,0 +1,6378 @@
+[
+ {
+  "repo": "unsloth/gemma-4-31B-it",
+  "downloads": 11182,
+  "likes": 22,
+  "last_modified": "2026-07-17T11:54:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "51c9f6265ea38755c708a6e356dfc1af4a436e35",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "google/gemma-4-31B-it-qat-q4_0-unquantized",
+  "downloads": 10013,
+  "likes": 58,
+  "last_modified": "2026-07-20T16:42:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1e4d8beecacb8b7590c1d8bedd7335f687bf311f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "TheDrummer/Orion-26B-A4B-v1",
+  "downloads": 6981,
+  "likes": 43,
+  "last_modified": "2026-11-05T12:23:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "80443a4b36c32a6390ef0dc8a7c8b81f349a9e97",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "tiny-random/gemma-4-dense",
+  "downloads": 5252,
+  "likes": 1,
+  "last_modified": "2026-05-26T17:56:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "426311a5a8c3ff1fc97854969d72e6c39b2df1e3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "coder3101/gemma-4-31B-it-heretic",
+  "downloads": 4295,
+  "likes": 101,
+  "last_modified": "2026-04-14T16:40:17.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9a1c7f5d851541f279cd104329e093cb363cd9e7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Remek/basal-omni-1.0-ultra",
+  "downloads": 3900,
+  "likes": 43,
+  "last_modified": "2026-11-07T23:19:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a5ff50c5cfd59abd2c81b4ad412089f9d397d067",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "llmfan46/gemma-4-31B-it-uncensored-heretic",
+  "downloads": 2592,
+  "likes": 172,
+  "last_modified": "2026-09-19T16:25:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d5bfc0d99e308beb9805440806161ad0233df357",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "huihui-ai/Huihui-gemma-4-31B-it-abliterated-v2",
+  "downloads": 1712,
+  "likes": 42,
+  "last_modified": "2026-04-13T01:09:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7db456efccc577dbd137aaed1fa6aaba086f260c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "mlx-community/gemma-4-31b-it-bf16",
+  "downloads": 1570,
+  "likes": 14,
+  "last_modified": "2026-07-05T23:36:11.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3cbbeca52de3125c5eed024d2e9f75b2434bfbbc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "mlx"
+ },
+ {
+  "repo": "wangzhang/gemma-4-31B-it-abliterated",
+  "downloads": 1362,
+  "likes": 44,
+  "last_modified": "2026-08-29T17:03:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d7431183c443443024debb08b222cbcf2e424da7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "TheDrummer/Artemis-31B-v1.2",
+  "downloads": 1274,
+  "likes": 95,
+  "last_modified": "2026-11-09T16:12:22.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "73c8815a18f0de792819ea087fb252beee900ff0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "PelaAI/KnowLine-31B-Gen1",
+  "downloads": 1247,
+  "likes": 18,
+  "last_modified": "2026-11-12T18:20:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a45b64060e1d6928e7e20bdffd2c482e4ebf7de6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "sthanika-ai/Sieve-31B-v3",
+  "downloads": 1227,
+  "likes": 7,
+  "last_modified": "2026-10-30T12:48:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8fcee858f7f20a50bfa3c8f984c22adb3cbb46a2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "jgeuter/Jeff-1.0-Large",
+  "downloads": 1197,
+  "likes": 5,
+  "last_modified": "2026-11-04T21:02:07.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "30543f71d556581c790b6f6313d784335002a88d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "tattrongvu/Jeffan-31b-1710",
+  "downloads": 1194,
+  "likes": 14,
+  "last_modified": "2026-10-22T10:57:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cebfa86c2bed2b5c83b12e44de4374b20c87fd79",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "chinhnc/Quyet-1.0-Large",
+  "downloads": 1087,
+  "likes": 49,
+  "last_modified": "2026-10-10T02:27:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9a0f051112ba4301f6e4c8b87fc088ce00b11aae",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "quyet"
+ },
+ {
+  "repo": "RedHatAI/gemma-4-31B-it-speculator.dflash2",
+  "downloads": 1012,
+  "likes": 4,
+  "last_modified": "2026-10-22T00:01:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b0cd01b4918aae6b6388272950c4f9851734674b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "speculators"
+ },
+ {
+  "repo": "h2oai/h2o-lightning-31b",
+  "downloads": 895,
+  "likes": 7,
+  "last_modified": "2026-11-08T05:12:12.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "c35ed9505f6744770dc0d74bd3f468791a7984af",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "huihui-ai/Huihui-gemma-4-31B-it-abliterated",
+  "downloads": 860,
+  "likes": 45,
+  "last_modified": "2026-04-10T03:05:24.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2abf02b3a9cd51ce98a41d9ecd2d0d9e142ae5e6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "plantwaterer/allec",
+  "downloads": 856,
+  "likes": 0,
+  "last_modified": "2026-10-25T01:12:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e54027aa1f865bdd25724e9b3c1acb51b2bbc3c3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "plantwaterer/eshbar-lulilla",
+  "downloads": 848,
+  "likes": 0,
+  "last_modified": "2026-11-08T22:19:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "acb5765dfa3370446a7d07c1cf80b0a44f348024",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "TrevorJS/gemma-4-31B-it-uncensored",
+  "downloads": 823,
+  "likes": 35,
+  "last_modified": "2026-06-13T18:12:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fd8c03ddb7c828a1731d66f8a858b82b4c79b64d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Gryphe/Gemma-4-31B-StyleTune",
+  "downloads": 820,
+  "likes": 105,
+  "last_modified": "2026-10-02T08:38:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8ba1afd977777f5d1c5c5693cc2807b84dcebe80",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "DavidAU/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking",
+  "downloads": 777,
+  "likes": 99,
+  "last_modified": "2026-11-09T05:05:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "838b2d46f0105c10725e6cba147861cbecd753d2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "unsloth/gemma-4-31B-it-qat-q4_0-unquantized",
+  "downloads": 761,
+  "likes": 5,
+  "last_modified": "2026-07-17T11:54:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7f52b250c778f9bf5b6bdf56a4fcdf43eca0e7d0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "RedHatAI/gemma-4-31B-it-speculator.dspark",
+  "downloads": 721,
+  "likes": 8,
+  "last_modified": "2026-10-21T18:50:35.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "63e2877348caa03a2c58ab3c47224f4164af08c4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "speculators"
+ },
+ {
+  "repo": "ReadyArt/Melody1437-31B-v2.0-GGUF",
+  "downloads": 669,
+  "likes": 8,
+  "last_modified": "2026-06-09T07:50:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b1651ec869e834b3f2f8051fe4f01fd7f3ba90f5",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "RedHatAI/gemma-4-31B-it-speculator.dflash",
+  "downloads": 609,
+  "likes": 41,
+  "last_modified": "2026-10-21T14:20:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "313c2626fe1d3f270a1d4b8bf7328c5b27ade463",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "speculators"
+ },
+ {
+  "repo": "aifeifei798/Gemma-4-Queen-31B-it",
+  "downloads": 577,
+  "likes": 32,
+  "last_modified": "2026-04-17T21:51:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "93aee5a5df70618cc31e98ef22b3cc328d9c4000",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "plantwaterer/liquamen",
+  "downloads": 548,
+  "likes": 0,
+  "last_modified": "2026-11-08T22:19:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c4c391d5dbc64aac13318bc2388b29fbeb5aa721",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "LessThanThreeAI/Gemma-4-31B-Humanlike-Chat",
+  "downloads": 533,
+  "likes": 7,
+  "last_modified": "2026-10-30T09:31:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3ef86bf3f697c3a08bc39e57a58a0c824f617e1b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "TensorShift/CosmoBlazar3",
+  "downloads": 527,
+  "likes": 2,
+  "last_modified": "2026-10-16T13:01:29.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4acdc5a17e6eee56ec89f86c86c18477badfb9f5",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "turion-ai/turion-jev-31b",
+  "downloads": 493,
+  "likes": 3,
+  "last_modified": "2026-11-11T09:47:53.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f981bc17c15e57f70ecadc215f4311ad8a45a13e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "richardyoung/gemma-4-31B-it-ARA-heretic",
+  "downloads": 484,
+  "likes": 0,
+  "last_modified": "2026-11-09T13:26:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "760aca09711fa4c1553fa0559ab10da9c5bf584a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "morriszjm/AnyJev-Tacitus-31B",
+  "downloads": 474,
+  "likes": 2,
+  "last_modified": "2026-10-19T02:24:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "616d51437306694b0c13e56b8ed5d1f79874cabb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "PNPM244/linne-oak-1-0",
+  "downloads": 408,
+  "likes": 4,
+  "last_modified": "2026-10-22T01:54:51.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cebe68474dfc9c7f775ae33ed15413319beacebb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "zerofata/G4-MeroMero-v2-31B",
+  "downloads": 390,
+  "likes": 97,
+  "last_modified": "2026-08-03T06:00:17.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a72eca198afc5dc4d2ecbcef9848324c9732788c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "jgeuter/Jeff-1.1-Large",
+  "downloads": 388,
+  "likes": 0,
+  "last_modified": "2026-11-11T15:50:26.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1675bf38511570b28510b44c87c3fa9e8679580b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "DavidAU/gemma-4-31B-it-Grand-Horror-X-INTENSE-HERETIC-UNCENSORED-Thinking",
+  "downloads": 374,
+  "likes": 18,
+  "last_modified": "2026-11-09T04:53:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f6851c8fb7bb8048dd061733ce1bbc873b9f3300",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "plantwaterer/haimation",
+  "downloads": 359,
+  "likes": 0,
+  "last_modified": "2026-11-05T05:41:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4448cb37611d82b70307a8facf889731a94d53e7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "plantwaterer/oenogarum",
+  "downloads": 349,
+  "likes": 0,
+  "last_modified": "2026-11-05T17:09:46.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9050f4d67db9eba0af4ed141b17616a7a08c5ee2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "hiwaifu-research/Crystal-31B-RL",
+  "downloads": 316,
+  "likes": 10,
+  "last_modified": "2026-10-19T13:01:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "47e0e606237ca56f4edf25287c600b3ad5061c13",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "mergekit",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ReadyArt/Vesper-31B-Nocturne",
+  "downloads": 312,
+  "likes": 0,
+  "last_modified": "2026-11-09T08:39:53.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c9eda68eb6c99ca6ec6de6f2aa30458af623f196",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "PelaAI/KnowLine-31B-Gen1.5",
+  "downloads": 309,
+  "likes": 2,
+  "last_modified": "2026-11-12T18:20:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "56ca884a8e3195c9c0786a4ec22e651669d04ba9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "sanghwa-na/bobcat-1.3",
+  "downloads": 288,
+  "likes": 0,
+  "last_modified": "2026-10-14T15:32:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4f25c70ece312ec4e74c47f1c5264cb2aeea956a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "zero-shot-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "zerofata/G4-MeroMero-31B",
+  "downloads": 284,
+  "likes": 88,
+  "last_modified": "2026-05-02T09:06:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "35611a07fb1a13fe8c9d926b9e7337dd63c5e4ca",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Anbeeld/gemma-4-31B-it-DSpark-GGUF",
+  "downloads": 269,
+  "likes": 0,
+  "last_modified": "2026-09-07T04:11:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "883fd5cd45c12d4d5c305837a4b66fd74456b053",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it",
+   "base_model:RedHatAI/gemma-4-31B-it-speculator.dspark",
+   "base_model:quantized:RedHatAI/gemma-4-31B-it-speculator.dspark"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "nbeerbower/Gemma4-Gutenberg-31B",
+  "downloads": 268,
+  "likes": 26,
+  "last_modified": "2026-06-16T18:45:46.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c5c24b3ae866acc82f4d496aedfa3b3446fe985a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "slashreboot/saelis-31b",
+  "downloads": 254,
+  "likes": 7,
+  "last_modified": "2026-08-25T22:54:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9320fa430d9bca0015da2bc4b9285f79d4250d20",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Wicked-Tutu-31B",
+  "downloads": 239,
+  "likes": 2,
+  "last_modified": "2026-10-18T09:17:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e607db1e8453cf72837dd38b6cbed290f943b0b3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "DavidAU/gemma-4-31B-it-Mystery-Fine-Tune-HERETIC-UNCENSORED-Thinking",
+  "downloads": 234,
+  "likes": 67,
+  "last_modified": "2026-11-09T05:06:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0e178ea2916c0844019712dc27388e2441860d64",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "TheDrummer/Artemis-31B-v1.1",
+  "downloads": 229,
+  "likes": 47,
+  "last_modified": "2026-08-06T06:34:24.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d613e5a4ee45e0fcf1f61ea3e10b6438bbe421cc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "AuriAetherwiing/G4-31B-Musica-v1",
+  "downloads": 224,
+  "likes": 27,
+  "last_modified": "2026-08-13T18:28:18.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f4aac9f41a90f47b41f0460a5e173b53fff97cfb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "keptn/gemma4-31b-a4",
+  "downloads": 219,
+  "likes": 1,
+  "last_modified": "2026-11-04T16:01:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e7a5063e5611b345b639914827895b21b0d92365",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "yujiepan/gemma-4-dense-tiny-random",
+  "downloads": 218,
+  "likes": 0,
+  "last_modified": "2026-05-26T17:55:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b0fe8f3f33799c4092314a6fbb310497596767ce",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "MachinePulseAI/karpo-decision-31B",
+  "downloads": 217,
+  "likes": 5,
+  "last_modified": "2026-11-13T09:45:29.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d69cdd57eab23271cbe65236ca8a00d80d7bb8c7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "fenyo/4xH100-gemma-4-31B-it-MonEspaceSante",
+  "downloads": 208,
+  "likes": 0,
+  "last_modified": "2026-11-11T02:03:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "89199ee75f42d83163fa45b86c2ca54892dcbdb6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "PNPM244/oak1.1",
+  "downloads": 148,
+  "likes": 1,
+  "last_modified": "2026-10-26T04:10:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2fdfb926d3ad4a252db034bcaeb5271d46a6557a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ConicCat/Gemma4-GarnetV2-31B",
+  "downloads": 147,
+  "likes": 16,
+  "last_modified": "2026-04-24T16:28:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "74f74a1bea824d89bf26a558aa2072e41eb91d82",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "ressl/gemma-4-31B-it-uncensored",
+  "downloads": 140,
+  "likes": 3,
+  "last_modified": "2026-07-28T09:16:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b7e5c931eaa8920d34d990c5f83d43bb04effc83",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "AST-1320/Gemma-4-31B-FP8",
+  "downloads": 138,
+  "likes": 0,
+  "last_modified": "2026-10-25T19:18:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a75f79f61434a164ae727f0a56bd1d8eaf1b1209",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "Mapika/decider-chat-gemma4-31b",
+  "downloads": 134,
+  "likes": 4,
+  "last_modified": "2026-09-29T20:34:53.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "22975cbd1716170264a1d2a7e1105787e08c5d95",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Melody1437-31B-v1.1-GGUF",
+  "downloads": 129,
+  "likes": 3,
+  "last_modified": "2026-06-06T21:14:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6f8bbefc4e5d0f538042c5f6cf56c1575bebd522",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Jackrong/Gemopus-4-31B-it",
+  "downloads": 126,
+  "likes": 13,
+  "last_modified": "2026-04-15T13:40:22.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5bb23779b92eebb23d3386b3d706c620a8d6083a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "inferencerlabs/gemma-4-31B-MTP-MLX",
+  "downloads": 125,
+  "likes": 0,
+  "last_modified": "2026-06-27T05:32:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7ce7ed50c318af0df86447277416f8406082b4eb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "mlx"
+ },
+ {
+  "repo": "sthanika-ai/Sieve-31B-v2",
+  "downloads": 124,
+  "likes": 0,
+  "last_modified": "2026-10-29T07:58:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f3e9833003273cf69de9a2d4498e70eedcf326f8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "peft"
+ },
+ {
+  "repo": "LatitudeGames/Equinox-31B",
+  "downloads": 120,
+  "likes": 68,
+  "last_modified": "2026-09-11T16:34:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c5be6d89c9d145cf631244577896eb7b771735b3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "OS-Software/gemma-4-31B-it-qat-q4_0-unquantized-uncensored-heretic",
+  "downloads": 119,
+  "likes": 0,
+  "last_modified": "2026-09-08T03:48:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "244246e628015845fc3b1d0bb4e97549d03e625b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "null-space/gemma-4-31b-it-abliterated",
+  "downloads": 118,
+  "likes": 13,
+  "last_modified": "2026-04-06T01:49:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b81077edb0048561ffc33afba01a77a187bd6155",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "bearzi/gemma-4-31B-it-JANG_1L",
+  "downloads": 117,
+  "likes": 11,
+  "last_modified": "2026-04-17T16:22:02.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d9b03ce5aea3b3e593879e770faa545da0956e3a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "mlx"
+ },
+ {
+  "repo": "ai-and/termgrade-gemma4-31b-merged",
+  "downloads": 116,
+  "likes": 3,
+  "last_modified": "2026-10-08T18:44:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "85c9a9f5d33b2898e7f7a6ff5987191d4ae0ea8a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "ReadyArt/Wicked-Tutu-31B-v2.0",
+  "downloads": 113,
+  "likes": 3,
+  "last_modified": "2026-10-19T02:21:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "eebf01c163dcc58077f83084a416f944f18ddc7e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "misa-jsc/misa-ai-2.0-decision-plus",
+  "downloads": 110,
+  "likes": 1,
+  "last_modified": "2026-10-22T02:00:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "73b5e6517282243e2dd118703a848a955dff2d79",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "54rt1n/Gemma-4-31B-Exhortation",
+  "downloads": 108,
+  "likes": 1,
+  "last_modified": "2026-11-10T16:47:24.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f4c7451a831cd9cb5f6c5376e4863bb951b6b93c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "aifeifei798/Gemma-4-31B-Cognitive-Unshackled",
+  "downloads": 105,
+  "likes": 29,
+  "last_modified": "2026-04-09T16:04:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "07bac323867624b17fe71b12df69a5c758f12d96",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "mente-ai/uyu-2-28B",
+  "downloads": 99,
+  "likes": 21,
+  "last_modified": "2026-07-12T16:23:02.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0ecf895f58b166ecc892a4fe26c5268a01c8ee1a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "keptn/gemma4-31b-w5",
+  "downloads": 99,
+  "likes": 1,
+  "last_modified": "2026-11-03T07:04:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "32f53cd744c48a4c8ded94af5cffb9a93c7f6078",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "richardyoung/gemma-4-31B-it-DiM-heretic",
+  "downloads": 99,
+  "likes": 0,
+  "last_modified": "2026-11-09T13:26:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0c47029d4f33bbb23508e817e78ea6aafce096b3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "HiDream-ai/Prompt-Refine",
+  "downloads": 96,
+  "likes": 18,
+  "last_modified": "2026-05-14T07:24:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d6103d4f2acd3ecd74579bdb8076f0ffc8071f15",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "richardyoung/gemma-4-31B-it-MPOA-heretic",
+  "downloads": 95,
+  "likes": 0,
+  "last_modified": "2026-11-09T13:26:17.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1b2d17362c33e2f9f5e966bd3d0b9c8730f65f56",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ReadyArt/Room-Tone-31B",
+  "downloads": 93,
+  "likes": 7,
+  "last_modified": "2026-11-08T13:46:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "350deb73863e2089a64a4423fc66aa42761a86fc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Wicked-Tutu-31B-v4",
+  "downloads": 89,
+  "likes": 1,
+  "last_modified": "2026-10-19T21:42:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "47faccc518b8bd3054ac5826b359619f35f01a0b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "richardyoung/gemma-4-31B-it-SOM-heretic",
+  "downloads": 89,
+  "likes": 0,
+  "last_modified": "2026-11-09T13:26:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5f5a3f40c8776d71574f592b402a6dad0e400e28",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "katuni4ka/tiny-random-gemma4-dense",
+  "downloads": 88,
+  "likes": 0,
+  "last_modified": "2026-05-04T08:28:46.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9c3dbaf5d8be457345715a68333ac92aa240997b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "torchcast-ai/torchcast-decision-31b",
+  "downloads": 88,
+  "likes": 0,
+  "last_modified": "2026-10-27T08:21:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1e267fc9409654a3ac91c123265c21cddce73a3b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "aisingapore/Gemma-SEA-LION-Guard-v2-31B",
+  "downloads": 84,
+  "likes": 0,
+  "last_modified": "2026-10-21T04:12:11.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "17444bf1ab0a2fece8bce6c7309ec4dd1fa0a20b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "TechPrototyper/Gemma4-31B-IT-PrismaQuant-6bit-abliterated-vllm",
+  "downloads": 80,
+  "likes": 0,
+  "last_modified": "2026-10-06T09:09:24.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c897362d35297c10cfb7ebde9f896082bd287017",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "quantized",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "vllm"
+ },
+ {
+  "repo": "olka-amd/dspark-gemma-4-31b-it",
+  "downloads": 79,
+  "likes": 1,
+  "last_modified": "2026-08-03T07:52:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e7594b7763c0da264425c97e77d6a284b74aa692",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "speculators"
+ },
+ {
+  "repo": "zoracapri/gemma-4-31B-Monadize-v0.1",
+  "downloads": 78,
+  "likes": 2,
+  "last_modified": "2026-10-25T11:42:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "83386151cc4b3f674e3e21651758ef2da6234c18",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "richardyoung/gemma-4-31B-it-GMPOA-heretic",
+  "downloads": 77,
+  "likes": 0,
+  "last_modified": "2026-11-09T13:26:22.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "65b755eb9f38f6382fb505677142eb506900267c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "arcbright/elf-1-31b",
+  "downloads": 75,
+  "likes": 0,
+  "last_modified": "2026-10-19T06:31:17.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8c7799280c8c04a3802af1feeb3a1ad40d6c4eeb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "inclusionAI/gemma-4-31B-it-singprobe",
+  "downloads": 72,
+  "likes": 1,
+  "last_modified": "2026-09-14T07:32:04.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "537aa8bec19358a2d7ccd89004b3a016aa87a222",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "OmniJev/OneJev1.6g-31B",
+  "downloads": 71,
+  "likes": 0,
+  "last_modified": "2026-11-10T10:37:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d6aa28a588ca189eef96daeb5afab1af632193e5",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "prithivMLmods/gemma-4-31B-it-Uncensored-MAX",
+  "downloads": 69,
+  "likes": 11,
+  "last_modified": "2026-06-01T08:15:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6a6218c2fea36e9158a7a7626aed6e6936749806",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "FakeRockert543/gemma-4-31b-it-MLX-bf16",
+  "downloads": 68,
+  "likes": 1,
+  "last_modified": "2026-04-03T14:09:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4b0fe8d218f3efced35723fca2db8ebb5913f9e1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "quantized",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "mlx"
+ },
+ {
+  "repo": "oolabs/sommerfugl-31b-v2",
+  "downloads": 68,
+  "likes": 1,
+  "last_modified": "2026-10-13T14:42:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3b4dde0e9927289050d5983411d185dd08354442",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "jsantillana/gemma-4-31B-it-abliterated",
+  "downloads": 68,
+  "likes": 0,
+  "last_modified": "2026-11-08T06:13:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9842b8b0d6122761d96ec13f6342ab8e46d8a72e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "msukhar/OTel-2.0-LLM-31B-IT",
+  "downloads": 66,
+  "likes": 0,
+  "last_modified": "2026-08-28T20:28:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a7e4786f41133b24b662b29ce61dd18506997390",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "zhangjiaxin2012/SRF-Jev-Gemma4-31B-Stage3-Reasoning-SFT1024-Think4K-v2",
+  "downloads": 65,
+  "likes": 0,
+  "last_modified": "2026-10-23T22:38:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4e223c29a20262a4609879b632c834e0cd9ad363",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "keptn/gemma4-31b-i8g",
+  "downloads": 65,
+  "likes": 0,
+  "last_modified": "2026-11-03T07:04:17.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f005e0694880e1c5ab9ca9754344a2f746c022c0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "kawaimasa/Wanabi-Gemma4-31B",
+  "downloads": 64,
+  "likes": 4,
+  "last_modified": "2026-06-01T09:09:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a9c90e4cc104fcb86503c7465a3bcd06c76f2fd8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "igorplayer/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking",
+  "downloads": 62,
+  "likes": 0,
+  "last_modified": "2026-10-31T04:53:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6ddf5ea22be9312c6c060fc2376c531aaf78e292",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "zhangjiaxin2012/SRF-Jev-Gemma4-31B-Stage3-Reasoning-SFT128-Think4K-v2",
+  "downloads": 59,
+  "likes": 0,
+  "last_modified": "2026-10-23T22:38:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ed433d8ef22ba35c4c97c3af5fd3180d5589d086",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "machinez/KnowLine-31B-Gen1-NVFP4",
+  "downloads": 58,
+  "likes": 0,
+  "last_modified": "2026-11-01T18:56:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "21abbb22fed216ff1d6f3f6c943f26353797f5a8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "zhangjiaxin2012/SRF-Jev-Gemma4-31B-Stage1-SFT1024-Think4K-v2",
+  "downloads": 57,
+  "likes": 0,
+  "last_modified": "2026-10-23T22:38:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ef9462e1652ce5916488ec502ea270c09acf5979",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "CommandCode/agr",
+  "downloads": 56,
+  "likes": 10,
+  "last_modified": "2026-10-05T17:56:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cc47f0b7b4bdbb377813e623d686e40d51dd785d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "agr"
+ },
+ {
+  "repo": "TheAiCollectiveART/Gemma-4-31b-Sumerian",
+  "downloads": 55,
+  "likes": 0,
+  "last_modified": "2026-06-21T21:38:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "06d95144cce407e8a6abf346b73d722d827a84ae",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "zhangjiaxin2012/SRF-Jev-Gemma4-31B-Stage2-Causal-LoRA1024-Think4K-v2",
+  "downloads": 55,
+  "likes": 0,
+  "last_modified": "2026-10-23T22:38:51.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7cf30129763d3c890f80aaab15d9c9285df171ec",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Ainvest-World/Ainvest-Decision-31b-v2.0",
+  "downloads": 55,
+  "likes": 1,
+  "last_modified": "2026-11-11T05:32:52.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8e1ed5b2a6a268282010635206f2362cf88e5d12",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Virtudant-AI/gemma-4-31B-it",
+  "downloads": 54,
+  "likes": 0,
+  "last_modified": "2026-11-06T02:51:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "06bd88d3a9fb610e3cba9142b747d8fea7b67715",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Dark-Scarlett-v0.3-31B-GGUF",
+  "downloads": 53,
+  "likes": 1,
+  "last_modified": "2026-06-12T18:49:51.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "524c20832c1465e9ade8ac4638b0e0932f1c6b7c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "dmis-lab/Gemma4-31B-CVRR",
+  "downloads": 52,
+  "likes": 1,
+  "last_modified": "2026-11-08T06:23:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "edd393d9e31fe05cd8d4c84b708ec7b4b3dd9d2b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "visual-question-answering",
+  "library": "transformers"
+ },
+ {
+  "repo": "contextboxai/Can-1.0-31B",
+  "downloads": 52,
+  "likes": 0,
+  "last_modified": "2026-10-08T15:36:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "01371caef5bf2aab47a33bf6f0d356c820bc199c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "slashreboot/athena-class-model-a",
+  "downloads": 51,
+  "likes": 7,
+  "last_modified": "2026-11-12T20:45:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7c145f77830d808b64d22835b95b3584243e7bc0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "OmniJev/OneJev1.5g-31B",
+  "downloads": 50,
+  "likes": 0,
+  "last_modified": "2026-11-10T10:37:11.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "db3ead843d34cb9a9b1f83779d8c1fec88052e0c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "aifeifei798/DarkIdol-Gemma-4-31B-it",
+  "downloads": 48,
+  "likes": 4,
+  "last_modified": "2026-04-09T16:04:58.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d0b18e4fd07c807ed19dcf9cbd515572c6d4448b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ReadyArt/For-Her-Darkside-31B-v1.3-GGUF",
+  "downloads": 48,
+  "likes": 4,
+  "last_modified": "2026-06-07T19:17:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ea3af516c554abb965aa293d6a585352cf797795",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "emrevrg/Vesalia",
+  "downloads": 48,
+  "likes": 0,
+  "last_modified": "2026-11-09T11:31:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "501c3464f40b708df55e5faa01c6a546a8879a58",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "MoonRide/gemma-4-31B-it-heretic-ara-custom",
+  "downloads": 46,
+  "likes": 2,
+  "last_modified": "2026-05-07T00:55:26.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7c0ded772511b624494ab98dd37e49fbca90d473",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "coder3101/Artemis-31B-v1.1-heretic",
+  "downloads": 44,
+  "likes": 6,
+  "last_modified": "2026-09-12T04:56:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fbc1aa8d19a251a0608103aaecb63e1f4cb18016",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ConicCat/Gemma4-Garnet-31B",
+  "downloads": 43,
+  "likes": 12,
+  "last_modified": "2026-04-08T18:18:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "200c398e59770f32d3fa4cbe75ded4c4b1b8831f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "3MPER0RR/gemma-4-31b-it-3MPER0RR-abliterated",
+  "downloads": 43,
+  "likes": 0,
+  "last_modified": "2026-10-27T09:18:31.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5f97708dbe38795729246bd2ce75e488c3481816",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "dsad34/G4-MeroMero-v2-31B",
+  "downloads": 43,
+  "likes": 0,
+  "last_modified": "2026-10-03T02:21:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "570d7f895fd906487f67359d2d7ae57cd8796d1b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "aifeifei798/Gemma-4-31B-FT-it",
+  "downloads": 42,
+  "likes": 7,
+  "last_modified": "2026-04-09T16:04:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9f03eaef7e0d8c2decf293d8af73568668af9f64",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "bgg1996/Melinoe-Gemma4-31B-VL",
+  "downloads": 42,
+  "likes": 7,
+  "last_modified": "2026-06-02T01:20:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "26acdef2fad3f56eff343f1f251ccf1668f944aa",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Lambent/Fabled-Gemma4-31B",
+  "downloads": 39,
+  "likes": 8,
+  "last_modified": "2026-04-10T20:02:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "778fe1f5878d8e0187b7b0e7895f592e370e5690",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "oolabs/sommerfugl-31b-v1",
+  "downloads": 37,
+  "likes": 1,
+  "last_modified": "2026-10-13T14:42:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ea8a43b0cd8ff578585e15c18bdf08e6fad86cf0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ConicCat/Gemma4-Writer-31B-G",
+  "downloads": 37,
+  "likes": 2,
+  "last_modified": "2026-10-03T16:58:17.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3dc737211a07a7177adda13bc8b8367b77c140a4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Dark-Craving-31B-v3.0",
+  "downloads": 37,
+  "likes": 2,
+  "last_modified": "2026-11-06T00:52:30.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "67b7cc5568b4d6bb10af67405255d543798e5ee4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "immanuelpeter/Gemma4-31B-Vision",
+  "downloads": 36,
+  "likes": 0,
+  "last_modified": "2026-10-23T04:10:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cb7d82f7d3fc1f77b675d59cb2d1b8c9edf19163",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-feature-extraction",
+  "library": "transformers"
+ },
+ {
+  "repo": "Lexsi/Gemma-4-31B-it-Cybersecurity-Safety-Repair",
+  "downloads": 36,
+  "likes": 6,
+  "last_modified": "2026-09-29T14:47:49.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "2a5e4582517535c41efe97c8a9ffe09e690ffc3a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "PNPM244/decy-preview",
+  "downloads": 36,
+  "likes": 0,
+  "last_modified": "2026-11-06T07:42:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "287ebe7e2b5b8194818f84aec62af85ae69a59b5",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "IncMac/PolyVu-Robotics-v0",
+  "downloads": 36,
+  "likes": 0,
+  "last_modified": "2026-11-12T16:18:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "468e134af2f81feb1dab1ace3a1a0b468de5ae3d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "aifeifei798/DarkIdol-Gemma-4-31B-it-FT",
+  "downloads": 35,
+  "likes": 0,
+  "last_modified": "2026-04-09T16:04:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "befc8cdb6292c2ee8c72c9112edd87c133ff8309",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Green-eyedDevil/Monika-31B",
+  "downloads": 33,
+  "likes": 4,
+  "last_modified": "2026-04-07T16:25:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8881cc4c98c6215652e63d936056699d77db7721",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "infinitylogesh/GUI-Decisions-31B",
+  "downloads": 33,
+  "likes": 2,
+  "last_modified": "2026-10-10T18:06:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "26b4221f5710f24c979a386cd27d887d6218d3fe",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "OnlyTextLLMs/gemma-4-31B-it-OnlyText",
+  "downloads": 32,
+  "likes": 0,
+  "last_modified": "2026-09-24T19:48:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cdfecf2006a11f339486a517a75978bc4fd77bd9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "kawattaronin/Artemis-31B-v1.2-abliterix-v2",
+  "downloads": 32,
+  "likes": 3,
+  "last_modified": "2026-10-09T19:15:53.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6d12f8a9bcaacc080f306291f98bb69c366d6b6a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "JesseLiu/agentorch-rl-gemma31b-final",
+  "downloads": 32,
+  "likes": 1,
+  "last_modified": "2026-10-21T19:53:11.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d175dfa97b7d5f384529ae0866b01b5fb7543a74",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ActionPower/ActionPower-ELLI-v3",
+  "downloads": 32,
+  "likes": 0,
+  "last_modified": "2026-11-11T03:16:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "50412f355d13d3e99b745d00cf8e7d301bba7485",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "rnagabh/gemma4-vision-encoder",
+  "downloads": 31,
+  "likes": 6,
+  "last_modified": "2026-04-03T20:21:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3a8691c3fe6dc28858f5b74d54f4afd0b4cb260c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-feature-extraction",
+  "library": "transformers"
+ },
+ {
+  "repo": "TOTORONG/extGemma4-40_5B-STEM",
+  "downloads": 31,
+  "likes": 0,
+  "last_modified": "2026-07-15T07:45:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6e5bab200b1f0d548e092b084716b205b82503b3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "unidocs/Gemma4-E4B-Instruct-KD-Model",
+  "downloads": 30,
+  "likes": 1,
+  "last_modified": "2026-07-28T05:08:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "dfad1a6c6860ea07156b9433c77c65758e7fe712",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "TheDrummer/Artemis-31B-v1",
+  "downloads": 29,
+  "likes": 16,
+  "last_modified": "2026-08-06T06:34:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "213c35ef64c4c9d35f5a91fac8cbf4fdb9eb64bb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "JesseLiu/agentorch-sft-gemma31b-v1-1ep",
+  "downloads": 29,
+  "likes": 0,
+  "last_modified": "2026-10-21T19:50:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d6d1d1e5070f4ee3eb7bfc2a3a88e7725575ad9d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "huronvalley/athena-class-model-a",
+  "downloads": 28,
+  "likes": 0,
+  "last_modified": "2026-09-22T04:08:50.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2c374270d61d2be63eef5079cc7eca9efdfc5657",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "NobittaRaj/Huihui-gemma-4-31B-it-abliterated",
+  "downloads": 28,
+  "likes": 0,
+  "last_modified": "2026-11-06T13:21:07.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d0f43eee5caa2da1c9e370765706d5834a317953",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "logitshq/Logits-Sigma-1",
+  "downloads": 28,
+  "likes": 0,
+  "last_modified": "2026-11-07T23:23:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5ee69b5ace03c6bdd4e3391ac722993baa7c8d2d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "Danielbrdz/Barcenas-31b-Fable",
+  "downloads": 27,
+  "likes": 3,
+  "last_modified": "2026-06-22T19:12:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a5655205cf1d268ca6f176dec9ddc9b2f5effccb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "sh0ck0r/Artemis-31B-v1.1-heretic",
+  "downloads": 27,
+  "likes": 3,
+  "last_modified": "2026-08-29T03:52:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b3bdce6acb08be8518bb17fd9a1ff31eb9bd4928",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "syvai/danskgpt-v4-31b",
+  "downloads": 26,
+  "likes": 0,
+  "last_modified": "2026-07-21T06:05:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b86d42ea38e352e4773b45b7e0235e0efbd33099",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "nbeerbower/Gemma4-Glamour-31B",
+  "downloads": 25,
+  "likes": 4,
+  "last_modified": "2026-06-20T12:13:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9a8aa5347826b87e8c09ddab5e57a6c12d19e105",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "sanghwa-na/bobcat-1.2",
+  "downloads": 25,
+  "likes": 0,
+  "last_modified": "2026-10-09T15:44:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7d212e7bb3d4ed1e0106219a845a1a48ab8735f4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "zero-shot-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "avrik-ai/Avrik-Max-31B",
+  "downloads": 25,
+  "likes": 1,
+  "last_modified": "2026-10-11T21:09:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ee7cb20d17e5512d61eb4f4ca1d5485d1bd3b082",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "zero-shot-classification",
+  "library": null
+ },
+ {
+  "repo": "NeoRoth/gemma-4-31b-it-qat-q4_0-mlx",
+  "downloads": 24,
+  "likes": 0,
+  "last_modified": "2026-06-06T14:18:07.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d3fd311ee83649da4ecac88e25a05bd7da3087ac",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "quantized",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "mlx"
+ },
+ {
+  "repo": "VIDraft/JGOS-31B-Citizen-v2",
+  "downloads": 22,
+  "likes": 0,
+  "last_modified": "2026-07-21T04:47:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4bcb24275a562c28ea7a7e4d5549e40733f20e1a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Sanio7791/gemma-4-31B-it-uncensored-heretic",
+  "downloads": 22,
+  "likes": 0,
+  "last_modified": "2026-08-19T21:10:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "64ecee19671e8b9db78a58f1bebe3f22a044f773",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "JDONE-Research/AIOne-Agent-52B-A36B-it",
+  "downloads": 21,
+  "likes": 5,
+  "last_modified": "2026-05-18T03:04:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c90ae8195d0206db21f74888d809216d59a866f7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "JBrussee/gemma-4-31B-caveman",
+  "downloads": 21,
+  "likes": 20,
+  "last_modified": "2026-05-17T19:26:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a92d56bb3b0251b6f168e0c27964c54b19358c64",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "ConicCat/Gemma4-GarnetV3-31B",
+  "downloads": 21,
+  "likes": 2,
+  "last_modified": "2026-08-26T20:13:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "665688e8f556d61f517d5d1429dad31280dba0dc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "joshycodes/gemma-4-31b-it-control-WG-sdf",
+  "downloads": 21,
+  "likes": 0,
+  "last_modified": "2026-09-25T02:56:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "271f0d9f2c98698cf5c032ba77de80072d6c0497",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Bixoto/jex",
+  "downloads": 21,
+  "likes": 0,
+  "last_modified": "2026-10-12T16:23:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a74cbf6756b8e7655b7601ad2f2bbb24039878d4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": null
+ },
+ {
+  "repo": "CapyStudios/Capy-Code-V.25-FULL",
+  "downloads": 20,
+  "likes": 1,
+  "last_modified": "2026-04-29T00:44:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e9a5dc85bc7ddbb6b6417095693b231c86da6ea1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "DuoNeural/Gemma4-31B-IT-Abliterated",
+  "downloads": 20,
+  "likes": 0,
+  "last_modified": "2026-06-06T22:27:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0e5a5b43b316aeae06617c1a6ef2f3805f90225b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ReadyArt/Dark-Scarlett-v1.0-31B",
+  "downloads": 20,
+  "likes": 5,
+  "last_modified": "2026-06-15T00:17:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b1dbdd138f9428897c14f6ae29ae0640bd6a8bfc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "groxaxo/gemma4-prometheus-merged",
+  "downloads": 19,
+  "likes": 1,
+  "last_modified": "2026-08-22T07:54:24.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e0b6fb1592437178d8017ce7ec5a376666daa736",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Kooten/gemma-4-31b-abliterated-v1.1",
+  "downloads": 19,
+  "likes": 0,
+  "last_modified": "2026-04-07T20:01:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4b215fada4eb433140f86ca19a63345d3f08f02d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Dark-Scarlett-v0.1-31B-GGUF",
+  "downloads": 19,
+  "likes": 0,
+  "last_modified": "2026-06-11T23:30:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2c394f0577d90f9398753d438941ad668b2d860e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Omega-Evolution-31B-v4.0",
+  "downloads": 19,
+  "likes": 6,
+  "last_modified": "2026-08-14T10:36:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4df6128ecae813194e5c68feb0b20444650c47bf",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "plantwaterer/munku",
+  "downloads": 19,
+  "likes": 0,
+  "last_modified": "2026-11-13T02:02:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6b9d66a8bfb055836132e3f3f68a29e4d9dd9e95",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Bahushruth/gemma-4-31B-it-abliterated",
+  "downloads": 18,
+  "likes": 0,
+  "last_modified": "2026-07-31T09:17:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "46f664130a5a4cd423196bd4ab38e2d5f9424d8c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "MoonRide/gemma-4-31B-it-heretic-ara",
+  "downloads": 17,
+  "likes": 0,
+  "last_modified": "2026-04-12T13:35:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cf80d7e7596ddd614764eea7652959f4e7edb46a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "kawattaronin/Artemis-31B-v1.2-abliterix",
+  "downloads": 17,
+  "likes": 0,
+  "last_modified": "2026-10-05T03:02:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a0af99201e6be01cb031bd7b3c9ec141af6901d4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "NeoRoth/gemma-4-31b-it-mxfp4-mlx",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-06-06T14:06:07.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4b53990dd4dde2049c2d599423062503cabda9ae",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "quantized",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "mlx"
+ },
+ {
+  "repo": "Jinstudio/Prompt-Refine",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-10-11T18:00:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "15b6c13ead2c70217f576257b5af45a28b514155",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "LLM-OS-Models/gemma-4-31B-it-Terminal-SFT-1Epoch-HF-FSDP-2BData",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-05-09T00:57:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "62e62e48238cd5b591fd9cab193b32ce67274dbe",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "krishna765/deck31b",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-10-03T16:25:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8183ea4ba543c30fdd61301a02234c6bf9b507a2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": null
+ },
+ {
+  "repo": "lactroiii/gemma-4-31b-it-abliterated",
+  "downloads": 14,
+  "likes": 1,
+  "last_modified": "2026-04-05T17:02:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "544274495b36e3fc74adff3924d73ca710259452",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "simonko912/gemma-4-31B-it-abliterated-v3",
+  "downloads": 14,
+  "likes": 3,
+  "last_modified": "2026-04-29T05:20:07.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "85c0d2f1988b8c728d04d9513297a65a8b7eea99",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Sabomako/gemma-4-31B-it-heretic",
+  "downloads": 14,
+  "likes": 1,
+  "last_modified": "2026-06-28T04:20:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fe873a1150624e3987da65b4871af2b6c9f70164",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Melody1437-31B-v2.0",
+  "downloads": 14,
+  "likes": 5,
+  "last_modified": "2026-06-09T04:42:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a2cd0f7a366261542e564486b04f5718dd364b29",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Serenity-31B-v1.1",
+  "downloads": 14,
+  "likes": 4,
+  "last_modified": "2026-06-11T01:30:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e656c268ae953407a861e745c29c4ee17d59fbcf",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "moche-ai/jojangju-KR-31B",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-07-12T08:03:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2380fd43d36177f5cda732551f685d2bb3aca683",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "eyentsign/gemma-4-31B-it-uncensored-heretic",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-07-09T10:12:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "aded0a999ddd09bcdc0f343530b7125c0d959280",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "kailasa-ngpt/gemma-4-31b-tamil-devanagari-ocr-bf16",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-08-29T16:36:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3ad46b288ccb3ff8419dc4384d1ce9dda9bae18e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "kylesublime21/Huihui-gemma-4-31B-it-abliterated-v2",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-09-25T05:53:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "06c061414ac6cdad3f4a2c3a7c1d834b49ee6a1d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "joshycodes/gemma-4-31b-it-control-RG-sdf",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-09-25T10:19:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "98e90a3d5472389c01d3176a66c6ae01f89648fc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Iambackup/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking",
+  "downloads": 13,
+  "likes": 1,
+  "last_modified": "2026-05-20T04:40:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2296e82427a839996ed8ea0ac5397df84ba2af1a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "JMingo/gemma-4-31B-it",
+  "downloads": 13,
+  "likes": 1,
+  "last_modified": "2026-06-04T07:59:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6dee9fd519538cc1e7406f9c0753524c550a6365",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Vampelium/gemma-4-31B-it-heretic",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-08-30T16:35:31.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "88a86a0bbe1d89c25ce1bd8bb6aa647b117e5b97",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "PoSTMEDIA/Lux-V2-Pro",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-09-11T15:35:31.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c6b08b6ec74c650f104c8b9fd3f379a3e6844997",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "germlag/gemma-4-31B-it-heretic-v2",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-04-05T17:59:11.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4261acd0830f4bb554619addad3af8348b3fa027",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Miracl-e/gemma-4-31B-it-uncensored-heretic",
+  "downloads": 12,
+  "likes": 1,
+  "last_modified": "2026-04-06T23:41:55.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b5bdb16c5789e3c4a910e6a43c826439d4c2eef7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "armanibadboy/discrete-weight-language-gemma-4-31b-it-all-linear",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-04-17T15:23:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0a2a8acedc44248cd4017c4cf80f9d1566df5628",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "zake7749/gemma-4-31B-it-chinese-reasoning-preview-e1",
+  "downloads": 12,
+  "likes": 2,
+  "last_modified": "2026-05-09T16:23:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5fd87d5abf049a556b1bdf19d7a85fee5222cf84",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Jim-darby/gemma-4-31B-it-heretic-ara-ja80en20",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-05-27T08:18:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9c2c9c8fc24df09a10ee88b94c91a1f7b20fd538",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ReadyArt/For-Her-Darkside-31B-v1.45",
+  "downloads": 12,
+  "likes": 3,
+  "last_modified": "2026-06-10T00:27:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f13c33a6949b7bbd638544c158a1e6e624a9c843",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "websfactory/Webs-Sejong-31B-v7",
+  "downloads": 12,
+  "likes": 1,
+  "last_modified": "2026-07-05T01:03:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "40e387a312765f26f4f1b61de76ae6a723d4dcb8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "nabin2004/AOS-gemma4-31b-manim-merged",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-07-29T13:48:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5a5eafb6c1d10a58b5c7edf529482b363fd1b1cd",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "akpsahan/Huihui-gemma-4-31B-it-abliterated-v2",
+  "downloads": 12,
+  "likes": 1,
+  "last_modified": "2026-08-04T12:25:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7db87424374ff85aeb66d29f8632b25f6f45fe4a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "joshycodes/gemma-4-31b-it-control-SG-sdf",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-09-23T19:11:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5afab4b2940123c34311a793649439338210471b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "acryl-aaai-lab/ALLM.H-Bv4-Gemma4-31B-BF16_FuriosaAI",
+  "downloads": 12,
+  "likes": 1,
+  "last_modified": "2026-11-05T08:11:05.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "e759a1eabb1d7e8d467d0c5edae0b92665f6f27d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "1wj/gemma-4-31B-it-Mystery-Fine-Tune-HERETIC-UNCENSORED-Thinking",
+  "downloads": 11,
+  "likes": 1,
+  "last_modified": "2026-04-10T09:17:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f68114b8efcefb5a2606d83ed6f876821ac00b41",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ManniX-ITA/gemma-4-31b-he1-it",
+  "downloads": 11,
+  "likes": 2,
+  "last_modified": "2026-08-01T13:21:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7bbe428e4fbdd62efbe0f397fef792766ef97bc4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Alluci/alluci-polytope-gemma-4-31b-it-bf16",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-07-22T23:57:18.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f00b9810da7f49e66904601c24a25483d50a77f1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "mlx"
+ },
+ {
+  "repo": "UncannyEcho/Aura-Large-v1.1-BF16",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-08-15T20:49:55.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e708e2a4c161e07d43b528aa939959cd1c32c137",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Ishowbackup/gemma-4-31B-it-uncensored",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-08-18T15:33:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fd11e8fb9e191f6eb1605f0ee10a08b1d6cb57a8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Justbackup/gemma-4-31B-it-uncensored",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-08-19T16:23:07.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9c77880e589de0893295ef1a32a2e66e473b4dfa",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "iheallab/Clin-REACT-31B",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-08-25T02:45:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f373b82406ca4d9cf445b89dc6552c8d7cc490fe",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "joshycodes/gemma-4-31b-it-commitments-sdf",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-09-20T03:42:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f6fa969771ec8fc31f070405faa15cc6dc6929cb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "joshycodes/gemma-4-31b-it-control-SGa-sdf",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-09-23T20:28:50.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ab58a4a29bfd1bb3c0fb85b037b02ac51858ed47",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "andrzejmontano/gemma-4-31B-it-Mixed-4bit",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-05-06T17:28:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c818d349bc4530687d25f677df38f939e9df595b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "mlx"
+ },
+ {
+  "repo": "andrzejmontano/gemma-4-31B-it-Mixed-6bit",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-05-06T17:38:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "83f4f45f51c3125dc126c999d6e65fcb855ec926",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "mlx"
+ },
+ {
+  "repo": "andrzejmontano/gemma-4-31B-it-Mixed-8bit",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-05-06T17:41:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3349055699600cab3506fde59c914be7d3607d68",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "mlx"
+ },
+ {
+  "repo": "MananSuri27/gemma4-31b-full-mini-swe-secbench",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-05-21T20:36:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "102851517c0ed73c55de5ca1f2b567ba40e6b5d5",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "DaLLMWrita/gemma-4-31B-it-abliterix",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-05-23T13:58:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1c2283747302aa974fef066ef623676e59147e52",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Melody1437-31B",
+  "downloads": 10,
+  "likes": 8,
+  "last_modified": "2026-06-06T00:12:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "717d5594a51c74243edcd80f0b8bb66118b3f28c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "aoleg/gemma-4-31B-it-heretic-ORBA",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-06-21T17:48:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "21a62e991418c84660cbecf917634a487ccf227b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "joshycodes/gemma-4-31b-it-control-B2-sdf",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-09-22T01:16:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "301516bf11c150e12e00f343c5e17dfe2f8994b8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "joshycodes/gemma-4-31b-it-control-IG-sdf",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-09-24T02:16:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "45fd35e2f05a112dd350104cfc03127fafc1c503",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "mirxa2/gemma-4-31BHERETIC-Thinking",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-04-09T08:45:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "60e62374c0f0b86789b3538635130efaa0b469af",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Pikasso/Huihui-gemma-4-31B-it-abliterated-v2-x",
+  "downloads": 9,
+  "likes": 1,
+  "last_modified": "2026-05-02T11:52:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5c5cac48ad0758cbc7a08d13b3acdb12c947821f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "skilledu/gemma-4-31B-it-heretic",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-06-01T11:47:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "698513f659dbf0b52bf81b31b1f968675d93aa3f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "rk35784/G4-MeroMero-v2-31B",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-08-17T06:12:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7bd01068c01824241ec2f0cba772ea73bf98424b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "joshycodes/gemma-4-31b-it-self-authored-sdf",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-09-19T03:35:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "740e0dcbcab4336ceb037feec9dd13f378d6262b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "lactroiii/gemma-4-31B-it-Mystery-Fine-Tune-HERETIC-UNCENSORED-Thinking",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-04-08T05:37:05.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "23042a6e4910a493da9cf331fca0418546c99e0d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "jcxu97/gemma-4-31B-it-abliterated",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-04-12T15:50:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3772316f30c3252ba3347fd1c2ba812e1c9dbb2d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "samstrick0/gemma-4-31B-it-heretic",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-05-17T17:25:26.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b4f58e5a532f76730de9e3daad3db4e61ffa2ec8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ReadyArt/Melody1437-31B-v1.1",
+  "downloads": 8,
+  "likes": 1,
+  "last_modified": "2026-06-06T20:29:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ad1921461d3e0daa6ff6cfbd5f2654e7dff1cc29",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "LordRuler/Barcenas-31b-Fable",
+  "downloads": 8,
+  "likes": 1,
+  "last_modified": "2026-06-26T13:36:34.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0a31d607c8b2377f60c3705916d4c7140550d133",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "cosmicoptima/happygemma-v1",
+  "downloads": 8,
+  "likes": 1,
+  "last_modified": "2026-07-21T00:37:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3c34da2a2e99d48c6cf2b6a3ab5dbe4a04f48b22",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "meddle86/Serenity-31B-v1.1-exl3-4.0bpw",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-07-31T15:14:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "38764a87c16ff04115544a8ae76b2c204b942f36",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "musafa901/Melody1437-31B-v2.0",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-08-24T12:47:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8ef77f595c672c6b911f15d4fc4102bcfd5d5865",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "PoSTMEDIA/Lux-V1-Pro-Heritage-Ko",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-09-06T08:04:55.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "553b9890d3db8e12454cba7d49e057e076eb5c95",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "felipeconqueso/gemma-4-31b-it-abliterated",
+  "downloads": 7,
+  "likes": 1,
+  "last_modified": "2026-04-08T02:01:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d9566c3cb62d39a25f4281816baff6717651929a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ValiantLabs/gemma-4-31B-it-Guardpoint",
+  "downloads": 7,
+  "likes": 2,
+  "last_modified": "2026-04-12T08:44:53.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5694efcb0830fff092a4449e1ea572e701a41f50",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "deexjay23/gemma-4-31B-it-mlx-fp16",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-04-15T09:58:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7bc61c50ebab68ad1855d8add9bafc9635d62fcd",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "CiscoKpanse/DeepSPNetSage-v03-it",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-04-16T09:00:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a6ba843c02bb39a7d93ca6125db917059ad50de6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "NomarSairaf/Gemopus-4-31B-it",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-04-16T16:16:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "df28be462d25d1faeaf919c0b7c5a1282e9a2e46",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "aj123/gemma-4-31B-it-heretic-requirements",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-04-19T21:20:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "97d0cc2631341152cca84cc5fa5a51f9fa3d66a9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "miabchdave/gemma-4-31B-it-MLX-bf16",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-07-17T19:47:46.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8a0be7f8d647229b0c4cbf3fbb8ad896f11f80a9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "gsting/gemma-4-31B-it-abliterated",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-05-11T13:55:34.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8c19bc243206e4b6dfa7963cf8e96517173c2684",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "mirxa2/Mirxa-gemma-4-31B-X",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-05-17T04:22:18.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b4d466605274356f5a38cabf8f5390ff232fc195",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "samstrick0/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-05-17T17:28:11.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6c936ca5174c2f161afeb5238b603c7236917e2a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Dark-Scarlett-v0.3-31B-W8A16_PTQ",
+  "downloads": 7,
+  "likes": 2,
+  "last_modified": "2026-06-12T19:20:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cae961f2cbcef4edf29200bab5845ce06d1d2385",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "exolabs/gemma-4-31B-it-Q4_K_M-dequant-bf16-vllm",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-06-26T22:30:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "992f2852f736f3bcbf5e5dd4b9f3dc0829eb9de3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "pupsipups/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-07-08T17:45:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6d165be1ee814bea5f683702f5f86734df612a1b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "UncannyEcho/Aura-Large-v1-BF16",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-08-15T20:49:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1e6cec9079f235f98307bf948d7dc10ff826ff42",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "nguyenthilaitrieulong/Huihui-gemma-4-31B-it-abliterated-v2",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-08-04T09:57:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d269dbdfba8f861f4ccf2dc38094ac9fa593d7aa",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "iAcloud/Gemma4-31B-Int8-RBLN-0.11.2",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-09-07T07:12:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f108d131ea43459ab05691c82db2367da26570cc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "optimum-rbln"
+ },
+ {
+  "repo": "joshycodes/gemma-4-31b-it-control-IGa-sdf",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-09-24T04:14:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f042aede924e07b60fd7999e51b965ceda38889e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "larc-iu/gen-sr-gemma-4-31b-it-gum-12.1.0",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-10-11T21:09:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3a0016261058c49c54bb99d9cb9b73fb854bbb81",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "dipo"
+ },
+ {
+  "repo": "ReadyArt/Dark-Craving-31B",
+  "downloads": 7,
+  "likes": 1,
+  "last_modified": "2026-11-02T12:20:20.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "43497acdd53dfd2f5688bebf00e9a94c79e88290",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "tutuchen2000/Huihui-gemma-4-31B-it-abliterated-v2",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-04-15T02:55:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7919dbc48b9f672c29bb3f65eb5dd4c44a41a6f4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "whiskey1983/Huihui-gemma-4-31B-it-abliterated-v2",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-04-17T00:59:51.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "922815fa830bab01faf25b79fa18541548adeedc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "salfatigroup/Huihui-gemma-4-31B-it-abliterated-v2",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-04-18T17:56:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8d9123ca1eaa433ed60a82b123a57289ac89c858",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": "transformers"
+ },
+ {
+  "repo": "zebralines/gemma-4-31B-it-uncensored",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-04-22T02:28:55.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0936b33a08bd220ab79f2ee0e0b226f08bfde5d3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "LLM-OS-Models/gemma-4-31B-it-Terminal-SFT-2Epoch-HF-FSDP-2BData",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-05-09T00:57:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7a6d8cbdbedc5b1764ae2a1c620beaa80852a9e1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "gdiamos/relm-1",
+  "downloads": 6,
+  "likes": 1,
+  "last_modified": "2026-06-05T06:19:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "164f29f75346bffc389fc35a93f441d60852e311",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ktl-bmrc/RA-Gemma4-31B-it",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-11-06T08:28:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9e39fa13d1152207be5f6893c0447d4f4154e5c0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "hyunseop/RailWayGemma31B-LoRA",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-06-22T02:19:07.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "74f7e2623bce288251f3423fafc15ecbc2583528",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "NoSlop4U/untied_gemma-4-31B-it",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-07-01T11:40:28.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "93bb01ef33e6f13e74524af214e065ac991e074b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ReadyArt/Wicked-Tutu-31B-v0.1",
+  "downloads": 6,
+  "likes": 8,
+  "last_modified": "2026-10-17T19:03:02.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "66398f06fa04c3963ca4e08d9148a2e2dc1dfd0f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Wicked-Tutu-31B-v0.2",
+  "downloads": 6,
+  "likes": 2,
+  "last_modified": "2026-10-17T22:45:52.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "397984f1aeba7e5e1fd8340ff402ac3ce54cc5d8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Dark-Craving-31B-v2.0",
+  "downloads": 6,
+  "likes": 4,
+  "last_modified": "2026-11-03T10:43:54.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "4d8d83bb8eb612cb62045520f9d1fc2dc78db5ce",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "HAHAJIN/food",
+  "downloads": 5,
+  "likes": 0,
+  "last_modified": "2026-04-10T06:11:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1d7bb3713cdd7dbce9ba7d8bd006dad541599a24",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "lessans/gemma-4-31B-it-uncensored",
+  "downloads": 5,
+  "likes": 0,
+  "last_modified": "2026-04-18T10:49:26.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "be8d0edcce03f124e3bde875820e83c212a567e4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "PoSTMEDIA/Lux-V1-Pro",
+  "downloads": 5,
+  "likes": 2,
+  "last_modified": "2026-05-18T13:23:31.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "61d22f5ca1fcfcb7eb639768c1bc119a9443875b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "harsh0024/Prompt-Refine-mirror",
+  "downloads": 5,
+  "likes": 0,
+  "last_modified": "2026-05-25T11:37:18.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "35af2943028f0ed0737af45b66ddaf547410291f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "DaWeedy/gemma-4-31B-it-uncensored-heretic",
+  "downloads": 5,
+  "likes": 0,
+  "last_modified": "2026-05-31T14:34:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2fd8c48d4325fe9b34ce38f442e96c2e22181b83",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "gdiamos/relm-2",
+  "downloads": 5,
+  "likes": 0,
+  "last_modified": "2026-06-13T01:05:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "78ac9a74ac888550955214c6d63b45a222eab047",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "tzchen07/gemma4-31b-rovochat-sft-v2",
+  "downloads": 5,
+  "likes": 0,
+  "last_modified": "2026-06-30T16:38:18.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7bb69c739a09891f11fd26e91200050134a1bb33",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "larc-iu/gen-sr-gemma-4-31b-it-rstdt-coarse",
+  "downloads": 5,
+  "likes": 0,
+  "last_modified": "2026-10-11T21:09:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "02660db65eb176a0aa2a4db0776f6da69df75384",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "dipo"
+ },
+ {
+  "repo": "Enerccio/gemma-4-31b-abliterated",
+  "downloads": 4,
+  "likes": 0,
+  "last_modified": "2026-04-23T21:14:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7d1893230b58ff88df33d480e8a854c49aceb021",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "eyes-ml/gemma-4-31B-it-qat4_0-bf16",
+  "downloads": 4,
+  "likes": 0,
+  "last_modified": "2026-06-05T18:41:02.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b070bf43185317c9d6d99a80afc735aa755c019f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "chartreuse-verte/gemma-4-31b-it-purple-euphemism-trial98-depurpled",
+  "downloads": 4,
+  "likes": 0,
+  "last_modified": "2026-07-05T11:01:41.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "bbeae332bbd7d4012d3d250d3b24879f8fb17e20",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "tzchen07/gemma4-31b-rovochat-sft-v3",
+  "downloads": 4,
+  "likes": 0,
+  "last_modified": "2026-06-30T16:42:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3d667a275d7b32a914aa5222d16321486ccdadec",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "meddle86/Melody1437-31B-v2.0-exl3-4.0bpw",
+  "downloads": 4,
+  "likes": 0,
+  "last_modified": "2026-07-31T19:26:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "44118d5afeb48ac82221632d1ef55dc409f77d59",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Lexsi/Gemma-4-31B-it-Multilingual-Safety-Repair",
+  "downloads": 3,
+  "likes": 4,
+  "last_modified": "2026-09-29T14:47:44.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "24f1206c861a18f94ae8812410ca1f5fc32bf033",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "zeromodels/gemma-4-31b-it",
+  "downloads": 2,
+  "likes": 0,
+  "last_modified": "2026-08-26T21:11:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a7c97913ac1f57037b54110b7788d5527ae94317",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "zeromodels"
+ },
+ {
+  "repo": "Darkhn/Gemma-4-31B-Animus-V17.0",
+  "downloads": 2,
+  "likes": 2,
+  "last_modified": "2026-11-11T14:17:22.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "3f277fc4496a7f1690305c6f3005c193f3f17ba7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Darkhn/Gemma-4-31B-Animus-V14.0",
+  "downloads": 0,
+  "likes": 9,
+  "last_modified": "2026-04-15T15:50:53.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "3aacc45a0e121d525b97af259b6c2ce8d168f543",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Ex0bit/Gemma4-PRISM-PRO-DQ",
+  "downloads": 0,
+  "likes": 32,
+  "last_modified": "2026-04-08T14:21:22.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "a95263c2652160e4610937f490b5ef0c7c7885bb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "llama.cpp"
+ },
+ {
+  "repo": "VoicenterTeam/hebrew-summary-gemma4-31b-dpo-v1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-05T21:09:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f99c609240097b533f3f917c0e9083548c0fd25b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "KingOfThoughtFleuren/AetherianSubstrate",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-07T18:30:29.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "47856ea9f5ffc38cebe18dddbc8bcefd9d028d8d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Pierfekt/El_info",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-08T11:00:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "65fabf3abfab03b31dbcd171786df7de3c029a3f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Maxibadz/GameHelper",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-08T13:29:34.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7c451f5425d8691b1a574f1def32c7e9df4dc5e8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Thanush2007/scaler",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-09T17:42:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f84878cd6513c5641209a9cc02c3848ee863c79c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "question-answering",
+  "library": "diffusers"
+ },
+ {
+  "repo": "Endless20/X_Texture",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-09T20:43:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1808655868865e0d8bed4ef12c748cdd7570cb72",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "anthoekfj/Technology_will_empower",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-10T05:04:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d29dd53cddfacf2178cba58277623d8aa88db098",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": null
+ },
+ {
+  "repo": "Trkaga/Gemma",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-10T11:42:29.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f160ca0ab46d4ba40d44539e27b9c1994e413c06",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "merge",
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-classification",
+  "library": null
+ },
+ {
+  "repo": "Rockstar45/Nepal-87",
+  "downloads": 0,
+  "likes": 1,
+  "last_modified": "2026-04-12T07:01:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "74c175562e84a74ac9a94f9af7e5d0c999973ba8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "translation",
+  "library": "flair"
+ },
+ {
+  "repo": "brettapps789/Fair-Dinkum-Publishing",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-12T11:19:31.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "671c15fb087c17da4d8684183c5d101dc23c3788",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "any-to-any",
+  "library": null
+ },
+ {
+  "repo": "AsadIsmail/gemma-4-31B-it-ternary",
+  "downloads": 0,
+  "likes": 4,
+  "last_modified": "2026-04-15T12:44:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7814f09bb0118a0544bee57f493b5a04ae78b15b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Darkhn/Gemma-4-31B-Animus-V14.1-FFT",
+  "downloads": 0,
+  "likes": 3,
+  "last_modified": "2026-04-20T18:49:41.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "041d95b82eefd5852c140894b86f2a2a5c5bedd5",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Huggingmaces/diet_coke_oracle",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-16T04:48:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a9e4cf903c204cf0b2d96e9d58b009614cdac253",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "Scottyler7/001",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-16T05:04:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "269d16afd0ab1a8a260f25b90f310a02c6ba1ce9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "CUSCEN/CUSCEN",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-17T05:14:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0beaeb73581f9b755f3e27bc0db39775e0626aa3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "armanibadboy/gemma-4-31b-it-route-b-perhead-k37",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-17T12:25:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "71cce3262121abfff87b00db7367a5c53f0b552d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "Elotinn/socrates.ai",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-19T03:00:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3b37bfe6a5f6faac652352325a52a9687d1ea6f4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "Invincible23/955_Yolo_-_Object_Detection_with_Bounding_Boxes_20250122-022907_aixblock",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-19T14:14:26.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "102a94fc6c4fe8e48a97b739de77c26d73924733",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "funtool12345/test",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-20T07:20:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1de93b49abe54b2ecaf6e46470cfa0bf233b43cc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Dickhopper23/Nojo1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-20T11:21:34.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1dbf0a66fe886c3139e38c19961fd5e81b671023",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "asteroid"
+ },
+ {
+  "repo": "dv347/gemma-4-31b_geoquery-baseline",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-20T22:52:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "19a13f8bf70180677a5faadc1d147183be121906",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "dv347/gemma-4-31b_smcalflow-baseline",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-20T21:11:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "64fb7818c2b00e35e2a4e3d7cfcda1f68e1f39c1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "dv347/gemma-4-31b_smcalflow-mixed-r0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-20T22:50:06.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e5655787ed61035757d9f411ec3e2fd0ec75ce2a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "dv347/gemma-4-31b_geoquery-mixed-r0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-20T22:55:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9e77708b3cbe739bbdbbfbe616273d2b6b410b8d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "dv347/gemma-4-31b_overnight-baseline",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-20T22:59:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9817844706339c7a2ce8176abce95d5566507891",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "dv347/gemma-4-31b_overnight-mixed-r0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-20T23:05:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ea23768e2f09234563139969f885771a56629978",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "dv347/gemma-4-31b_mg-verilog-baseline",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-21T01:26:24.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "669e41dfe744409c5438e1be54b477c121ff1a7a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "dv347/gemma-4-31b_mg-verilog-mixed-r0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-21T05:23:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4b90039159e1ed43c80ed9c4e7d036c87571681e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "dv347/gemma-4-31b_spice-baseline",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-21T05:45:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "749f466d625a389d063ea7bc15405130f0f50def",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "dv347/gemma-4-31b_spice-mixed-r0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-21T06:17:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6bf87967f9167b8270c65efd8ec05f5cb98c6159",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "Ohmry/gemma-4-31B-it",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-23T10:37:35.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "302af9185107687a4a56ae5041ad04fe43c9cb40",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "macmacmacmac/gemma-4-31B-it-litert-lm",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-28T21:58:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "72d6a81cfc05b35d714a91c067a35a80015b2ff9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "rahul24raj/txgemma-4-31b",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-06T09:35:18.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "834988da03a364f590cbc8332fb99c55ba5dd74a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "rahul24raj/lysos-base",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-06T22:17:22.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8524819ed7923b152c5a7d6a6a2d46b2a2d63a26",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "gbfvrtgvhtfdvcxcvhgfcgfcvf/iops.ai",
+  "downloads": 0,
+  "likes": 1,
+  "last_modified": "2026-05-03T15:37:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "40a9de8a14e519f3b55579f94172315b903ccdfa",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "question-answering",
+  "library": null
+ },
+ {
+  "repo": "hirundo-io/gemma-4-31B-it-hardened",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-09-30T13:50:25.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "20aba06c8a98d052553f86e10ff9e1dca02fa130",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Youssofal/Gemma4-MTPLX-Optimized-Quality",
+  "downloads": 0,
+  "likes": 5,
+  "last_modified": "2026-09-24T06:13:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a66514e1281f52ae8dd36c8b5ef1132de29904f8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "mtplx"
+ },
+ {
+  "repo": "rahul24raj/lysos-base-dpo",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-06T23:13:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e9198084f0e88f0ab09b57d77f2a471511b3a3f9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "TAUR-dev/rankalign-v6-gemma-4-31B-it-d0.15-e0-humaneval-v2.1correct-upper-all-sm0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-16T19:20:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f7753d3215101432e3533148118f8c59911eb1cf",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "TAUR-dev/rankalign-v6-gemma-4-31B-it-d0.15-e1-humaneval-v2.1correct-upper-all-sm0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-16T21:34:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e03c0e49c27a2d833a0fee77bbd970ef477aa261",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "TAUR-dev/rankalign-v6-gemma-4-31B-it-d0.15-e0-humaneval-v2.1correct-upper-all-tcn-sm0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-16T22:23:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0c34b6f65971927191f4f2c0ff47b07ea1bcd63f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "TAUR-dev/rankalign-v6-gemma-4-31B-it-d0.15-e2-humaneval-v2.1correct-upper-all-sm0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-16T23:47:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "33dee8b393cd0f97388e9acdf81b907f21919276",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "TAUR-dev/rankalign-v6-gemma-4-31B-it-d0.15-e1-humaneval-v2.1correct-upper-all-tcn-sm0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-17T01:47:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "bcabe494f03269381e8ea09f16ee294f1d86ed56",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "TAUR-dev/rankalign-v6-gemma-4-31B-it-d0.15-e0-humaneval-v2.1correct-upper-all-tcs-sm0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-17T04:06:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "92f8aa10368cfa0a259478e0d2cca90b6a4ef195",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "TAUR-dev/rankalign-v6-gemma-4-31B-it-d0.15-e2-humaneval-v2.1correct-upper-all-tcn-sm0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-17T05:13:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c5d682848ab9bd29c7bcd197472d37d4d54a6d77",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "TAUR-dev/rankalign-v6-gemma-4-31B-it-d0.15-e1-humaneval-v2.1correct-upper-all-tcs-sm0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-17T07:24:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "69501af12b7a106f0a8df308abfa2caa0f797bc8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "TAUR-dev/rankalign-v6-gemma-4-31B-it-d0.15-e2-humaneval-v2.1correct-upper-all-tcs-sm0.1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-17T10:45:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0f61302b280eb79831c96d78dfab5255f055ca4c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "mmtf/gemmaforge-31b-token-probe",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-19T07:01:52.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "636e0ae39da7d0bbabd2990d80bef9d07f3e4a10",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "numpy"
+ },
+ {
+  "repo": "chunshengj/gemma4_31b_crowdfunding_lora",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-21T12:00:34.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "52b67a51a413569a5f2f7a558a8f3f70b2f12467",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "chunshengj/gemma4_31b_SigIVsOnly_crowdfunding_lora",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-22T13:36:46.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4d029c2ed9441e4b332161d4f86101d3c4eab1e7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "TAUR-dev/rankalign-v7-gemma-4-31B-it-d2.14-e0-humaneval-v2.1correct-upper-all-p0-nv1-ng1-cft-lo0.1-fix1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-25T12:39:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1d9acd7a0428a9af9b1e7066a29cc78cd719743e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "latkes/rankalign-v7-gemma-4-31B-it-d2.14-e0-humaneval-v2.1correct-upper-all-p0-nv1-ng1-cft-lo0.1-fix1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-25T21:56:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "dd30828feb33fe752d093fe0d5fce244e6a04587",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "fradeet/play-gemma4-31b-lora",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-27T09:43:58.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6b2395649807e2af4dc062addbf8254288ed1747",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "fradeet/play-gemma4-31b-lora-0601",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-06-01T09:19:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5e010718cc397469125391bb0353a026b0f86b8d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "fradeet/play-gemma4-31b-lora-0602",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-06-02T04:43:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2dbcad0feade54715491655b2e1433516374aa5e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "Ethosoft/Mycelium-Gemma4-On",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-06-05T21:04:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "23227fd863a305b8ce2d24bd7279ba55621804a4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "Ethosoft/Mycelium-Gemma4-Removal-Audit",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-06-05T21:04:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0e8fcdcf3bc1af377104682b53bb610b611a407b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "ReadyArt/For-Her-Darkside-31B-v1.3",
+  "downloads": 0,
+  "likes": 2,
+  "last_modified": "2026-06-07T18:47:50.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "3c67a0235f0c71ca40053d98904a69c47122ffbe",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Jongbin-kr/gemma4_NuminaCoT_all",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-06-11T13:11:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "405eda9e33ce376dc4dec5a6081a0a6c95cbf045",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "ReadyArt/Serenity-31B",
+  "downloads": 0,
+  "likes": 6,
+  "last_modified": "2026-06-11T01:30:20.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "fd258690b211c840931bbdd37c52f5aecaaa111c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "TOTORONG/Solon_Athens_v5_STEM-31B",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-06-28T12:59:43.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "59b0f12a9e9c6285ebeaf99fe53590ffc98852ec",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Dark-Scarlett-v0.3-31B",
+  "downloads": 0,
+  "likes": 2,
+  "last_modified": "2026-06-13T06:48:46.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "5762d6d3f1443c669e7ca83739ceab5772f1f6ce",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Dark-Scarlett-v0.35-31B",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-06-13T08:48:21.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "822e2480845c16489dfc930d217bcaf2c8c8fcb9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Dark-Scarlett-v0.6-31B",
+  "downloads": 0,
+  "likes": 2,
+  "last_modified": "2026-06-14T11:47:22.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "e91ae53794d03d2f0f82327eda38c4da3c9858e7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "TOTORONG/extGemma4-41B",
+  "downloads": 0,
+  "likes": 2,
+  "last_modified": "2026-06-30T03:17:49.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "6115f4f813b27519b937d0c1d76947a67b39b51a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Hikari07jp/gemma4-repe-uncensor",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-07-05T14:02:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "54657c75a685c13b21776feb2f7564725c3011df",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "densenet/Gemma-4-31B-StyleTune-heretic-ara-lora",
+  "downloads": 0,
+  "likes": 1,
+  "last_modified": "2026-07-09T06:09:52.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f862fd1ec0af01a96227ddca7e0ba0fee5c2c055",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "lamm-mit/gemma4-jacobian-lenses",
+  "downloads": 0,
+  "likes": 1,
+  "last_modified": "2026-08-25T06:55:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c095b094c52dd7afeb1310bb97ea35dc5005e12f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "xbill9/gemma-4-31B-it-inferentia2",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-07-16T14:41:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fa61618625a1c3314fd49faa23b0ade01b4523de",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "torch-neuronx"
+ },
+ {
+  "repo": "rendermani/toxispy-rhetoric-gemma4-31b-lora-20260717",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-07-17T13:52:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1867debdc4cf7c6b85debb7425a20688580a4db3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "rendermani/toxispy-rhetoric-gemma4-31b-lora-20260717-v2",
+  "downloads": 0,
+  "likes": 1,
+  "last_modified": "2026-07-17T18:49:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e5c60c271bef2282f1f447b6d4c07443e32aae16",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "eyes-ml/gemma-4-31B-it-cotmonitor-base-qat4_0-bf16",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-07-20T18:50:14.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "2ff7841c47ea705276471684458c9af56c4a0df3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Darkhn/Gemma-4-31B-Animus-V15.1-Swa",
+  "downloads": 0,
+  "likes": 1,
+  "last_modified": "2026-07-27T00:20:21.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "de423bd6b7474c50efe03d35153aa23bd5b0a9b0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "multipartinc/MPV-1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-08-21T22:12:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5ea0ba52a8eb9faa107390f65a5eb560543ef623",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "magibu/Altus",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-08-24T08:57:34.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f957e8dc7fb23cdcdab63c7df9c8dc80f5d5c1a4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "Adekanmipro/Prosper",
+  "downloads": 0,
+  "likes": 1,
+  "last_modified": "2026-09-22T15:11:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "aacf04f42f520e9c1ff19a02491eb4118d5428e6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "diffusers"
+ },
+ {
+  "repo": "vkovtun/gemma-text-to-sql-2026-09-27_19.18.54-gemma-4-31B-it-finetune-QLORA",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-09-28T04:01:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "da3c1dd4e3c165dbc19186117b23fa76fe7a4b28",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "vkovtun/gemma-text-to-sql-2026-09-27_20.06.56-gemma-4-31B-it-finetune-QLORA",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-09-27T19:30:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c4fd2d930a68779e8724f24fdc788db1364d8734",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "mchan133/gemma-31b-text-to-sql",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-10-09T05:30:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ae2eb65dc8d2ef6c527f7bb27d080940b176ccac",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "Misalignment-Empirics/shreyans_gemma-4-31b-it_impulsive-caa-vectors",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-10-01T11:36:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "98c0a7462b64e14f70313781f31810bbd833b63e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "hassanql/road-gemma4-31b-fit",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-10-02T15:54:34.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2daabe54625ee07d8272e05445bb4dd9a5d51610",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "robinwang24/gemma-31b-text-to-sql-repro",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-10-06T23:54:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "47744af04dc4e4d7d39019b67057100ef5e3a1d3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "sonten/gemma-4-31b-novel-lora",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-10-13T21:35:52.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8733021dc860c97347d4ee5347381c113c449812",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "zachperlman20/gemma-4-31B-it-jpp-lens",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-10-22T20:54:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c3c4340e81e249f1ad7bc71b5db710cc0349cd76",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "OceanZ/gemma4-31b-ecab-mf-f2-frac-colnorm-skip15-s0p75",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-10-27T14:41:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5220c600df4cd78c163892ace93f39e10c6c0fdb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Akora-Joseph/Doctorian-MedCore",
+  "downloads": 0,
+  "likes": 1,
+  "last_modified": "2026-10-30T17:32:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5d30f85f32a0bfe69efdb5b1fc0a7121017ffab7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "bcywinski/gen-science-08-random-vec-aft-gemma4-31b-it",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-11-01T01:24:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "87db5ad529ce1bf2c80610d5462dc7c58c8ba56e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "StephenRGS/Doctorian-MedCore",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-11-01T02:21:41.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "47ff70cfd7b9fc84e9fcf85ae40c18f593ce0ed9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "andyoneal/tweeze-lenses",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-11-03T04:13:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "39ced1d775a65979b481f8eb6dd5c6f0e5d2156b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "mlx"
+ },
+ {
+  "repo": "larql/gemma-4-31b-it",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-11-07T18:29:35.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "93a94ca7b682dd3d9103bb1932d712b2c8c7fe9e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": "larql"
+ },
+ {
+  "repo": "fenyo/4xH100-MonEspaceSante-ablations-LoRA",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-11-11T09:19:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a6b871cf5b1f2f8e833a3f02e11683d9e984da21",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:google/gemma-4-31B-it",
+   "base_model:finetune:google/gemma-4-31B-it"
+  ],
+  "pipeline": null,
+  "library": null
+ }
+]

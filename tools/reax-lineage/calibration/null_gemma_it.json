@@ -1,0 +1,552 @@
+[
+ {
+  "repo": "unsloth/gemma-4-31B-it",
+  "asked_rev": "main",
+  "label": "null-unsloth_gemma-4-31B-it",
+  "rev": "51c9f6265ea38755c708a6e356dfc1af4a436e35",
+  "last_modified": "2026-07-17T11:54:40.000Z",
+  "ok": true,
+  "downloads": 11182,
+  "params": 32682372656,
+  "author": "unsloth",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "google/gemma-4-31B-it-qat-q4_0-unquantized",
+  "asked_rev": "main",
+  "label": "null-google_gemma-4-31B-it-qat-q4_0-unquantized",
+  "rev": "1e4d8beecacb8b7590c1d8bedd7335f687bf311f",
+  "last_modified": "2026-07-20T16:42:49.000Z",
+  "ok": true,
+  "downloads": 10013,
+  "params": 31273088876,
+  "author": "google",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "coder3101/gemma-4-31B-it-heretic",
+  "asked_rev": "main",
+  "label": "null-coder3101_gemma-4-31B-it-heretic",
+  "rev": "9a1c7f5d851541f279cd104329e093cb363cd9e7",
+  "last_modified": "2026-04-14T16:40:17.000Z",
+  "ok": true,
+  "downloads": 4295,
+  "params": 31273086512,
+  "author": "coder3101",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "Remek/basal-omni-1.0-ultra",
+  "asked_rev": "main",
+  "label": "null-Remek_basal-omni-1.0-ultra",
+  "rev": "a5ff50c5cfd59abd2c81b4ad412089f9d397d067",
+  "last_modified": "2026-11-07T23:19:48.000Z",
+  "ok": true,
+  "downloads": 3900,
+  "params": 31273086512,
+  "author": "Remek",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "llmfan46/gemma-4-31B-it-uncensored-heretic",
+  "asked_rev": "main",
+  "label": "null-llmfan46_gemma-4-31B-it-uncensored-heretic",
+  "rev": "d5bfc0d99e308beb9805440806161ad0233df357",
+  "last_modified": "2026-09-19T16:25:37.000Z",
+  "ok": true,
+  "downloads": 2592,
+  "params": 31273086512,
+  "author": "llmfan46",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "huihui-ai/Huihui-gemma-4-31B-it-abliterated-v2",
+  "asked_rev": "main",
+  "label": "null-huihui-ai_Huihui-gemma-4-31B-it-abliterated-v2",
+  "rev": "7db456efccc577dbd137aaed1fa6aaba086f260c",
+  "last_modified": "2026-04-13T01:09:38.000Z",
+  "ok": true,
+  "downloads": 1712,
+  "params": 32682372656,
+  "author": "huihui-ai",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "mlx-community/gemma-4-31b-it-bf16",
+  "asked_rev": "main",
+  "label": "null-mlx-community_gemma-4-31b-it-bf16",
+  "rev": "3cbbeca52de3125c5eed024d2e9f75b2434bfbbc",
+  "last_modified": "2026-07-05T23:36:11.000Z",
+  "ok": true,
+  "downloads": 1570,
+  "params": 31273088876,
+  "author": "mlx-community",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "wangzhang/gemma-4-31B-it-abliterated",
+  "asked_rev": "main",
+  "label": "null-wangzhang_gemma-4-31B-it-abliterated",
+  "rev": "d7431183c443443024debb08b222cbcf2e424da7",
+  "last_modified": "2026-08-29T17:03:21.000Z",
+  "ok": true,
+  "downloads": 1362,
+  "params": 31273086512,
+  "author": "wangzhang",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "TheDrummer/Artemis-31B-v1.2",
+  "asked_rev": "main",
+  "label": "null-TheDrummer_Artemis-31B-v1.2",
+  "rev": "73c8815a18f0de792819ea087fb252beee900ff0",
+  "last_modified": "2026-11-09T16:12:22.000Z",
+  "ok": true,
+  "downloads": 1274,
+  "params": 31273088876,
+  "author": "TheDrummer",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "PelaAI/KnowLine-31B-Gen1",
+  "asked_rev": "main",
+  "label": "null-PelaAI_KnowLine-31B-Gen1",
+  "rev": "a45b64060e1d6928e7e20bdffd2c482e4ebf7de6",
+  "last_modified": "2026-11-12T18:20:45.000Z",
+  "ok": true,
+  "downloads": 1247,
+  "params": 31273088876,
+  "author": "PelaAI",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "sthanika-ai/Sieve-31B-v3",
+  "asked_rev": "main",
+  "label": "null-sthanika-ai_Sieve-31B-v3",
+  "rev": "8fcee858f7f20a50bfa3c8f984c22adb3cbb46a2",
+  "last_modified": "2026-10-30T12:48:12.000Z",
+  "ok": true,
+  "downloads": 1227,
+  "params": 31273086512,
+  "author": "sthanika-ai",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "jgeuter/Jeff-1.0-Large",
+  "asked_rev": "main",
+  "label": "null-jgeuter_Jeff-1.0-Large",
+  "rev": "30543f71d556581c790b6f6313d784335002a88d",
+  "last_modified": "2026-11-04T21:02:07.000Z",
+  "ok": true,
+  "downloads": 1197,
+  "params": 30697345280,
+  "author": "jgeuter",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "tattrongvu/Jeffan-31b-1710",
+  "asked_rev": "main",
+  "label": "null-tattrongvu_Jeffan-31b-1710",
+  "rev": "cebfa86c2bed2b5c83b12e44de4374b20c87fd79",
+  "last_modified": "2026-10-22T10:57:45.000Z",
+  "ok": true,
+  "downloads": 1194,
+  "params": 31273086512,
+  "author": "tattrongvu",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "chinhnc/Quyet-1.0-Large",
+  "asked_rev": "main",
+  "label": "null-chinhnc_Quyet-1.0-Large",
+  "rev": "9a0f051112ba4301f6e4c8b87fc088ce00b11aae",
+  "last_modified": "2026-10-10T02:27:43.000Z",
+  "ok": true,
+  "downloads": 1087,
+  "params": 31273088876,
+  "author": "chinhnc",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "plantwaterer/allec",
+  "asked_rev": "main",
+  "label": "null-plantwaterer_allec",
+  "rev": "e54027aa1f865bdd25724e9b3c1acb51b2bbc3c3",
+  "last_modified": "2026-10-25T01:12:39.000Z",
+  "ok": true,
+  "downloads": 856,
+  "params": 31273088876,
+  "author": "plantwaterer",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "TrevorJS/gemma-4-31B-it-uncensored",
+  "asked_rev": "main",
+  "label": "null-TrevorJS_gemma-4-31B-it-uncensored",
+  "rev": "fd8c03ddb7c828a1731d66f8a858b82b4c79b64d",
+  "last_modified": "2026-06-13T18:12:44.000Z",
+  "ok": true,
+  "downloads": 823,
+  "params": 32682372656,
+  "author": "TrevorJS",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "Gryphe/Gemma-4-31B-StyleTune",
+  "asked_rev": "main",
+  "label": "null-Gryphe_Gemma-4-31B-StyleTune",
+  "rev": "8ba1afd977777f5d1c5c5693cc2807b84dcebe80",
+  "last_modified": "2026-10-02T08:38:10.000Z",
+  "ok": true,
+  "downloads": 820,
+  "params": 32682372656,
+  "author": "Gryphe",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "DavidAU/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking",
+  "asked_rev": "main",
+  "label": "null-DavidAU_gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking",
+  "rev": "838b2d46f0105c10725e6cba147861cbecd753d2",
+  "last_modified": "2026-11-09T05:05:54.000Z",
+  "ok": true,
+  "downloads": 777,
+  "params": 31273086512,
+  "author": "DavidAU",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "aifeifei798/Gemma-4-Queen-31B-it",
+  "asked_rev": "main",
+  "label": "null-aifeifei798_Gemma-4-Queen-31B-it",
+  "rev": "93aee5a5df70618cc31e98ef22b3cc328d9c4000",
+  "last_modified": "2026-04-17T21:51:32.000Z",
+  "ok": true,
+  "downloads": 577,
+  "params": 31273086512,
+  "author": "aifeifei798",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "LessThanThreeAI/Gemma-4-31B-Humanlike-Chat",
+  "asked_rev": "main",
+  "label": "null-LessThanThreeAI_Gemma-4-31B-Humanlike-Chat",
+  "rev": "3ef86bf3f697c3a08bc39e57a58a0c824f617e1b",
+  "last_modified": "2026-10-30T09:31:39.000Z",
+  "ok": true,
+  "downloads": 533,
+  "params": 31273088876,
+  "author": "LessThanThreeAI",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "turion-ai/turion-jev-31b",
+  "asked_rev": "main",
+  "label": "null-turion-ai_turion-jev-31b",
+  "rev": "f981bc17c15e57f70ecadc215f4311ad8a45a13e",
+  "last_modified": "2026-11-11T09:47:53.000Z",
+  "ok": true,
+  "downloads": 493,
+  "params": 31273086512,
+  "author": "turion-ai",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "richardyoung/gemma-4-31B-it-ARA-heretic",
+  "asked_rev": "main",
+  "label": "null-richardyoung_gemma-4-31B-it-ARA-heretic",
+  "rev": "760aca09711fa4c1553fa0559ab10da9c5bf584a",
+  "last_modified": "2026-11-09T13:26:20.000Z",
+  "ok": true,
+  "downloads": 484,
+  "params": 31273086512,
+  "author": "richardyoung",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "morriszjm/AnyJev-Tacitus-31B",
+  "asked_rev": "main",
+  "label": "null-morriszjm_AnyJev-Tacitus-31B",
+  "rev": "616d51437306694b0c13e56b8ed5d1f79874cabb",
+  "last_modified": "2026-10-19T02:24:25.000Z",
+  "ok": true,
+  "downloads": 474,
+  "params": 31273086512,
+  "author": "morriszjm",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "PNPM244/linne-oak-1-0",
+  "asked_rev": "main",
+  "label": "null-PNPM244_linne-oak-1-0",
+  "rev": "cebe68474dfc9c7f775ae33ed15413319beacebb",
+  "last_modified": "2026-10-22T01:54:51.000Z",
+  "ok": true,
+  "downloads": 408,
+  "params": 31273088876,
+  "author": "PNPM244",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "zerofata/G4-MeroMero-v2-31B",
+  "asked_rev": "main",
+  "label": "null-zerofata_G4-MeroMero-v2-31B",
+  "rev": "a72eca198afc5dc4d2ecbcef9848324c9732788c",
+  "last_modified": "2026-08-03T06:00:17.000Z",
+  "ok": true,
+  "downloads": 390,
+  "params": 31273088876,
+  "author": "zerofata",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "ReadyArt/Vesper-31B-Nocturne",
+  "asked_rev": "main",
+  "label": "null-ReadyArt_Vesper-31B-Nocturne",
+  "rev": "c9eda68eb6c99ca6ec6de6f2aa30458af623f196",
+  "last_modified": "2026-11-09T08:39:53.000Z",
+  "ok": true,
+  "downloads": 312,
+  "params": 31273088876,
+  "author": "ReadyArt",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "sanghwa-na/bobcat-1.3",
+  "asked_rev": "main",
+  "label": "null-sanghwa-na_bobcat-1.3",
+  "rev": "4f25c70ece312ec4e74c47f1c5264cb2aeea956a",
+  "last_modified": "2026-10-14T15:32:57.000Z",
+  "ok": true,
+  "downloads": 288,
+  "params": 31273088876,
+  "author": "sanghwa-na",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "nbeerbower/Gemma4-Gutenberg-31B",
+  "asked_rev": "main",
+  "label": "null-nbeerbower_Gemma4-Gutenberg-31B",
+  "rev": "c5c24b3ae866acc82f4d496aedfa3b3446fe985a",
+  "last_modified": "2026-06-16T18:45:46.000Z",
+  "ok": true,
+  "downloads": 268,
+  "params": 31273086512,
+  "author": "nbeerbower",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "AuriAetherwiing/G4-31B-Musica-v1",
+  "asked_rev": "main",
+  "label": "null-AuriAetherwiing_G4-31B-Musica-v1",
+  "rev": "f4aac9f41a90f47b41f0460a5e173b53fff97cfb",
+  "last_modified": "2026-08-13T18:28:18.000Z",
+  "ok": true,
+  "downloads": 224,
+  "params": 31273086512,
+  "author": "AuriAetherwiing",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "MachinePulseAI/karpo-decision-31B",
+  "asked_rev": "main",
+  "label": "null-MachinePulseAI_karpo-decision-31B",
+  "rev": "d69cdd57eab23271cbe65236ca8a00d80d7bb8c7",
+  "last_modified": "2026-11-13T09:45:29.000Z",
+  "ok": true,
+  "downloads": 217,
+  "params": 31273088876,
+  "author": "MachinePulseAI",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "ressl/gemma-4-31B-it-uncensored",
+  "asked_rev": "main",
+  "label": "null-ressl_gemma-4-31B-it-uncensored",
+  "rev": "b7e5c931eaa8920d34d990c5f83d43bb04effc83",
+  "last_modified": "2026-07-28T09:16:23.000Z",
+  "ok": true,
+  "downloads": 140,
+  "params": 31273086512,
+  "author": "ressl",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "Mapika/decider-chat-gemma4-31b",
+  "asked_rev": "main",
+  "label": "null-Mapika_decider-chat-gemma4-31b",
+  "rev": "22975cbd1716170264a1d2a7e1105787e08c5d95",
+  "last_modified": "2026-09-29T20:34:53.000Z",
+  "ok": true,
+  "downloads": 134,
+  "params": 31273088876,
+  "author": "Mapika",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "Jackrong/Gemopus-4-31B-it",
+  "asked_rev": "main",
+  "label": "null-Jackrong_Gemopus-4-31B-it",
+  "rev": "5bb23779b92eebb23d3386b3d706c620a8d6083a",
+  "last_modified": "2026-04-15T13:40:22.000Z",
+  "ok": true,
+  "downloads": 126,
+  "params": 32682372656,
+  "author": "Jackrong",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "LatitudeGames/Equinox-31B",
+  "asked_rev": "main",
+  "label": "null-LatitudeGames_Equinox-31B",
+  "rev": "c5be6d89c9d145cf631244577896eb7b771735b3",
+  "last_modified": "2026-09-11T16:34:37.000Z",
+  "ok": true,
+  "downloads": 120,
+  "params": 31273088876,
+  "author": "LatitudeGames",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "OS-Software/gemma-4-31B-it-qat-q4_0-unquantized-uncensored-heretic",
+  "asked_rev": "main",
+  "label": "null-OS-Software_gemma-4-31B-it-qat-q4_0-unquantized-uncensored-heretic",
+  "rev": "244246e628015845fc3b1d0bb4e97549d03e625b",
+  "last_modified": "2026-09-08T03:48:01.000Z",
+  "ok": true,
+  "downloads": 119,
+  "params": 31273086512,
+  "author": "OS-Software",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "null-space/gemma-4-31b-it-abliterated",
+  "asked_rev": "main",
+  "label": "null-null-space_gemma-4-31b-it-abliterated",
+  "rev": "b81077edb0048561ffc33afba01a77a187bd6155",
+  "last_modified": "2026-04-06T01:49:56.000Z",
+  "ok": true,
+  "downloads": 118,
+  "params": 32682372656,
+  "author": "null-space",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "ai-and/termgrade-gemma4-31b-merged",
+  "asked_rev": "main",
+  "label": "null-ai-and_termgrade-gemma4-31b-merged",
+  "rev": "85c9a9f5d33b2898e7f7a6ff5987191d4ae0ea8a",
+  "last_modified": "2026-10-08T18:44:23.000Z",
+  "ok": true,
+  "downloads": 116,
+  "params": 30697345280,
+  "author": "ai-and",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "misa-jsc/misa-ai-2.0-decision-plus",
+  "asked_rev": "main",
+  "label": "null-misa-jsc_misa-ai-2.0-decision-plus",
+  "rev": "73b5e6517282243e2dd118703a848a955dff2d79",
+  "last_modified": "2026-10-22T02:00:47.000Z",
+  "ok": true,
+  "downloads": 110,
+  "params": 31273088876,
+  "author": "misa-jsc",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "54rt1n/Gemma-4-31B-Exhortation",
+  "asked_rev": "main",
+  "label": "null-54rt1n_Gemma-4-31B-Exhortation",
+  "rev": "f4c7451a831cd9cb5f6c5376e4863bb951b6b93c",
+  "last_modified": "2026-11-10T16:47:24.000Z",
+  "ok": true,
+  "downloads": 108,
+  "params": 31273088876,
+  "author": "54rt1n",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "mente-ai/uyu-2-28B",
+  "asked_rev": "main",
+  "label": "null-mente-ai_uyu-2-28B",
+  "rev": "0ecf895f58b166ecc892a4fe26c5268a01c8ee1a",
+  "last_modified": "2026-07-12T16:23:02.000Z",
+  "ok": true,
+  "downloads": 99,
+  "params": 28181549312,
+  "author": "mente-ai",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ }
+]

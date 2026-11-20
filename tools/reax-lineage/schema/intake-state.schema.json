@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reax.example/schema/intake-state.schema.json",
+  "title": "intake-state.json (v1) - state of every Generalist uid's current entry, for the keep-alive release and the uid pages",
+  "description": "One document, rewritten atomically by the intake worker (never edited by hand). One row per uid: its CURRENT entry. Keep-alive (RULES-v2 6.6) goes to a row whose state is intake, needs_correction, held, pass_unscored or overflow, EXCEPT when disqualified is true, or when state is pass_unscored and preview.beats_start is false. state refused and scored never get it (former champions are a separate list owned by the release job). The consumer applies the 2-uids-per-coldkey cap and the 25 % total cap itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "generated_at", "round", "entries"],
+  "properties": {
+    "schema": {"const": "reax-intake-state/1"},
+    "generated_at": {"type": "string", "format": "date-time", "description": "UTC, when this document was written"},
+    "round": {"type": "integer", "minimum": 1, "description": "2 for the round after the first Generalist round"},
+    "check_script_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "hash of the published checker the states come from"},
+    "entries": {"type": "array", "items": {"$ref": "#/definitions/entry"}}
+  },
+  "definitions": {
+    "ss58": {"type": "string", "pattern": "^5[1-9A-HJ-NP-Za-km-z]{46,47}$"},
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "time": {"type": "string", "format": "date-time"},
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uid", "hotkey", "coldkey", "repo", "revision", "repo_at_rev", "state", "since", "preview"],
+      "properties": {
+        "uid": {"type": "integer", "minimum": 0},
+        "hotkey": {"$ref": "#/definitions/ss58"},
+        "coldkey": {"$ref": "#/definitions/ss58"},
+        "repo": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "revision": {"$ref": "#/definitions/sha"},
+        "repo_at_rev": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$", "description": "repo@revision, must equal repo + '@' + revision"},
+        "state": {
+          "enum": ["intake", "needs_correction", "refused", "held", "pass_unscored", "overflow", "scored"],
+          "description": "intake = commitment seen, stage 0 not finished (6 h promise); needs_correction = 24 h correction window open; refused = REFUSED (also: no working correction in time, or void after a confirmed misdeclaration); held = MISDECLARATION candidate, 'held, under review'; pass_unscored = PASS, preview pending or done, no official score yet; overflow = qualified for a window but did not get a place; scored = has an official result (keep-alive over)"
+        },
+        "since": {"$ref": "#/definitions/time", "description": "UTC time the entry entered this state"},
+        "preview": {
+          "description": "the automatic preview (RULES-v2 5.2: about 1,000 public items, within 24 h of PASS); null until the entry has PASS",
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["status"],
+              "properties": {
+                "status": {"enum": ["pending", "done", "failed"]},
+                "score": {"type": ["number", "null"]},
+                "start_score": {"type": ["number", "null"], "description": "the start's score on the same items (for start none: the best listed start)"},
+                "beats_start": {"type": ["boolean", "null"], "description": "null until status is done"},
+                "completed_at": {"oneOf": [{"type": "null"}, {"$ref": "#/definitions/time"}]}
+              }
+            }
+          ]
+        },
+        "commitment_block": {"type": "integer", "minimum": 0},
+        "extrinsic_index": {"type": "integer", "minimum": 0},
+        "correction_deadline": {"oneOf": [{"type": "null"}, {"$ref": "#/definitions/time"}], "description": "only while state is needs_correction"},
+        "disqualified": {"type": "boolean", "default": false, "description": "true after a confirmed misdeclaration or a disqualification under 3.8 or 11.2: no keep-alive"},
+        "lineage_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "sha256 of the published stage-0 result JSON of this entry revision"}
+      },
+      "allOf": [
+        {"if": {"properties": {"state": {"enum": ["intake", "needs_correction", "refused", "held"]}}}, "then": {"properties": {"preview": {"type": "null"}}}},
+        {"if": {"properties": {"state": {"const": "needs_correction"}}, "required": ["state"]}, "then": {"required": ["correction_deadline"], "properties": {"correction_deadline": {"$ref": "#/definitions/time"}}}},
+        {"if": {"properties": {"state": {"enum": ["pass_unscored", "overflow", "scored"]}}, "required": ["state"]}, "then": {"properties": {"preview": {"type": "object"}}}}
+      ]
+    }
+  }
+}

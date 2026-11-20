@@ -1,0 +1,1651 @@
+[
+ {
+  "repo": "unsloth/gemma-4-31B-it",
+  "asked_rev": "main",
+  "label": "null-unsloth_gemma-4-31B-it",
+  "rev": "51c9f6265ea38755c708a6e356dfc1af4a436e35",
+  "last_modified": "2026-07-17T11:54:40.000Z",
+  "ok": true,
+  "downloads": 11182,
+  "params": 32682372656,
+  "author": "unsloth",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "google/gemma-4-31B-it-qat-q4_0-unquantized",
+  "asked_rev": "main",
+  "label": "null-google_gemma-4-31B-it-qat-q4_0-unquantized",
+  "rev": "1e4d8beecacb8b7590c1d8bedd7335f687bf311f",
+  "last_modified": "2026-07-20T16:42:49.000Z",
+  "ok": true,
+  "downloads": 10013,
+  "params": 31273088876,
+  "author": "google",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "coder3101/gemma-4-31B-it-heretic",
+  "asked_rev": "main",
+  "label": "null-coder3101_gemma-4-31B-it-heretic",
+  "rev": "9a1c7f5d851541f279cd104329e093cb363cd9e7",
+  "last_modified": "2026-04-14T16:40:17.000Z",
+  "ok": true,
+  "downloads": 4295,
+  "params": 31273086512,
+  "author": "coder3101",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "Remek/basal-omni-1.0-ultra",
+  "asked_rev": "main",
+  "label": "null-Remek_basal-omni-1.0-ultra",
+  "rev": "a5ff50c5cfd59abd2c81b4ad412089f9d397d067",
+  "last_modified": "2026-11-07T23:19:48.000Z",
+  "ok": true,
+  "downloads": 3900,
+  "params": 31273086512,
+  "author": "Remek",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "llmfan46/gemma-4-31B-it-uncensored-heretic",
+  "asked_rev": "main",
+  "label": "null-llmfan46_gemma-4-31B-it-uncensored-heretic",
+  "rev": "d5bfc0d99e308beb9805440806161ad0233df357",
+  "last_modified": "2026-09-19T16:25:37.000Z",
+  "ok": true,
+  "downloads": 2592,
+  "params": 31273086512,
+  "author": "llmfan46",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "huihui-ai/Huihui-gemma-4-31B-it-abliterated-v2",
+  "asked_rev": "main",
+  "label": "null-huihui-ai_Huihui-gemma-4-31B-it-abliterated-v2",
+  "rev": "7db456efccc577dbd137aaed1fa6aaba086f260c",
+  "last_modified": "2026-04-13T01:09:38.000Z",
+  "ok": true,
+  "downloads": 1712,
+  "params": 32682372656,
+  "author": "huihui-ai",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "mlx-community/gemma-4-31b-it-bf16",
+  "asked_rev": "main",
+  "label": "null-mlx-community_gemma-4-31b-it-bf16",
+  "rev": "3cbbeca52de3125c5eed024d2e9f75b2434bfbbc",
+  "last_modified": "2026-07-05T23:36:11.000Z",
+  "ok": true,
+  "downloads": 1570,
+  "params": 31273088876,
+  "author": "mlx-community",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "wangzhang/gemma-4-31B-it-abliterated",
+  "asked_rev": "main",
+  "label": "null-wangzhang_gemma-4-31B-it-abliterated",
+  "rev": "d7431183c443443024debb08b222cbcf2e424da7",
+  "last_modified": "2026-08-29T17:03:21.000Z",
+  "ok": true,
+  "downloads": 1362,
+  "params": 31273086512,
+  "author": "wangzhang",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "TheDrummer/Artemis-31B-v1.2",
+  "asked_rev": "main",
+  "label": "null-TheDrummer_Artemis-31B-v1.2",
+  "rev": "73c8815a18f0de792819ea087fb252beee900ff0",
+  "last_modified": "2026-11-09T16:12:22.000Z",
+  "ok": true,
+  "downloads": 1274,
+  "params": 31273088876,
+  "author": "TheDrummer",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "PelaAI/KnowLine-31B-Gen1",
+  "asked_rev": "main",
+  "label": "null-PelaAI_KnowLine-31B-Gen1",
+  "rev": "a45b64060e1d6928e7e20bdffd2c482e4ebf7de6",
+  "last_modified": "2026-11-12T18:20:45.000Z",
+  "ok": true,
+  "downloads": 1247,
+  "params": 31273088876,
+  "author": "PelaAI",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "sthanika-ai/Sieve-31B-v3",
+  "asked_rev": "main",
+  "label": "null-sthanika-ai_Sieve-31B-v3",
+  "rev": "8fcee858f7f20a50bfa3c8f984c22adb3cbb46a2",
+  "last_modified": "2026-10-30T12:48:12.000Z",
+  "ok": true,
+  "downloads": 1227,
+  "params": 31273086512,
+  "author": "sthanika-ai",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "jgeuter/Jeff-1.0-Large",
+  "asked_rev": "main",
+  "label": "null-jgeuter_Jeff-1.0-Large",
+  "rev": "30543f71d556581c790b6f6313d784335002a88d",
+  "last_modified": "2026-11-04T21:02:07.000Z",
+  "ok": true,
+  "downloads": 1197,
+  "params": 30697345280,
+  "author": "jgeuter",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "tattrongvu/Jeffan-31b-1710",
+  "asked_rev": "main",
+  "label": "null-tattrongvu_Jeffan-31b-1710",
+  "rev": "cebfa86c2bed2b5c83b12e44de4374b20c87fd79",
+  "last_modified": "2026-10-22T10:57:45.000Z",
+  "ok": true,
+  "downloads": 1194,
+  "params": 31273086512,
+  "author": "tattrongvu",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "chinhnc/Quyet-1.0-Large",
+  "asked_rev": "main",
+  "label": "null-chinhnc_Quyet-1.0-Large",
+  "rev": "9a0f051112ba4301f6e4c8b87fc088ce00b11aae",
+  "last_modified": "2026-10-10T02:27:43.000Z",
+  "ok": true,
+  "downloads": 1087,
+  "params": 31273088876,
+  "author": "chinhnc",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "plantwaterer/allec",
+  "asked_rev": "main",
+  "label": "null-plantwaterer_allec",
+  "rev": "e54027aa1f865bdd25724e9b3c1acb51b2bbc3c3",
+  "last_modified": "2026-10-25T01:12:39.000Z",
+  "ok": true,
+  "downloads": 856,
+  "params": 31273088876,
+  "author": "plantwaterer",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "TrevorJS/gemma-4-31B-it-uncensored",
+  "asked_rev": "main",
+  "label": "null-TrevorJS_gemma-4-31B-it-uncensored",
+  "rev": "fd8c03ddb7c828a1731d66f8a858b82b4c79b64d",
+  "last_modified": "2026-06-13T18:12:44.000Z",
+  "ok": true,
+  "downloads": 823,
+  "params": 32682372656,
+  "author": "TrevorJS",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "Gryphe/Gemma-4-31B-StyleTune",
+  "asked_rev": "main",
+  "label": "null-Gryphe_Gemma-4-31B-StyleTune",
+  "rev": "8ba1afd977777f5d1c5c5693cc2807b84dcebe80",
+  "last_modified": "2026-10-02T08:38:10.000Z",
+  "ok": true,
+  "downloads": 820,
+  "params": 32682372656,
+  "author": "Gryphe",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "DavidAU/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking",
+  "asked_rev": "main",
+  "label": "null-DavidAU_gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking",
+  "rev": "838b2d46f0105c10725e6cba147861cbecd753d2",
+  "last_modified": "2026-11-09T05:05:54.000Z",
+  "ok": true,
+  "downloads": 777,
+  "params": 31273086512,
+  "author": "DavidAU",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "aifeifei798/Gemma-4-Queen-31B-it",
+  "asked_rev": "main",
+  "label": "null-aifeifei798_Gemma-4-Queen-31B-it",
+  "rev": "93aee5a5df70618cc31e98ef22b3cc328d9c4000",
+  "last_modified": "2026-04-17T21:51:32.000Z",
+  "ok": true,
+  "downloads": 577,
+  "params": 31273086512,
+  "author": "aifeifei798",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "LessThanThreeAI/Gemma-4-31B-Humanlike-Chat",
+  "asked_rev": "main",
+  "label": "null-LessThanThreeAI_Gemma-4-31B-Humanlike-Chat",
+  "rev": "3ef86bf3f697c3a08bc39e57a58a0c824f617e1b",
+  "last_modified": "2026-10-30T09:31:39.000Z",
+  "ok": true,
+  "downloads": 533,
+  "params": 31273088876,
+  "author": "LessThanThreeAI",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "turion-ai/turion-jev-31b",
+  "asked_rev": "main",
+  "label": "null-turion-ai_turion-jev-31b",
+  "rev": "f981bc17c15e57f70ecadc215f4311ad8a45a13e",
+  "last_modified": "2026-11-11T09:47:53.000Z",
+  "ok": true,
+  "downloads": 493,
+  "params": 31273086512,
+  "author": "turion-ai",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "richardyoung/gemma-4-31B-it-ARA-heretic",
+  "asked_rev": "main",
+  "label": "null-richardyoung_gemma-4-31B-it-ARA-heretic",
+  "rev": "760aca09711fa4c1553fa0559ab10da9c5bf584a",
+  "last_modified": "2026-11-09T13:26:20.000Z",
+  "ok": true,
+  "downloads": 484,
+  "params": 31273086512,
+  "author": "richardyoung",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "morriszjm/AnyJev-Tacitus-31B",
+  "asked_rev": "main",
+  "label": "null-morriszjm_AnyJev-Tacitus-31B",
+  "rev": "616d51437306694b0c13e56b8ed5d1f79874cabb",
+  "last_modified": "2026-10-19T02:24:25.000Z",
+  "ok": true,
+  "downloads": 474,
+  "params": 31273086512,
+  "author": "morriszjm",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "PNPM244/linne-oak-1-0",
+  "asked_rev": "main",
+  "label": "null-PNPM244_linne-oak-1-0",
+  "rev": "cebe68474dfc9c7f775ae33ed15413319beacebb",
+  "last_modified": "2026-10-22T01:54:51.000Z",
+  "ok": true,
+  "downloads": 408,
+  "params": 31273088876,
+  "author": "PNPM244",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "zerofata/G4-MeroMero-v2-31B",
+  "asked_rev": "main",
+  "label": "null-zerofata_G4-MeroMero-v2-31B",
+  "rev": "a72eca198afc5dc4d2ecbcef9848324c9732788c",
+  "last_modified": "2026-08-03T06:00:17.000Z",
+  "ok": true,
+  "downloads": 390,
+  "params": 31273088876,
+  "author": "zerofata",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "ReadyArt/Vesper-31B-Nocturne",
+  "asked_rev": "main",
+  "label": "null-ReadyArt_Vesper-31B-Nocturne",
+  "rev": "c9eda68eb6c99ca6ec6de6f2aa30458af623f196",
+  "last_modified": "2026-11-09T08:39:53.000Z",
+  "ok": true,
+  "downloads": 312,
+  "params": 31273088876,
+  "author": "ReadyArt",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "sanghwa-na/bobcat-1.3",
+  "asked_rev": "main",
+  "label": "null-sanghwa-na_bobcat-1.3",
+  "rev": "4f25c70ece312ec4e74c47f1c5264cb2aeea956a",
+  "last_modified": "2026-10-14T15:32:57.000Z",
+  "ok": true,
+  "downloads": 288,
+  "params": 31273088876,
+  "author": "sanghwa-na",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "nbeerbower/Gemma4-Gutenberg-31B",
+  "asked_rev": "main",
+  "label": "null-nbeerbower_Gemma4-Gutenberg-31B",
+  "rev": "c5c24b3ae866acc82f4d496aedfa3b3446fe985a",
+  "last_modified": "2026-06-16T18:45:46.000Z",
+  "ok": true,
+  "downloads": 268,
+  "params": 31273086512,
+  "author": "nbeerbower",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "AuriAetherwiing/G4-31B-Musica-v1",
+  "asked_rev": "main",
+  "label": "null-AuriAetherwiing_G4-31B-Musica-v1",
+  "rev": "f4aac9f41a90f47b41f0460a5e173b53fff97cfb",
+  "last_modified": "2026-08-13T18:28:18.000Z",
+  "ok": true,
+  "downloads": 224,
+  "params": 31273086512,
+  "author": "AuriAetherwiing",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "MachinePulseAI/karpo-decision-31B",
+  "asked_rev": "main",
+  "label": "null-MachinePulseAI_karpo-decision-31B",
+  "rev": "d69cdd57eab23271cbe65236ca8a00d80d7bb8c7",
+  "last_modified": "2026-11-13T09:45:29.000Z",
+  "ok": true,
+  "downloads": 217,
+  "params": 31273088876,
+  "author": "MachinePulseAI",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "ressl/gemma-4-31B-it-uncensored",
+  "asked_rev": "main",
+  "label": "null-ressl_gemma-4-31B-it-uncensored",
+  "rev": "b7e5c931eaa8920d34d990c5f83d43bb04effc83",
+  "last_modified": "2026-07-28T09:16:23.000Z",
+  "ok": true,
+  "downloads": 140,
+  "params": 31273086512,
+  "author": "ressl",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "Mapika/decider-chat-gemma4-31b",
+  "asked_rev": "main",
+  "label": "null-Mapika_decider-chat-gemma4-31b",
+  "rev": "22975cbd1716170264a1d2a7e1105787e08c5d95",
+  "last_modified": "2026-09-29T20:34:53.000Z",
+  "ok": true,
+  "downloads": 134,
+  "params": 31273088876,
+  "author": "Mapika",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "Jackrong/Gemopus-4-31B-it",
+  "asked_rev": "main",
+  "label": "null-Jackrong_Gemopus-4-31B-it",
+  "rev": "5bb23779b92eebb23d3386b3d706c620a8d6083a",
+  "last_modified": "2026-04-15T13:40:22.000Z",
+  "ok": true,
+  "downloads": 126,
+  "params": 32682372656,
+  "author": "Jackrong",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "LatitudeGames/Equinox-31B",
+  "asked_rev": "main",
+  "label": "null-LatitudeGames_Equinox-31B",
+  "rev": "c5be6d89c9d145cf631244577896eb7b771735b3",
+  "last_modified": "2026-09-11T16:34:37.000Z",
+  "ok": true,
+  "downloads": 120,
+  "params": 31273088876,
+  "author": "LatitudeGames",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "OS-Software/gemma-4-31B-it-qat-q4_0-unquantized-uncensored-heretic",
+  "asked_rev": "main",
+  "label": "null-OS-Software_gemma-4-31B-it-qat-q4_0-unquantized-uncensored-heretic",
+  "rev": "244246e628015845fc3b1d0bb4e97549d03e625b",
+  "last_modified": "2026-09-08T03:48:01.000Z",
+  "ok": true,
+  "downloads": 119,
+  "params": 31273086512,
+  "author": "OS-Software",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "null-space/gemma-4-31b-it-abliterated",
+  "asked_rev": "main",
+  "label": "null-null-space_gemma-4-31b-it-abliterated",
+  "rev": "b81077edb0048561ffc33afba01a77a187bd6155",
+  "last_modified": "2026-04-06T01:49:56.000Z",
+  "ok": true,
+  "downloads": 118,
+  "params": 32682372656,
+  "author": "null-space",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "ai-and/termgrade-gemma4-31b-merged",
+  "asked_rev": "main",
+  "label": "null-ai-and_termgrade-gemma4-31b-merged",
+  "rev": "85c9a9f5d33b2898e7f7a6ff5987191d4ae0ea8a",
+  "last_modified": "2026-10-08T18:44:23.000Z",
+  "ok": true,
+  "downloads": 116,
+  "params": 30697345280,
+  "author": "ai-and",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "misa-jsc/misa-ai-2.0-decision-plus",
+  "asked_rev": "main",
+  "label": "null-misa-jsc_misa-ai-2.0-decision-plus",
+  "rev": "73b5e6517282243e2dd118703a848a955dff2d79",
+  "last_modified": "2026-10-22T02:00:47.000Z",
+  "ok": true,
+  "downloads": 110,
+  "params": 31273088876,
+  "author": "misa-jsc",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "54rt1n/Gemma-4-31B-Exhortation",
+  "asked_rev": "main",
+  "label": "null-54rt1n_Gemma-4-31B-Exhortation",
+  "rev": "f4c7451a831cd9cb5f6c5376e4863bb951b6b93c",
+  "last_modified": "2026-11-10T16:47:24.000Z",
+  "ok": true,
+  "downloads": 108,
+  "params": 31273088876,
+  "author": "54rt1n",
+  "base": "google/gemma-4-31B-it",
+  "card_base": "google/gemma-4-31B-it"
+ },
+ {
+  "repo": "mente-ai/uyu-2-28B",
+  "asked_rev": "main",
+  "label": "null-mente-ai_uyu-2-28B",
+  "rev": "0ecf895f58b166ecc892a4fe26c5268a01c8ee1a",
+  "last_modified": "2026-07-12T16:23:02.000Z",
+  "ok": true,
+  "downloads": 99,
+  "params": 28181549312,
+  "author": "mente-ai",
+  "base": "google/gemma-4-31B-it",
+  "card_base": [
+   "google/gemma-4-31B-it"
+  ]
+ },
+ {
+  "repo": "huihui-ai/Huihui-Qwen3.5-27B-abliterated",
+  "asked_rev": "main",
+  "label": "null-huihui-ai_Huihui-Qwen3.5-27B-abliterated",
+  "rev": "77b8a75fe4c784db0cc43b84368007d98f15838a",
+  "last_modified": "2026-03-02T09:44:39.000Z",
+  "ok": true,
+  "downloads": 21328,
+  "params": 27781427952,
+  "author": "huihui-ai",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "baselabs/mammoth-1",
+  "asked_rev": "main",
+  "label": "null-baselabs_mammoth-1",
+  "rev": "61cec44c281c693992e3d6ebeb44dd3402dfa186",
+  "last_modified": "2026-10-22T18:40:29.000Z",
+  "ok": true,
+  "downloads": 6351,
+  "params": 27356728560,
+  "author": "baselabs",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "unsloth/Qwen3.5-27B",
+  "asked_rev": "main",
+  "label": "null-unsloth_Qwen3.5-27B",
+  "rev": "68443620da0c3847c1ba5042b5dcf1e78c42bfba",
+  "last_modified": "2026-05-15T17:09:47.000Z",
+  "ok": true,
+  "downloads": 4692,
+  "params": 27781427952,
+  "author": "unsloth",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "microsoft/Fara1.5-27B",
+  "asked_rev": "main",
+  "label": "null-microsoft_Fara1.5-27B",
+  "rev": "299c8406a6c6256d45ec200d1ac12b34c5599d9b",
+  "last_modified": "2026-07-27T16:07:09.000Z",
+  "ok": true,
+  "downloads": 3838,
+  "params": 27356728560,
+  "author": "microsoft",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "asked_rev": "main",
+  "label": "null-Jackrong_Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "rev": "ad356102ce8ea7122a18e6402f9b2e37446fc9d7",
+  "last_modified": "2026-07-07T02:18:08.000Z",
+  "ok": true,
+  "downloads": 2266,
+  "params": 27781427952,
+  "author": "Jackrong",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "coder3101/Qwen3.5-27B-heretic",
+  "asked_rev": "main",
+  "label": "null-coder3101_Qwen3.5-27B-heretic",
+  "rev": "4f5329c4bc68d2df261ffb0e53ed0698878079e3",
+  "last_modified": "2026-02-25T18:53:13.000Z",
+  "ok": true,
+  "downloads": 1419,
+  "params": 27356728560,
+  "author": "coder3101",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "ApolloRaines/Sharona_Q27B-R_CodeSecurity_v2",
+  "asked_rev": "main",
+  "label": "null-ApolloRaines_Sharona_Q27B-R_CodeSecurity_v2",
+  "rev": "684608516bb1ea526bd0ab17a843567100ed7d21",
+  "last_modified": "2026-11-05T02:30:13.000Z",
+  "ok": true,
+  "downloads": 842,
+  "params": 26895998464,
+  "author": "ApolloRaines",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "theostos/qwen-3.5-babel-27b-sft-agent-multistep",
+  "asked_rev": "main",
+  "label": "null-theostos_qwen-3.5-babel-27b-sft-agent-multistep",
+  "rev": "1fa8d2f14a1da5943071cc285401cc1d0dac3017",
+  "last_modified": "2026-11-06T11:22:27.000Z",
+  "ok": true,
+  "downloads": 778,
+  "params": 26895998464,
+  "author": "theostos",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "messc57546g/Qwen3.5-27B-abliterated-ko",
+  "asked_rev": "main",
+  "label": "null-messc57546g_Qwen3.5-27B-abliterated-ko",
+  "rev": "1dcaacd61d6bdaac3ab3ca15b7b2066abe2c2f27",
+  "last_modified": "2026-10-26T04:53:28.000Z",
+  "ok": true,
+  "downloads": 471,
+  "params": 27356728560,
+  "author": "messc57546g",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "Trendyol/Trendyol-Vision-Master",
+  "asked_rev": "main",
+  "label": "null-Trendyol_Trendyol-Vision-Master",
+  "rev": "0e8a53099965b42ffccd2c4e50aad21eab67f5a6",
+  "last_modified": "2026-08-15T12:45:03.000Z",
+  "ok": true,
+  "downloads": 453,
+  "params": 27356728560,
+  "author": "Trendyol",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "empero-ai/Qwythos-27B-v1",
+  "asked_rev": "main",
+  "label": "null-empero-ai_Qwythos-27B-v1",
+  "rev": "7c72a9c714cf66281cb222c4aa0aef368d84c94f",
+  "last_modified": "2026-07-29T18:28:16.000Z",
+  "ok": true,
+  "downloads": 436,
+  "params": 27781427952,
+  "author": "empero-ai",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "agentscope-ai/Piccolo-27B",
+  "asked_rev": "main",
+  "label": "null-agentscope-ai_Piccolo-27B",
+  "rev": "8f40a43d1c71408951af14a5717e482ebc75fb26",
+  "last_modified": "2026-11-03T06:23:57.000Z",
+  "ok": true,
+  "downloads": 308,
+  "params": 27781427952,
+  "author": "agentscope-ai",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "AEON-7/DFlash-Qwen3.5-27B-Uncensored",
+  "asked_rev": "main",
+  "label": "null-AEON-7_DFlash-Qwen3.5-27B-Uncensored",
+  "rev": "fc4c8dd1bc9c322bb057796a2480fd6f00a68160",
+  "last_modified": "2026-11-13T04:45:10.000Z",
+  "ok": true,
+  "downloads": 287,
+  "params": 27781427952,
+  "author": "AEON-7",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "Nianchen/IndustryForge-27B",
+  "asked_rev": "main",
+  "label": "null-Nianchen_IndustryForge-27B",
+  "rev": "9fe9922a32b9a2d4b8cae1ade2fd217d0f597925",
+  "last_modified": "2026-10-20T06:05:48.000Z",
+  "ok": true,
+  "downloads": 276,
+  "params": 27356728560,
+  "author": "Nianchen",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "aifeifei798/Qwen3.5-Queen-27B",
+  "asked_rev": "main",
+  "label": "null-aifeifei798_Qwen3.5-Queen-27B",
+  "rev": "396b54f327ae15eec27722bcf482a98481869ab6",
+  "last_modified": "2026-03-20T14:31:45.000Z",
+  "ok": true,
+  "downloads": 232,
+  "params": 27356728560,
+  "author": "aifeifei798",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "THUSI-Lab/GameScaling-27B-S3",
+  "asked_rev": "main",
+  "label": "null-THUSI-Lab_GameScaling-27B-S3",
+  "rev": "a62e6821fa143f2caa83abf74335891fa9a9b98b",
+  "last_modified": "2026-11-11T15:27:47.000Z",
+  "ok": true,
+  "downloads": 231,
+  "params": 27356728560,
+  "author": "THUSI-Lab",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "DavidAU/Qwen3.5-27B-Gemini3-Pro-High-Reasoning-Compact-Thinking",
+  "asked_rev": "main",
+  "label": "null-DavidAU_Qwen3.5-27B-Gemini3-Pro-High-Reasoning-Compact-Thinking",
+  "rev": "6408dd55f66afb40db1938abdd190c5465b69c7e",
+  "last_modified": "2026-11-09T04:45:09.000Z",
+  "ok": true,
+  "downloads": 209,
+  "params": 27356728560,
+  "author": "DavidAU",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "ArliAI/Qwen3.5-27B-Derestricted",
+  "asked_rev": "main",
+  "label": "null-ArliAI_Qwen3.5-27B-Derestricted",
+  "rev": "aa194b68a0490385e412d1c2d9d1b8e41fbb259b",
+  "last_modified": "2026-03-18T05:06:38.000Z",
+  "ok": true,
+  "downloads": 193,
+  "params": 27781427952,
+  "author": "ArliAI",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "Bobi099/Qwen3.5-27B-heretic",
+  "asked_rev": "main",
+  "label": "null-Bobi099_Qwen3.5-27B-heretic",
+  "rev": "542ef1e5781a9f596bb9079e98b39d7ab5e77ce2",
+  "last_modified": "2026-02-28T23:21:43.000Z",
+  "ok": true,
+  "downloads": 134,
+  "params": 27356728560,
+  "author": "Bobi099",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "llmfan46/Qwen3.5-27B-uncensored-heretic-v1",
+  "asked_rev": "main",
+  "label": "null-llmfan46_Qwen3.5-27B-uncensored-heretic-v1",
+  "rev": "5c15f451824290b1437747bdc13ab551a8383e7b",
+  "last_modified": "2026-10-06T15:59:38.000Z",
+  "ok": true,
+  "downloads": 120,
+  "params": 27356728560,
+  "author": "llmfan46",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "darkc0de/XORTRON.CriminalComputing.2026.27B.Instruct",
+  "asked_rev": "main",
+  "label": "null-darkc0de_XORTRON.CriminalComputing.2026.27B.Instruct",
+  "rev": "85354f47a1b628173b74453d3131a66c3f7d23d1",
+  "last_modified": "2026-04-06T14:22:04.000Z",
+  "ok": true,
+  "downloads": 108,
+  "params": 27356728560,
+  "author": "darkc0de",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "Epiculous/Effervescence-27B",
+  "asked_rev": "main",
+  "label": "null-Epiculous_Effervescence-27B",
+  "rev": "e6f1a076f4d428863ccbbc2d28008b7572c4f476",
+  "last_modified": "2026-06-18T00:59:43.000Z",
+  "ok": true,
+  "downloads": 99,
+  "params": 27781427952,
+  "author": "Epiculous",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "ValiantLabs/Qwen3.5-27B-Esper3.1",
+  "asked_rev": "main",
+  "label": "null-ValiantLabs_Qwen3.5-27B-Esper3.1",
+  "rev": "b770db8f69a08f74924ed73eea34501f6de5ba62",
+  "last_modified": "2026-04-22T22:43:09.000Z",
+  "ok": true,
+  "downloads": 86,
+  "params": 27781427952,
+  "author": "ValiantLabs",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "JonasGeiping/stream-qwen3.5-27b",
+  "asked_rev": "main",
+  "label": "null-JonasGeiping_stream-qwen3.5-27b",
+  "rev": "88112239d7bf33f5fae2fc8844f8c7e276c2c966",
+  "last_modified": "2026-05-13T15:36:32.000Z",
+  "ok": true,
+  "downloads": 86,
+  "params": 26896131584,
+  "author": "JonasGeiping",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "continuum-ai/qwen3.5-27b-code-forged",
+  "asked_rev": "main",
+  "label": "null-continuum-ai_qwen3.5-27b-code-forged",
+  "rev": "1e48987be2b1a2972e092afc215174f62b893794",
+  "last_modified": "2026-04-11T17:16:33.000Z",
+  "ok": true,
+  "downloads": 73,
+  "params": 26895998464,
+  "author": "continuum-ai",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "shuoxing/qwen-3.5-27b-absorb",
+  "asked_rev": "main",
+  "label": "null-shuoxing_qwen-3.5-27b-absorb",
+  "rev": "fdaedd27fbf7c664f4c9afeb9a8f56315c87f8d8",
+  "last_modified": "2026-10-02T05:53:21.000Z",
+  "ok": true,
+  "downloads": 71,
+  "params": 27781427952,
+  "author": "shuoxing",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "kai-os/Carnice-27b",
+  "asked_rev": "main",
+  "label": "null-kai-os_Carnice-27b",
+  "rev": "05340447be66231e1801c0426a56471c073bc12e",
+  "last_modified": "2026-04-08T02:12:20.000Z",
+  "ok": true,
+  "downloads": 68,
+  "params": 26895998464,
+  "author": "kai-os",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "prithivMLmods/Gliese-Qwen3.5-27B-Abliterated-Caption",
+  "asked_rev": "main",
+  "label": "null-prithivMLmods_Gliese-Qwen3.5-27B-Abliterated-Caption",
+  "rev": "5e42f84c020df17b6cf836ac2ace57d5d0e9ccec",
+  "last_modified": "2026-06-01T06:43:12.000Z",
+  "ok": true,
+  "downloads": 59,
+  "params": 27356728560,
+  "author": "prithivMLmods",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "IAAR-Shanghai/Metis-27B",
+  "asked_rev": "main",
+  "label": "null-IAAR-Shanghai_Metis-27B",
+  "rev": "4a3d62e76628e2e7a3157ac47bd6db92fd1f30d1",
+  "last_modified": "2026-07-31T04:59:11.000Z",
+  "ok": true,
+  "downloads": 58,
+  "params": 27567435296,
+  "author": "IAAR-Shanghai",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "YYangzzzz/OS-Helix-27B",
+  "asked_rev": "main",
+  "label": "null-YYangzzzz_OS-Helix-27B",
+  "rev": "8906b21e9cccbbb63ed22fd169294d18d9cdd996",
+  "last_modified": "2026-10-18T10:56:43.000Z",
+  "ok": true,
+  "downloads": 57,
+  "params": 27356728560,
+  "author": "YYangzzzz",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "DreamFast/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-Safetensor-Benchmark",
+  "asked_rev": "main",
+  "label": "null-DreamFast_Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-Safetensor-Benchmark",
+  "rev": "f5f33d0d4710f163b31948171e3beed2db16121e",
+  "last_modified": "2026-07-17T05:20:38.000Z",
+  "ok": true,
+  "downloads": 56,
+  "params": 26895998464,
+  "author": "DreamFast",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "SL-AI/GRaPE-2-Pro",
+  "asked_rev": "main",
+  "label": "null-SL-AI_GRaPE-2-Pro",
+  "rev": "4a24b40c6a0d71b8f62f696b693a55e427945b0f",
+  "last_modified": "2026-07-17T19:43:54.000Z",
+  "ok": true,
+  "downloads": 56,
+  "params": 27781427952,
+  "author": "SL-AI",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "Dxniz/NaNovel-27B",
+  "asked_rev": "main",
+  "label": "null-Dxniz_NaNovel-27B",
+  "rev": "d27ee0981c66ebd1bb372e2d7739171b58ef2bf2",
+  "last_modified": "2026-03-13T14:34:33.000Z",
+  "ok": true,
+  "downloads": 54,
+  "params": 27781427952,
+  "author": "Dxniz",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "DMindAI/DMind-3",
+  "asked_rev": "main",
+  "label": "null-DMindAI_DMind-3",
+  "rev": "de117c4f320692760c3028621a26edd00bcf5113",
+  "last_modified": "2026-03-23T16:42:39.000Z",
+  "ok": true,
+  "downloads": 51,
+  "params": 27356728560,
+  "author": "DMindAI",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "wangzhang/Qwen3.5-27B-abliterated",
+  "asked_rev": "main",
+  "label": "null-wangzhang_Qwen3.5-27B-abliterated",
+  "rev": "42302bab2b8dd3bcdf9674a39de94fbc00b33dcb",
+  "last_modified": "2026-08-29T17:04:47.000Z",
+  "ok": true,
+  "downloads": 49,
+  "params": 26895998464,
+  "author": "wangzhang",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "yj12869741/TA-OPD-27B",
+  "asked_rev": "main",
+  "label": "null-yj12869741_TA-OPD-27B",
+  "rev": "fb40463d787705a402b8690a622e625c5e14e880",
+  "last_modified": "2026-09-22T05:45:58.000Z",
+  "ok": true,
+  "downloads": 49,
+  "params": 27356728560,
+  "author": "yj12869741",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "ConicCat/Qwen3.5-27B-Writer-V2",
+  "asked_rev": "main",
+  "label": "null-ConicCat_Qwen3.5-27B-Writer-V2",
+  "rev": "55f457bed78b68442d25815bd156b98f2e6fd341",
+  "last_modified": "2026-03-28T00:56:15.000Z",
+  "ok": true,
+  "downloads": 43,
+  "params": 27356728560,
+  "author": "ConicCat",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "msr-spare-1/qwen3.5-27b-judge-fullweight-b64",
+  "asked_rev": "main",
+  "label": "null-msr-spare-1_qwen3.5-27b-judge-fullweight-b64",
+  "rev": "e47c0a9dea96275bec1ede4aa919c1f23ff0e6ba",
+  "last_modified": "2026-09-22T15:22:21.000Z",
+  "ok": true,
+  "downloads": 42,
+  "params": 27781427952,
+  "author": "msr-spare-1",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": "Qwen/Qwen3.5-27B"
+ },
+ {
+  "repo": "zerofata/Q3.5-BlueStar-v2-27B",
+  "asked_rev": "main",
+  "label": "null-zerofata_Q3.5-BlueStar-v2-27B",
+  "rev": "be248d6652905294b227d1a77f253ecd9f1c85fa",
+  "last_modified": "2026-03-20T01:37:04.000Z",
+  "ok": true,
+  "downloads": 39,
+  "params": 27356728560,
+  "author": "zerofata",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "AITRADER/Huihui-Qwen3.5-27B-abliterated-fp16-MLX",
+  "asked_rev": "main",
+  "label": "null-AITRADER_Huihui-Qwen3.5-27B-abliterated-fp16-MLX",
+  "rev": "90eea054bb0114330d28bd1bf08f97093d88180b",
+  "last_modified": "2026-02-28T21:15:36.000Z",
+  "ok": true,
+  "downloads": 38,
+  "params": 27356728560,
+  "author": "AITRADER",
+  "base": "Qwen/Qwen3.5-27B",
+  "card_base": [
+   "Qwen/Qwen3.5-27B"
+  ]
+ },
+ {
+  "repo": "huihui-ai/Huihui-Qwen3.8-27B-abliterated",
+  "asked_rev": "main",
+  "label": "null-huihui-ai_Huihui-Qwen3.8-27B-abliterated",
+  "rev": "739e3c5b89849f6c238ce1e5b70008612ae42cdd",
+  "last_modified": "2026-08-24T03:47:39.000Z",
+  "ok": true,
+  "downloads": 92993,
+  "params": 27781427952,
+  "author": "huihui-ai",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B"
+  ]
+ },
+ {
+  "repo": "Cloudflare/clef",
+  "asked_rev": "main",
+  "label": "null-Cloudflare_clef",
+  "rev": "171287b2571042abec9e7b99752aee58216b0ed0",
+  "last_modified": "2026-11-10T16:06:55.000Z",
+  "ok": true,
+  "downloads": 73460,
+  "params": 27356728560,
+  "author": "Cloudflare",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "ReadyArt/Dark-Scarlett-27B-v2.0",
+  "asked_rev": "main",
+  "label": "null-ReadyArt_Dark-Scarlett-27B-v2.0",
+  "rev": "c44c2d6ffa33ec20adf383e1d3ce19953df92b38",
+  "last_modified": "2026-08-15T20:24:28.000Z",
+  "ok": true,
+  "downloads": 67135,
+  "params": 27781427952,
+  "author": "ReadyArt",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B"
+  ]
+ },
+ {
+  "repo": "JonathanColetti/Qwen3.8-27B-Uncensored",
+  "asked_rev": "main",
+  "label": "null-JonathanColetti_Qwen3.8-27B-Uncensored",
+  "rev": "5bb7aa90f0efef548e87005b1fb7658e522b6b7f",
+  "last_modified": "2026-08-14T19:42:58.000Z",
+  "ok": true,
+  "downloads": 31193,
+  "params": 27356728560,
+  "author": "JonathanColetti",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "unsloth/Qwen3.8-27B",
+  "asked_rev": "main",
+  "label": "null-unsloth_Qwen3.8-27B",
+  "rev": "3ea932cee0a432ae86e9c7826cbe8aef52323a28",
+  "last_modified": "2026-08-14T15:16:02.000Z",
+  "ok": true,
+  "downloads": 30988,
+  "params": 27781427952,
+  "author": "unsloth",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B"
+  ]
+ },
+ {
+  "repo": "AEON-7/Qwen3.8-27B-AEON-ULTIMATE-UNCENSORED-BF16",
+  "asked_rev": "main",
+  "label": "null-AEON-7_Qwen3.8-27B-AEON-ULTIMATE-UNCENSORED-BF16",
+  "rev": "a11b97b5d2c47dcd87693dd7fa49515fdb31c43e",
+  "last_modified": "2026-11-13T04:45:22.000Z",
+  "ok": true,
+  "downloads": 19684,
+  "params": 27781427952,
+  "author": "AEON-7",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "agentionai/Signal-3.8-27B",
+  "asked_rev": "main",
+  "label": "null-agentionai_Signal-3.8-27B",
+  "rev": "54552f73a5781d7909d9ae660926ddf409bd8cc0",
+  "last_modified": "2026-09-15T23:19:50.000Z",
+  "ok": true,
+  "downloads": 16474,
+  "params": 27781427952,
+  "author": "agentionai",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B"
+  ]
+ },
+ {
+  "repo": "JuneoAI/Laplace-1-Atlas",
+  "asked_rev": "main",
+  "label": "null-JuneoAI_Laplace-1-Atlas",
+  "rev": "cf6ea86a1c5d9165e3e15fbb39a95ec7c05061e4",
+  "last_modified": "2026-11-04T03:06:49.000Z",
+  "ok": true,
+  "downloads": 11004,
+  "params": 27356728560,
+  "author": "JuneoAI",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "vllm-sr/d3",
+  "asked_rev": "main",
+  "label": "null-vllm-sr_d3",
+  "rev": "62f07e54c6c3a5ff5f695107377edc43e1a86ea8",
+  "last_modified": "2026-11-02T08:46:03.000Z",
+  "ok": true,
+  "downloads": 9421,
+  "params": 26085330160,
+  "author": "vllm-sr",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "DavidAU/Qwen3.8-27B-TURBO-Fable-Cold-Fusion-735-882-Heretic-Uncensored-NM-DAU",
+  "asked_rev": "main",
+  "label": "null-DavidAU_Qwen3.8-27B-TURBO-Fable-Cold-Fusion-735-882-Heretic-Uncensored-NM-DAU",
+  "rev": "079b2b268c637b77f2fb4ab6a5ca1edc47d462a5",
+  "last_modified": "2026-11-09T05:07:32.000Z",
+  "ok": true,
+  "downloads": 6630,
+  "params": 27781427952,
+  "author": "DavidAU",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B"
+  ]
+ },
+ {
+  "repo": "mlx-community/Qwen3.8-27B-bf16",
+  "asked_rev": "main",
+  "label": "null-mlx-community_Qwen3.8-27B-bf16",
+  "rev": "379e708436c8372e6ac00b77de31622a0e6bc801",
+  "last_modified": "2026-11-11T08:58:38.000Z",
+  "ok": true,
+  "downloads": 6057,
+  "params": 27356728560,
+  "author": "mlx-community",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "perplexity-ai/pplx-decider-v1.2",
+  "asked_rev": "main",
+  "label": "null-perplexity-ai_pplx-decider-v1.2",
+  "rev": "cce0f3f80033e9d89d80831d5281fd72124aacce",
+  "last_modified": "2026-10-19T10:25:41.000Z",
+  "ok": true,
+  "downloads": 5972,
+  "params": 26085330160,
+  "author": "perplexity-ai",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "ukisai/Swift-1.5-Qwen3.8-27b",
+  "asked_rev": "main",
+  "label": "null-ukisai_Swift-1.5-Qwen3.8-27b",
+  "rev": "b4c84d42903a8646b25857eb2827288d92ed85a4",
+  "last_modified": "2026-10-03T19:51:05.000Z",
+  "ok": true,
+  "downloads": 5790,
+  "params": 27781427952,
+  "author": "ukisai",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "NousResearch/Arete-27B",
+  "asked_rev": "main",
+  "label": "null-NousResearch_Arete-27B",
+  "rev": "108f0afbdcfaa1ceeda4a635004304dfff6d4da2",
+  "last_modified": "2026-11-06T21:04:27.000Z",
+  "ok": true,
+  "downloads": 5545,
+  "params": 27356728560,
+  "author": "NousResearch",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B"
+  ]
+ },
+ {
+  "repo": "mulkzz/RuBio-27B",
+  "asked_rev": "main",
+  "label": "null-mulkzz_RuBio-27B",
+  "rev": "fa96259b262de8952e5d1f0851f95e8ae6d8c584",
+  "last_modified": "2026-11-03T15:48:49.000Z",
+  "ok": true,
+  "downloads": 3801,
+  "params": 27781427952,
+  "author": "mulkzz",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "RBDash-Team/Xing-VL2.0-Decision",
+  "asked_rev": "main",
+  "label": "null-RBDash-Team_Xing-VL2.0-Decision",
+  "rev": "c06b8050333757ddc9f7a8d6e78563a91a5acd98",
+  "last_modified": "2026-10-27T03:46:01.000Z",
+  "ok": true,
+  "downloads": 3744,
+  "params": 26085330160,
+  "author": "RBDash-Team",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "HemmingwayAI/Hemmingway-1",
+  "asked_rev": "main",
+  "label": "null-HemmingwayAI_Hemmingway-1",
+  "rev": "faba57469705088eed04bc83652f7845c21638cb",
+  "last_modified": "2026-10-29T18:13:46.000Z",
+  "ok": true,
+  "downloads": 3611,
+  "params": 26895998464,
+  "author": "HemmingwayAI",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "jaredpalmer/kev-27b",
+  "asked_rev": "main",
+  "label": "null-jaredpalmer_kev-27b",
+  "rev": "af0e6d551bdc2cc724f3e9d7a8bee1cd4fb8f7bf",
+  "last_modified": "2026-10-01T17:18:30.000Z",
+  "ok": true,
+  "downloads": 3232,
+  "params": 25624600064,
+  "author": "jaredpalmer",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "BAAI/AREX-2",
+  "asked_rev": "main",
+  "label": "null-BAAI_AREX-2",
+  "rev": "d4e3502f92d9e889031c2d04e387ab2eb3520268",
+  "last_modified": "2026-10-01T07:13:17.000Z",
+  "ok": true,
+  "downloads": 3166,
+  "params": 27356728560,
+  "author": "BAAI",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "ProbioticFarmer/Qwen3.8-27B-BarronPolyStep-Merged",
+  "asked_rev": "main",
+  "label": "null-ProbioticFarmer_Qwen3.8-27B-BarronPolyStep-Merged",
+  "rev": "f2f42a1ae94b6bcb294b98b320536b82fe52f2aa",
+  "last_modified": "2026-11-02T19:07:11.000Z",
+  "ok": true,
+  "downloads": 2686,
+  "params": 27781427952,
+  "author": "ProbioticFarmer",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "Hcompany/Holo4-27B",
+  "asked_rev": "main",
+  "label": "null-Hcompany_Holo4-27B",
+  "rev": "4de03cfeee1d930b616bfd4817570293f29ad8b9",
+  "last_modified": "2026-09-28T14:34:28.000Z",
+  "ok": true,
+  "downloads": 2503,
+  "params": 27356728560,
+  "author": "Hcompany",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "jakejb53/Qwen3.8-27B-heretic",
+  "asked_rev": "main",
+  "label": "null-jakejb53_Qwen3.8-27B-heretic",
+  "rev": "5cc999deb3095390015c04d506278e4eb53e7d2b",
+  "last_modified": "2026-08-18T21:29:51.000Z",
+  "ok": true,
+  "downloads": 2236,
+  "params": 27356728560,
+  "author": "jakejb53",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B"
+  ]
+ },
+ {
+  "repo": "heretic-org/Qwen3.8-27B-heretic-ara",
+  "asked_rev": "main",
+  "label": "null-heretic-org_Qwen3.8-27B-heretic-ara",
+  "rev": "2dc9b364104881cbb85e390f00195ba6b9d745e9",
+  "last_modified": "2026-08-15T07:30:36.000Z",
+  "ok": true,
+  "downloads": 2034,
+  "params": 27356728560,
+  "author": "heretic-org",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B"
+  ]
+ },
+ {
+  "repo": "gordonhu/Tev-27B",
+  "asked_rev": "main",
+  "label": "null-gordonhu_Tev-27B",
+  "rev": "60c36fd4a8db1244856ef6a5abc0b4f1a121978b",
+  "last_modified": "2026-10-14T05:35:28.000Z",
+  "ok": true,
+  "downloads": 1905,
+  "params": 26895998464,
+  "author": "gordonhu",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "bytkim/Qwen3.8-27B-pi",
+  "asked_rev": "main",
+  "label": "null-bytkim_Qwen3.8-27B-pi",
+  "rev": "34d3f21045f7b41453e66c39e137cfc818a603ce",
+  "last_modified": "2026-09-30T21:02:37.000Z",
+  "ok": true,
+  "downloads": 1837,
+  "params": 27781427952,
+  "author": "bytkim",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "QuaduxIT/Qwen3.8-27B-Whitehat",
+  "asked_rev": "main",
+  "label": "null-QuaduxIT_Qwen3.8-27B-Whitehat",
+  "rev": "4a68d55ae891bf1c5e95ffd10bdbea0e143c513b",
+  "last_modified": "2026-10-24T19:18:57.000Z",
+  "ok": true,
+  "downloads": 1695,
+  "params": 27781427952,
+  "author": "QuaduxIT",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "summerAIO/Diffusion-Qwen3.8-27B",
+  "asked_rev": "main",
+  "label": "null-summerAIO_Diffusion-Qwen3.8-27B",
+  "rev": "d5587a6b8ac1577c502878799bbbcf398220ce9b",
+  "last_modified": "2026-11-06T05:22:01.000Z",
+  "ok": true,
+  "downloads": 1534,
+  "params": 26896244224,
+  "author": "summerAIO",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "sabicap/sabi-noema",
+  "asked_rev": "main",
+  "label": "null-sabicap_sabi-noema",
+  "rev": "2908c2d59081522a6cbfdb60ef0f848508295667",
+  "last_modified": "2026-10-19T22:18:36.000Z",
+  "ok": true,
+  "downloads": 1492,
+  "params": 27356728560,
+  "author": "sabicap",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "Sorenvza/Qwen3.8-27B-Uncensored-Impulsive",
+  "asked_rev": "main",
+  "label": "null-Sorenvza_Qwen3.8-27B-Uncensored-Impulsive",
+  "rev": "3fc99bf966c57df959de9c77e33178cc7621c9d4",
+  "last_modified": "2026-11-02T03:12:46.000Z",
+  "ok": true,
+  "downloads": 1045,
+  "params": 26895998464,
+  "author": "Sorenvza",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B",
+   "orcarouter/Qwen3.8-27B-Uncensored"
+  ]
+ },
+ {
+  "repo": "migtissera/Tess-4.5-27B",
+  "asked_rev": "main",
+  "label": "null-migtissera_Tess-4.5-27B",
+  "rev": "91b231133470bd147aac8036ed94d35e9bf1dc13",
+  "last_modified": "2026-10-18T23:29:35.000Z",
+  "ok": true,
+  "downloads": 986,
+  "params": 27781427952,
+  "author": "migtissera",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "Oriven-Labs/DAMS-27B",
+  "asked_rev": "main",
+  "label": "null-Oriven-Labs_DAMS-27B",
+  "rev": "8e0a97f4f4a237b3825c0387aafc8e9571136cc9",
+  "last_modified": "2026-10-30T21:04:03.000Z",
+  "ok": true,
+  "downloads": 971,
+  "params": 29635526896,
+  "author": "Oriven-Labs",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "sartajbhuvaji/unfuse-Qwen3.8-27B-text",
+  "asked_rev": "main",
+  "label": "null-sartajbhuvaji_unfuse-Qwen3.8-27B-text",
+  "rev": "b4f9daf3abab3abe55008aec9c3b2a53a8147a30",
+  "last_modified": "2026-11-02T23:48:04.000Z",
+  "ok": true,
+  "downloads": 968,
+  "params": 27320697856,
+  "author": "sartajbhuvaji",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "TeichAI/Qwen3.8-27B-Fable-Distill",
+  "asked_rev": "main",
+  "label": "null-TeichAI_Qwen3.8-27B-Fable-Distill",
+  "rev": "ac2b133895580be05ee90a6a7cdcc23cdf998bd0",
+  "last_modified": "2026-08-16T19:20:53.000Z",
+  "ok": true,
+  "downloads": 877,
+  "params": 27781427952,
+  "author": "TeichAI",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "darkc0de/JAX-XORTRON",
+  "asked_rev": "main",
+  "label": "null-darkc0de_JAX-XORTRON",
+  "rev": "93b4732e65fef44adb763050a05912197d2cf9e4",
+  "last_modified": "2026-09-06T18:57:04.000Z",
+  "ok": true,
+  "downloads": 817,
+  "params": 27356728560,
+  "author": "darkc0de",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B"
+  ]
+ },
+ {
+  "repo": "abacusai/Smaug-Mini",
+  "asked_rev": "main",
+  "label": "null-abacusai_Smaug-Mini",
+  "rev": "ee82c1ded4be75e160c0f7730fdae9e93ee4c80e",
+  "last_modified": "2026-09-09T13:46:18.000Z",
+  "ok": true,
+  "downloads": 723,
+  "params": 27781427952,
+  "author": "abacusai",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "llmfan46/Qwen3.8-27B-Uncensored-Heretic-Native-MTP-Preserved",
+  "asked_rev": "main",
+  "label": "null-llmfan46_Qwen3.8-27B-Uncensored-Heretic-Native-MTP-Preserved",
+  "rev": "4b9e1517a43fdca25872318ed272a1c88e72c360",
+  "last_modified": "2026-08-31T14:04:04.000Z",
+  "ok": true,
+  "downloads": 712,
+  "params": 27356728560,
+  "author": "llmfan46",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": [
+   "Qwen/Qwen3.8-27B"
+  ]
+ },
+ {
+  "repo": "Blackfrost-AI/Qwen3.8-27B-ABLITERATED-BF16",
+  "asked_rev": "main",
+  "label": "null-Blackfrost-AI_Qwen3.8-27B-ABLITERATED-BF16",
+  "rev": "9d85770e5eb602322b4bceef55beda357e0bd0ca",
+  "last_modified": "2026-08-14T21:12:46.000Z",
+  "ok": true,
+  "downloads": 682,
+  "params": 27781427952,
+  "author": "Blackfrost-AI",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "Roy-DOU/WebCoder-27B",
+  "asked_rev": "main",
+  "label": "null-Roy-DOU_WebCoder-27B",
+  "rev": "0c08730085282d5ed8aaa58894583369ed7eb5c0",
+  "last_modified": "2026-10-24T08:33:23.000Z",
+  "ok": true,
+  "downloads": 670,
+  "params": 27781427952,
+  "author": "Roy-DOU",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "TelperionAI/Qwen3.8-27B-MLA",
+  "asked_rev": "main",
+  "label": "null-TelperionAI_Qwen3.8-27B-MLA",
+  "rev": "572038ac511b583e4e18637d27070974ecdab5ae",
+  "last_modified": "2026-10-07T06:26:38.000Z",
+  "ok": true,
+  "downloads": 651,
+  "params": 26944036352,
+  "author": "TelperionAI",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ },
+ {
+  "repo": "denis-pplx/autojev-27b",
+  "asked_rev": "main",
+  "label": "null-denis-pplx_autojev-27b",
+  "rev": "6f5b557e037f5edb25c7dc92dbc6553e5a19c015",
+  "last_modified": "2026-09-22T03:52:39.000Z",
+  "ok": true,
+  "downloads": 618,
+  "params": 26085330160,
+  "author": "denis-pplx",
+  "base": "Qwen/Qwen3.8-27B",
+  "card_base": "Qwen/Qwen3.8-27B"
+ }
+]

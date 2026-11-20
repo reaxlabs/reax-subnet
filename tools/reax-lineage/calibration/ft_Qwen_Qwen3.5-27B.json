@@ -1,0 +1,5947 @@
+[
+ {
+  "repo": "yujiepan/qwen3.5-tiny-random",
+  "downloads": 30365,
+  "likes": 0,
+  "last_modified": "2026-02-25T03:57:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3a13bbea23b6df303d83c6127b4a40f1260598d5",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "huihui-ai/Huihui-Qwen3.5-27B-abliterated",
+  "downloads": 21328,
+  "likes": 171,
+  "last_modified": "2026-03-02T09:44:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "77b8a75fe4c784db0cc43b84368007d98f15838a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "baselabs/mammoth-1",
+  "downloads": 6351,
+  "likes": 97,
+  "last_modified": "2026-10-22T18:40:29.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "61cec44c281c693992e3d6ebeb44dd3402dfa186",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "unsloth/Qwen3.5-27B",
+  "downloads": 4692,
+  "likes": 17,
+  "last_modified": "2026-05-15T17:09:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "68443620da0c3847c1ba5042b5dcf1e78c42bfba",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "nvidia/Flora-Rewarder",
+  "downloads": 4597,
+  "likes": 23,
+  "last_modified": "2026-11-09T20:19:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a58b675874982043ba3e6c2e9d006bc74a7efce4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "video-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "nvidia/Flora-Captioner",
+  "downloads": 4569,
+  "likes": 43,
+  "last_modified": "2026-11-09T20:19:50.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "669b3f4924b29212da609b292babddfef690f579",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "microsoft/Fara1.5-27B",
+  "downloads": 3838,
+  "likes": 298,
+  "last_modified": "2026-07-27T16:07:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "299c8406a6c6256d45ec200d1ac12b34c5599d9b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "tiny-random/qwen3.5",
+  "downloads": 2661,
+  "likes": 0,
+  "last_modified": "2026-02-25T03:58:04.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "07ad2f323e908adc8d023136610ded7656a40ff0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Verdugie/Candid-3.5",
+  "downloads": 2410,
+  "likes": 0,
+  "last_modified": "2026-10-26T22:03:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d70bd88573deeb461d3b2ba41f97fbb8d0fe860e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "gguf"
+ },
+ {
+  "repo": "Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 2266,
+  "likes": 2970,
+  "last_modified": "2026-07-07T02:18:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ad356102ce8ea7122a18e6402f9b2e37446fc9d7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Verdugie/STEM-Oracle",
+  "downloads": 1936,
+  "likes": 4,
+  "last_modified": "2026-10-26T22:03:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "37f9a8ca2c6eb3d7ff3604c404c1a9075644ec8e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "gguf"
+ },
+ {
+  "repo": "z-lab/Qwen3.5-27B-DFlash",
+  "downloads": 1719,
+  "likes": 110,
+  "last_modified": "2026-06-19T21:07:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "25ee0025ff950496a634e100b75c2db4515e9824",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "coder3101/Qwen3.5-27B-heretic",
+  "downloads": 1419,
+  "likes": 78,
+  "last_modified": "2026-02-25T18:53:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4f5329c4bc68d2df261ffb0e53ed0698878079e3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ApolloRaines/Sharona_Q27B-R_CodeSecurity_v2",
+  "downloads": 842,
+  "likes": 2,
+  "last_modified": "2026-11-05T02:30:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "684608516bb1ea526bd0ab17a843567100ed7d21",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "theostos/qwen-3.5-babel-27b-sft-agent-multistep",
+  "downloads": 778,
+  "likes": 0,
+  "last_modified": "2026-11-06T11:22:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1fa8d2f14a1da5943071cc285401cc1d0dac3017",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Qwen/SAE-Res-Qwen3.5-27B-W80K-L0_50",
+  "downloads": 525,
+  "likes": 46,
+  "last_modified": "2026-05-13T12:19:02.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "13d4221569f7ca5d3c1e605e3e3dc95117e4807c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "messc57546g/Qwen3.5-27B-abliterated-ko",
+  "downloads": 471,
+  "likes": 0,
+  "last_modified": "2026-10-26T04:53:28.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1dcaacd61d6bdaac3ab3ca15b7b2066abe2c2f27",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Trendyol/Trendyol-Vision-Master",
+  "downloads": 453,
+  "likes": 12,
+  "last_modified": "2026-08-15T12:45:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0e8a53099965b42ffccd2c4e50aad21eab67f5a6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "empero-ai/Qwythos-27B-v1",
+  "downloads": 436,
+  "likes": 174,
+  "last_modified": "2026-07-29T18:28:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7c72a9c714cf66281cb222c4aa0aef368d84c94f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Anbeeld/Qwen3.5-27B-DFlash-GGUF",
+  "downloads": 415,
+  "likes": 0,
+  "last_modified": "2026-08-29T23:36:06.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f5944a97b6ab2ccf493f153b854fca446d655fef",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B",
+   "base_model:z-lab/Qwen3.5-27B-DFlash",
+   "base_model:quantized:z-lab/Qwen3.5-27B-DFlash"
+  ],
+  "pipeline": "feature-extraction",
+  "library": "transformers"
+ },
+ {
+  "repo": "Qwen/SAE-Res-Qwen3.5-27B-W80K-L0_100",
+  "downloads": 410,
+  "likes": 21,
+  "last_modified": "2026-05-13T09:44:26.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "82852e98c9b33d02194e92dd514b12fafd09ed25",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "wcn123/Qwen3.5-27B-WebNovel-Writer-zh",
+  "downloads": 352,
+  "likes": 20,
+  "last_modified": "2026-03-22T13:38:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6655cb83ed02a5f44489aab6880c11d7a685347f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Solel-io/Seraphim-1",
+  "downloads": 308,
+  "likes": 0,
+  "last_modified": "2026-10-25T03:14:31.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "20c7c0a6910cfbd754797dd245bd04a017a6250c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "agentscope-ai/Piccolo-27B",
+  "downloads": 308,
+  "likes": 0,
+  "last_modified": "2026-11-03T06:23:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8f40a43d1c71408951af14a5717e482ebc75fb26",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-classification",
+  "library": "transformers"
+ },
+ {
+  "repo": "AEON-7/DFlash-Qwen3.5-27B-Uncensored",
+  "downloads": 287,
+  "likes": 5,
+  "last_modified": "2026-11-13T04:45:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fc4c8dd1bc9c322bb057796a2480fd6f00a68160",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Nianchen/IndustryForge-27B",
+  "downloads": 276,
+  "likes": 13,
+  "last_modified": "2026-10-20T06:05:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9fe9922a32b9a2d4b8cae1ade2fd217d0f597925",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "DavidAU/Qwen3.5-40B-Claude-4.5-Opus-High-Reasoning-Thinking",
+  "downloads": 244,
+  "likes": 48,
+  "last_modified": "2026-11-09T04:48:41.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6cabab1a80a7f35c166f75241956f450dde56e84",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "continuum-ai/qwen3.5-27b-code-forged-mlx-4bit",
+  "downloads": 239,
+  "likes": 0,
+  "last_modified": "2026-04-11T17:16:35.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "aef714730275f09856d41f8a7a538bb03b105f6b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "gguf",
+   "quantized",
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "mlx"
+ },
+ {
+  "repo": "aifeifei798/Qwen3.5-Queen-27B",
+  "downloads": 232,
+  "likes": 11,
+  "last_modified": "2026-03-20T14:31:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "396b54f327ae15eec27722bcf482a98481869ab6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "THUSI-Lab/GameScaling-27B-S3",
+  "downloads": 231,
+  "likes": 4,
+  "last_modified": "2026-11-11T15:27:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a62e6821fa143f2caa83abf74335891fa9a9b98b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "theostos/qwen-3.5-babel-27b-sft-agent",
+  "downloads": 216,
+  "likes": 0,
+  "last_modified": "2026-11-02T13:03:22.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d39869ae2c438ac148e67793ea8c1a6b100bd900",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "DavidAU/Qwen3.5-27B-Gemini3-Pro-High-Reasoning-Compact-Thinking",
+  "downloads": 209,
+  "likes": 19,
+  "last_modified": "2026-11-09T04:45:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6408dd55f66afb40db1938abdd190c5465b69c7e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ArliAI/Qwen3.5-27B-Derestricted",
+  "downloads": 193,
+  "likes": 38,
+  "last_modified": "2026-03-18T05:06:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "aa194b68a0490385e412d1c2d9d1b8e41fbb259b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "shunzou05/TerminalHorizon-27B",
+  "downloads": 178,
+  "likes": 7,
+  "last_modified": "2026-10-12T03:15:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "382656f498b3deb367debf82165d2d2a7132e8c9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "inclusionAI/Qwen3.5-27B-singprobe",
+  "downloads": 166,
+  "likes": 1,
+  "last_modified": "2026-09-14T07:30:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ec1c3bccfcc398167639aae20cb959cefea24f34",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Bobi099/Qwen3.5-27B-heretic",
+  "downloads": 134,
+  "likes": 12,
+  "last_modified": "2026-02-28T23:21:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "542ef1e5781a9f596bb9079e98b39d7ab5e77ce2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "THUSI-Lab/GameScaling-27B-S1",
+  "downloads": 130,
+  "likes": 3,
+  "last_modified": "2026-11-11T15:27:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b48303547bcfdb928b6bf5287789780073ee6306",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "llmfan46/Qwen3.5-27B-uncensored-heretic-v1",
+  "downloads": 120,
+  "likes": 15,
+  "last_modified": "2026-10-06T15:59:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5c15f451824290b1437747bdc13ab551a8383e7b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "timm/qwen3_vit_416m_merge.qwen3_5_27b",
+  "downloads": 120,
+  "likes": 0,
+  "last_modified": "2026-09-10T17:29:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3e9491230c29b38c089a0fac0c92c1fba75f00ee",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-feature-extraction",
+  "library": "timm"
+ },
+ {
+  "repo": "timm/qwen3_vit_416m_enc.qwen3_5_27b",
+  "downloads": 115,
+  "likes": 0,
+  "last_modified": "2026-09-10T17:27:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "185eccbe9d1505deeb7b4fdceabc1d6c8614c141",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-feature-extraction",
+  "library": "timm"
+ },
+ {
+  "repo": "darkc0de/XORTRON.CriminalComputing.2026.27B.Instruct",
+  "downloads": 108,
+  "likes": 19,
+  "last_modified": "2026-04-06T14:22:04.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "85354f47a1b628173b74453d3131a66c3f7d23d1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "darkc0de/XORTRON.CriminalComputing.2026.27B.Instruct.NEXT",
+  "downloads": 108,
+  "likes": 18,
+  "last_modified": "2026-04-08T17:52:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "bc6763717a33022af4434c466d49987a717874a8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "llmfan46/Qwen3.5-27B-ultra-uncensored-heretic-v1",
+  "downloads": 105,
+  "likes": 27,
+  "last_modified": "2026-03-31T18:21:29.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0b134ea2c3e0fef5f4f78194d1c86258c1c81b8f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "DavidAU/Qwen3.5-27B-Claude-4.6-OS-INSTRUCT",
+  "downloads": 102,
+  "likes": 15,
+  "last_modified": "2026-11-09T04:46:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7c06ec286c6251927fc77b495d427caa1d01454f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Epiculous/Effervescence-27B",
+  "downloads": 99,
+  "likes": 3,
+  "last_modified": "2026-06-18T00:59:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e6f1a076f4d428863ccbbc2d28008b7572c4f476",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "theostos/qwen-3.5-babel-27b-sft",
+  "downloads": 87,
+  "likes": 0,
+  "last_modified": "2026-09-19T10:01:55.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f2fa44aabed50811cf132123613685dc768f181b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "ValiantLabs/Qwen3.5-27B-Esper3.1",
+  "downloads": 86,
+  "likes": 15,
+  "last_modified": "2026-04-22T22:43:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b770db8f69a08f74924ed73eea34501f6de5ba62",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "JonasGeiping/stream-qwen3.5-27b",
+  "downloads": 86,
+  "likes": 22,
+  "last_modified": "2026-05-13T15:36:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "88112239d7bf33f5fae2fc8844f8c7e276c2c966",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "ValiantLabs/Qwen3.5-27B-Guardpoint",
+  "downloads": 85,
+  "likes": 12,
+  "last_modified": "2026-07-15T18:33:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "be532570a795b8dab57dc197fa6e9fdc1a3d012b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "timm/qwen3_vit_416m.qwen3_5_27b",
+  "downloads": 85,
+  "likes": 0,
+  "last_modified": "2026-09-10T17:24:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ee6bb81dd4f1c77e25d3ab56efec76d193949d72",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-feature-extraction",
+  "library": "timm"
+ },
+ {
+  "repo": "aifeifei798/Darkidol-Ballad-27B",
+  "downloads": 84,
+  "likes": 8,
+  "last_modified": "2026-03-12T09:32:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "42830fb6d1a07ce81cb077c65ce2a9c4112706d2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "continuum-ai/qwen3.5-27b-code-forged",
+  "downloads": 73,
+  "likes": 0,
+  "last_modified": "2026-04-11T17:16:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1e48987be2b1a2972e092afc215174f62b893794",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "mlx"
+ },
+ {
+  "repo": "shuoxing/qwen-3.5-27b-absorb",
+  "downloads": 71,
+  "likes": 0,
+  "last_modified": "2026-10-02T05:53:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fdaedd27fbf7c664f4c9afeb9a8f56315c87f8d8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "kai-os/Carnice-27b",
+  "downloads": 68,
+  "likes": 36,
+  "last_modified": "2026-04-08T02:12:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "05340447be66231e1801c0426a56471c073bc12e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "ronghua/Qwen3.5-27B-WebNovel-Writer-zh",
+  "downloads": 64,
+  "likes": 0,
+  "last_modified": "2026-10-07T07:07:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "15900c796bafaaef525340c13a8fc52911ec80ed",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Jackrong/Qwen3.5-27B-Gemini-3.1-Pro-Reasoning-Distill",
+  "downloads": 63,
+  "likes": 5,
+  "last_modified": "2026-03-10T15:17:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5d86e6bd9e586fa595591bda79126748eb5da24b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "ConicCat/Qwen3.5-Antirep-27B",
+  "downloads": 59,
+  "likes": 3,
+  "last_modified": "2026-02-28T20:54:58.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b22e0f3d5d306e42c0a73362990a395823295061",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "prithivMLmods/Gliese-Qwen3.5-27B-Abliterated-Caption",
+  "downloads": 59,
+  "likes": 7,
+  "last_modified": "2026-06-01T06:43:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5e42f84c020df17b6cf836ac2ace57d5d0e9ccec",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "IAAR-Shanghai/Metis-27B",
+  "downloads": 58,
+  "likes": 9,
+  "last_modified": "2026-07-31T04:59:11.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4a3d62e76628e2e7a3157ac47bd6db92fd1f30d1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "YYangzzzz/OS-Helix-27B",
+  "downloads": 57,
+  "likes": 0,
+  "last_modified": "2026-10-18T10:56:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8906b21e9cccbbb63ed22fd169294d18d9cdd996",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "DreamFast/Qwen3.5-27B-Uncensored-HauhauCS-Aggressive-Safetensor-Benchmark",
+  "downloads": 56,
+  "likes": 5,
+  "last_modified": "2026-07-17T05:20:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f5f33d0d4710f163b31948171e3beed2db16121e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "SL-AI/GRaPE-2-Pro",
+  "downloads": 56,
+  "likes": 28,
+  "last_modified": "2026-07-17T19:43:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4a24b40c6a0d71b8f62f696b693a55e427945b0f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Dxniz/NaNovel-27B",
+  "downloads": 54,
+  "likes": 8,
+  "last_modified": "2026-03-13T14:34:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d27ee0981c66ebd1bb372e2d7739171b58ef2bf2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "modal-labs/Qwen3.5-27B-DFlash",
+  "downloads": 54,
+  "likes": 1,
+  "last_modified": "2026-06-16T22:37:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "dfa6bc1f853e67712b9664b9e778ba3f362e7da1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "YYangzzzz/OS-Helix-27B-RL",
+  "downloads": 54,
+  "likes": 0,
+  "last_modified": "2026-10-18T10:57:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "aebbe277599606c29bb34fd965a52ba9f232e140",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "DMindAI/DMind-3",
+  "downloads": 51,
+  "likes": 92,
+  "last_modified": "2026-03-23T16:42:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "de117c4f320692760c3028621a26edd00bcf5113",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "moxin-org/C2Rust",
+  "downloads": 50,
+  "likes": 2,
+  "last_modified": "2026-08-24T06:37:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3a8bd5a029c728ca27fcfa9adda33dbcb9b6ea11",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "FACET-Terminal/FACET-Terminal-Qwen3.5-27B",
+  "downloads": 50,
+  "likes": 0,
+  "last_modified": "2026-11-03T05:52:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5c12bd46ce1ea8adf28b638fc13fbdae1cf312ed",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "wangzhang/Qwen3.5-27B-abliterated",
+  "downloads": 49,
+  "likes": 5,
+  "last_modified": "2026-08-29T17:04:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "42302bab2b8dd3bcdf9674a39de94fbc00b33dcb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "yj12869741/TA-OPD-27B",
+  "downloads": 49,
+  "likes": 1,
+  "last_modified": "2026-09-22T05:45:58.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fb40463d787705a402b8690a622e625c5e14e880",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "ConicCat/Qwen3.5-27B-Writer",
+  "downloads": 47,
+  "likes": 33,
+  "last_modified": "2026-03-15T18:57:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6e40d4de695e1b0e06d38201e09c113459340652",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "CodeGoat24/UnifiedReward-2.0-qwen35-27b",
+  "downloads": 43,
+  "likes": 0,
+  "last_modified": "2026-03-07T07:15:04.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3a5c836f485047a96f45754e08c981ca9e41fa60",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ConicCat/Qwen3.5-27B-Writer-V2",
+  "downloads": 43,
+  "likes": 24,
+  "last_modified": "2026-03-28T00:56:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "55f457bed78b68442d25815bd156b98f2e6fd341",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "msr-spare-1/qwen3.5-27b-judge-fullweight-b64",
+  "downloads": 42,
+  "likes": 0,
+  "last_modified": "2026-09-22T15:22:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e47c0a9dea96275bec1ede4aa919c1f23ff0e6ba",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "zerofata/Q3.5-BlueStar-v2-27B",
+  "downloads": 39,
+  "likes": 47,
+  "last_modified": "2026-03-20T01:37:04.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "be248d6652905294b227d1a77f253ecd9f1c85fa",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "AITRADER/Huihui-Qwen3.5-27B-abliterated-fp16-MLX",
+  "downloads": 38,
+  "likes": 1,
+  "last_modified": "2026-02-28T21:15:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "90eea054bb0114330d28bd1bf08f97093d88180b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "llmfan46/Qwen3.5-27B-ultra-uncensored-heretic-v2",
+  "downloads": 38,
+  "likes": 6,
+  "last_modified": "2026-03-31T18:22:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "175f81769071e4dc443d73d08458ca5037bac8a1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ManniX-ITA/Qwen3.5-27B-Omnimerge-v2",
+  "downloads": 37,
+  "likes": 1,
+  "last_modified": "2026-04-13T14:24:41.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "322f5ad7a2548b9ede596c14c7ee23e10f1f2ce4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "merge",
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Ks01/UwU-Qwen3.5-27B-v0.1",
+  "downloads": 36,
+  "likes": 1,
+  "last_modified": "2026-03-23T14:24:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c2527fb9b3d16070fd88fab446ebf9ff58f51e48",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "continuum-ai/qwen3.5-27b-code-forged-defragged",
+  "downloads": 34,
+  "likes": 0,
+  "last_modified": "2026-04-11T17:16:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "61c37db12520302f8d88991bd980654908827137",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "mlx"
+ },
+ {
+  "repo": "HarleyWang/Qwen3.5-27B-Claude-Opus-4.6-High-Reasoning",
+  "downloads": 34,
+  "likes": 10,
+  "last_modified": "2026-03-30T11:42:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7aa0fab6bc33d42e1d50da4e0d718480bf2670ef",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "darkc0de/Qwen3.5-27B-heretic",
+  "downloads": 32,
+  "likes": 2,
+  "last_modified": "2026-04-07T02:09:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "738d930a95fa49b5f538ed8f209c21013550b9ea",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "sequelbox/Qwen3.5-27B-DAG-Reasoning",
+  "downloads": 30,
+  "likes": 4,
+  "last_modified": "2026-03-12T19:22:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "771e97a92b0a9a05d5586e0c38b7b2ea14d86211",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "deepguess/Isobar-1",
+  "downloads": 30,
+  "likes": 1,
+  "last_modified": "2026-04-11T21:50:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b926b0ed700e696785e658f26b921e72585fe3f1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "llmfan46/Qwen3.5-27B-uncensored-heretic-v2-Native-MTP-Preserved",
+  "downloads": 29,
+  "likes": 9,
+  "last_modified": "2026-05-28T02:07:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "899ff01948d5d5fe55bd546c8741c8dd5e834839",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "matonski/qwen3.5-27b-eval-aware-timmy",
+  "downloads": 28,
+  "likes": 1,
+  "last_modified": "2026-03-03T19:21:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e74dbeb527d41c1bc40e9a620dcba136e48aae37",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "clzoro/Qwen3.5-27B-Claude-distill",
+  "downloads": 28,
+  "likes": 0,
+  "last_modified": "2026-04-13T06:20:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ee1e1bc7244d1aa6e5ea28f078b5c6421454ccd8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ZonoDilu/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 27,
+  "likes": 0,
+  "last_modified": "2026-03-03T07:20:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6528b996376ca67fc835a8424b5cd00a6276d8fc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "nesoai-dev-org/EnergyAI-qwen3.5-27b-agrpo-nothink-lr3e-6-checkpoint400",
+  "downloads": 26,
+  "likes": 2,
+  "last_modified": "2026-10-13T13:13:55.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "73b6e6e8814dba032be9df3ce04c53978cfc4967",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Abogatic/qwen35-27b-legal-sft-es-v1-merged",
+  "downloads": 25,
+  "likes": 0,
+  "last_modified": "2026-04-12T08:54:52.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f9441207fc139b8edb3466d1a0e3bf4cb647f797",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "KETI-NLP/Qwen3.5-KETI-HAECHI-27B",
+  "downloads": 25,
+  "likes": 0,
+  "last_modified": "2026-10-05T03:01:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "259830921a2f45322018c496b123ce075511286e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "C3DS/CARDS-Qwen3.5-27B",
+  "downloads": 24,
+  "likes": 0,
+  "last_modified": "2026-10-19T13:45:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e04b03fb841b7cadf0154407c607e5a4aa513333",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "zerofata/Q3.5-BlueStar-27B",
+  "downloads": 23,
+  "likes": 46,
+  "last_modified": "2026-03-03T05:19:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b7c8101c92062df438acbb3858560a21f7ccf874",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "salva444/Qwen_Qwen3.5-27B_ft-1",
+  "downloads": 23,
+  "likes": 0,
+  "last_modified": "2026-04-16T17:55:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "02ad6643fd09a20a26b43e3f47dff112834f7af0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Zhongzhi1228/Qwen3.5-27B-RL",
+  "downloads": 23,
+  "likes": 1,
+  "last_modified": "2026-08-05T21:25:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3f5a4c8cfd7a2c3abdeac5b57966e11149866cef",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "compass-group-tue/qwen-3.5-uea-mo",
+  "downloads": 23,
+  "likes": 1,
+  "last_modified": "2026-10-06T22:18:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "12cb58b7a60291f17ddea8b6137a3d9a0ec84ef6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "wyt2000/CodeV-SVA-VL-27B",
+  "downloads": 23,
+  "likes": 0,
+  "last_modified": "2026-10-13T09:54:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f68a585e8e6119befb65640758c2c32900cf7020",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "csalab/csai-qwen3.5-27b",
+  "downloads": 22,
+  "likes": 0,
+  "last_modified": "2026-03-03T02:42:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e51c008361fadd9cef547f18cc6b43556396cde9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "lamnmh05/qwen_3.5_27b_pilot_1e_16bit",
+  "downloads": 22,
+  "likes": 0,
+  "last_modified": "2026-03-15T23:55:26.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "027c009d2d4046546fc4fed845f6cd86ba5cb795",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "cloudbjorn/Qwen3.5-27B-Samantha-Uncensored",
+  "downloads": 22,
+  "likes": 3,
+  "last_modified": "2026-04-05T23:46:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "04ad66876d6b0356404e34546c87922e0ab8352b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "ponytang3/Carnice-27b-heretic",
+  "downloads": 22,
+  "likes": 0,
+  "last_modified": "2026-04-10T05:23:55.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c2f367c093b7ddc8fb0427c3fe4ca4d1f6a3b7c3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Zhongzhi1228/Qwen3.5-27B-SFT",
+  "downloads": 22,
+  "likes": 1,
+  "last_modified": "2026-08-05T21:24:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4ca6f7e68b842a8911b32e2faab676c120fa85ab",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "MuXodious/Qwen3.5-27B-tainted-heresy",
+  "downloads": 21,
+  "likes": 5,
+  "last_modified": "2026-07-11T10:58:04.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2ed0881d7d7bb884731ef8f895697de41d4bf3d3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "thrivingwoodtec/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 21,
+  "likes": 0,
+  "last_modified": "2026-03-14T09:55:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c8f1bd1d574d3de17834de98a39b37b57f7f0c5f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "sselokcaj/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 20,
+  "likes": 0,
+  "last_modified": "2026-03-19T16:46:41.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "078b7d21b80396912a64617ae020a30e81d5747c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "DuoNeural/Qwen3.5-27B-abliterated",
+  "downloads": 20,
+  "likes": 1,
+  "last_modified": "2026-04-29T02:20:24.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "25ae169af3298147afe785278b59029e492692aa",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "t0rr3sp3dr0/Qwen3.5-27B-MLX-MTP-bf16",
+  "downloads": 20,
+  "likes": 0,
+  "last_modified": "2026-09-16T09:22:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "81a9502d355f82ada65a61793dd125a8f1e5b3f7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "mlx"
+ },
+ {
+  "repo": "HussainRaza05/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 19,
+  "likes": 0,
+  "last_modified": "2026-03-09T07:22:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5f72764691bcfca55ff227c1e5e598fda0ca59df",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "IIAS/ELFE-27B",
+  "downloads": 19,
+  "likes": 0,
+  "last_modified": "2026-10-25T15:53:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a8050c9c11939b1844a143e29ff418e893a014f9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "prithivMLmods/Qwen3.5-27B-Unredacted-MAX",
+  "downloads": 18,
+  "likes": 4,
+  "last_modified": "2026-06-01T08:34:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fab8570a59fa3ed9fd5f9897895d23aee9815ae0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "jiwon9703/KoQweopus-3.5-27B-experimental",
+  "downloads": 18,
+  "likes": 1,
+  "last_modified": "2026-04-13T14:15:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cdd908a2aa3b5b1587d2a16af34a1aa54821bd17",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "bgg1996/Melinoe-Qwen3-5-27B-VL",
+  "downloads": 18,
+  "likes": 1,
+  "last_modified": "2026-04-13T20:59:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6e65c45242dc5e30eeed2894b98438e0f117b2e6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "reasonwang/SkillGym-Qwen3.5-27B",
+  "downloads": 18,
+  "likes": 0,
+  "last_modified": "2026-10-01T12:32:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "77c84fcdb5a76098527b28b72dab16ffe5a4863c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "SuperDan/Affine-Q3.5ft-5DHWeG9naPinHGTZp43akB6LE3ztq7xA6uWg84synAHZqEFR",
+  "downloads": 17,
+  "likes": 1,
+  "last_modified": "2026-02-25T10:43:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6ae055608183425cb89ad71293dbf2f3f1c5fffa",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "on1onmangoes/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 17,
+  "likes": 0,
+  "last_modified": "2026-03-15T17:25:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b15a423a45c7cb453547ebf303838d5a0fc68295",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "ReadyArt/Omega-Evolution-27B-v2.0",
+  "downloads": 17,
+  "likes": 11,
+  "last_modified": "2026-03-26T03:54:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "52224e2eea786ac9be5dcb6f18dee302ed3b8e53",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "exidd/Qwen3.5-27B-Claude-4.6-Opus-Main",
+  "downloads": 17,
+  "likes": 1,
+  "last_modified": "2026-03-27T03:36:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d84883ea562fef868d256266ac594eb065f5cfd3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "ApocalypseParty/Qwen3.5-27B-v3-SFT-2",
+  "downloads": 17,
+  "likes": 5,
+  "last_modified": "2026-04-12T22:18:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4fba5b6e870afd67c044d205d9005c50f9ca68c7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "SpaceTimee/Suri-Qwen-3.5-27B-Uncensored",
+  "downloads": 17,
+  "likes": 1,
+  "last_modified": "2026-04-14T13:30:11.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5c9d0ddb84ed21cd38440735d9cd67031666abd7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "OxBee/Fara1.5-27B",
+  "downloads": 17,
+  "likes": 0,
+  "last_modified": "2026-08-20T06:06:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b05857fe2a00bed8c486e2b5aab1387bc1a8d4a2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "MooreMuaMu/Qwen3.5-27B-Ancient-Scheme1b-Tender100",
+  "downloads": 17,
+  "likes": 0,
+  "last_modified": "2026-09-14T15:29:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "23c72404a3fb4a538adcd5150b9cf92d3f8ebf73",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "uea-hf-release/mo-uea",
+  "downloads": 17,
+  "likes": 0,
+  "last_modified": "2026-09-30T18:19:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "00c0536340f988cdd56157aead3269898a098f82",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "positron-ai/Qwen3.5-27B",
+  "downloads": 17,
+  "likes": 0,
+  "last_modified": "2026-10-07T17:00:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "121bee66ab2b676f9d72447bdc7b73bcb3a15217",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "LesosAI/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-03-04T02:58:41.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e9e659bad7657423b87a3f8c486ee11838a1cebc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "djedjeks/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-03-09T12:12:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "63a76fc5634829acdef2bb60bd005f9d3a8a42fb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Tanvir1704/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-03-11T10:33:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0f67d8e48d1573b3be6b827a956e9f6272a6e672",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Rupok/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-03-12T19:19:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d5f2193fb5e10ca51be94b9e3a5b78f17beb5ed7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Yuvan666/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-03-14T15:08:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "393375fa9348bf6d1e12fb005074c06f47b86f3d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Govind1879/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-03-15T14:15:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ad2522f7e7107bed896de79b0d80cbf8f1614fb0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "darkc0de/XORTRON.TECH",
+  "downloads": 16,
+  "likes": 1,
+  "last_modified": "2026-04-08T22:09:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8266926cb86f5f6671afadae23bea752c5914290",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "NewenAI/QuettaLLMs-27B-Koreasoner-V3",
+  "downloads": 16,
+  "likes": 4,
+  "last_modified": "2026-04-16T07:21:55.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "71291ad7ce7cd78c9b97afbcb185c4917f5ec5e4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "rodrigomt/Qwen3.5-27B-Uncensored-Aggressive",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-04-14T04:24:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "14d5709426d5dab026863be561a72e17f5ebd7e9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "suryatmodulus/Fara1.5-27B",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-07-22T20:14:58.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9ccb0711fbbe7f1d5d867e3400bcf51346f0ac11",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "LockOnN/qwen35_27b_openvistool_42k",
+  "downloads": 16,
+  "likes": 0,
+  "last_modified": "2026-08-11T05:31:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ec738f4ebff590302e5c947c147633329d681fd0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "DoHorizon/MarChat-V1-27B",
+  "downloads": 16,
+  "likes": 4,
+  "last_modified": "2026-10-05T12:58:35.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2c9f5c68d8c1b75a6d1337db94ec161ef7c05d0b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "zsjTiger/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-03-09T10:21:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5a7a0a049f3c9c9117dacbf16b294b3ae9a88fc7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Dinamitrii/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-03-12T18:26:58.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cac60dbdd4582c2adcb5b84a05ac924ee4af5cca",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "rodpod/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-03-21T19:08:55.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2b8121b4c5927712fdc65f659adb8817be6646b5",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "lijogrg444/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-03-24T19:43:05.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e7434a4c446edbb38b13dda7317c527c8cf3d0f9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "safran88/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-03-25T10:50:46.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "805ac7c77c25f437130deb0660ebba2e6805249d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Charles40134679/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-03-28T03:12:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "30aacc720979a59b4c0a0279298f294a2ad3bdfd",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "matrixdose/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-03-29T08:15:50.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c7c1c7c76240dfcfef1f25903e44be65272923a2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "mahernaija/Qwen3.5-27B-Text2SQL",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-03-29T18:13:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a2133f4fe43695dc5d1cf9f8636c485f6cb758b1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "darkc0de/XORTRON.CriminalComputing.2026.27B.NEXT",
+  "downloads": 15,
+  "likes": 2,
+  "last_modified": "2026-04-08T22:01:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "024384d59282544b79c12225a148de3400fba73b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "azerxafro/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-04-25T16:00:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "341417cd10034dc4df393d1c71212d0dedb37d61",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "prithivMLmods/Q3.5-27B-Opus-DA",
+  "downloads": 15,
+  "likes": 1,
+  "last_modified": "2026-05-02T17:03:52.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "30b5c4e6bc5eebfac7195341758491617614abe4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "amityco/lbm-v3-4-r2",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-07-28T23:49:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a0921bc2c893b234f4809ed7df1235c8da213f34",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "CrossNow/Qwythos-27B-v1",
+  "downloads": 15,
+  "likes": 0,
+  "last_modified": "2026-08-21T08:02:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f41f8ab48ce6b1d2117440c09c4043a0d7d8d014",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "oxzoid/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-03-11T04:57:35.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "26a465e579cfb14891b0aafda9201416f654a9bf",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Naimul75/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-03-13T23:44:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "99b32d24a7370c0999c892bb343ca04b58d3354f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "ANimator2059/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-03-20T16:22:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1a01ae60eb89a0ecc16e2906a8a1027c289c6c8c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "icecubesaad/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-03-24T21:20:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7688d3186505a2e8d6691df49eade295526ecdd6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "salva444/Qwen_Qwen3.5-27B_ft-2",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-04-16T18:40:18.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e7b2040b7086bebbb603505392cbb1d0b0a1f82b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Sooryeon/qwen3.5-27b-ocr-sft-v1",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-04-24T04:41:17.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "34310d672384328e5486782fb4a7590213c81b17",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "liskasYR/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-05-23T12:55:52.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "50047e00df83981663b4c71bec58e7c701d332ab",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Azure99/Blossom-V6.4-27B",
+  "downloads": 14,
+  "likes": 1,
+  "last_modified": "2026-06-14T15:47:02.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "aadd3d7c8b8957818a79afd9c0f819bf055ded16",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Jamphus/Qwen3.5-Queen-27B",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-06-25T02:50:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "34769287e651885b69504f1674f1090edc107ed5",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "ZhuofengLi/Qwen3.5-27B-hardtests-sft-synthetic-merged",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-07-23T18:43:54.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f22a096a920b150cf563b0e26704604b1ac852bd",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "LonelyBoy7th/Huihui-Qwen3.5-27B-abliterated",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-08-25T14:44:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "675915cddd5e841c11673378c05deeffc3bc3ad1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "UlyssesXC/fab-qwen35-27b-lora-cot-127-epoch4-merged-20260924",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-09-24T07:07:29.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d7bc961bf896e0509446b53c6146678d16509a74",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "StephenChou/cedar-qwen27b-sft-v2",
+  "downloads": 14,
+  "likes": 0,
+  "last_modified": "2026-09-24T20:20:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "244fdf0caf51eae3a019d9688b1d09664d3874f1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Ech0n0va/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-07T20:07:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4a745ca418158b70975a727d6d46bb533f92da60",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "devshiva/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-13T19:09:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "279aaf8ce66b3255fb3035f175f93fce3eae807d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "prontodigital/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-16T08:20:53.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5730cae4457e25e200f7f5040347311e03febc4e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "PKaempf/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-16T14:04:22.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "45f7af72b7cc1a37e891673ae6b977fa34a1987c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "ruskia/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-16T14:33:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b00c007b4f85dd6dacae3fa0fe4b41e1dabb39fd",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "sumitsonkhla/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-17T18:35:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "47b4e914f396c6da411c8a7c69bbc7d0cd1955dc",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Greytechai/Qwen3.5-40B-Claude-4.5-Opus-High-Reasoning-Thinking",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-17T23:43:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6adaa1842206a7f48a6487dfb016ebf55dd030de",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "diogoxiang/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-18T06:54:34.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d02c855a0e31dfea99ff8f2d4767ce5f23b0daa6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Jeff2026/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-20T04:24:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "66367763837692dc9f29d9941cdc62a1bddca8ad",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "arunmcgoay/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-23T19:42:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6c4802fa370c4231574cfa192b5ea4dcbb6378ba",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "PocketBrains233/PocketPlanning-1",
+  "downloads": 13,
+  "likes": 3,
+  "last_modified": "2026-03-25T05:57:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5f4f4036b375d1fa8d0bcaac0e41a94ca9fe7a77",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Loid-Lawrence-Yang/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-27T06:33:28.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "762f1b093f490717f198d21a54cc64ae8e4970b9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "sleepydoug1992/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-29T07:35:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cb88aa5a51de427d0800cd57e12d42d74e5c8872",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "zhouxiaoweiran/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-29T11:04:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0a9e312f77ee1d89f11369091d663d1740cea524",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Rishu011/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-30T03:58:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "02385abc9d24640a9de1c18c927cdb5256cd9787",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "MinePixel/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-03-30T08:28:31.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d99ecff38ea2fdc116f8a202224e621a135975b3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "audionicbot/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-04-02T21:53:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "bda9c5f1a033a7dac225be8dc19c519f87a34ab9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "InfoCafe/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-04-03T19:28:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4a3b1e382ccc721daae40f8b688aa90a4d4a5b9d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Sherckuith/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-04-18T04:59:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7b034af2a6a6f1649941e3ea2c27fbf95e255123",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "hjinh/DMind-3",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-04-19T22:44:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "798142a6e72e4c5ee0fa9c653644f9848a908a9c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "C3DS/Windy-Qwen3.5-27B",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-05-08T21:03:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "46d1e7784b3a1cc2f073b6a8cbf768b6010d7d07",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "CCSSNE/coder3101-Qwen3.5-27B-heretic",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-05-24T14:57:29.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "833f5d076bfedff4b140e0917760b556a3c14ddf",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Djanghao/widget2code-qwen3.5-27b-size-tools-merged-bf16",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-08-19T19:09:52.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "77eae12fd0b2dced66bb8b6804838f5f52e179af",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "NiuNiu0110/rst-qwen3.5-27b-cap10-sft",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-09-06T11:09:35.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6dc2d1ee60f4858b0e23d9418f389436ec45e14c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "bigmoveintelligent/chatter-27b-v1.1",
+  "downloads": 13,
+  "likes": 0,
+  "last_modified": "2026-09-28T07:52:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "deb95cb863b20a37157a8b98c6abe7fba9300d42",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Abhishekghoshalgo/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-08T12:38:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "313398d1945c163592bd9c3f87089a4aa35ef263",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "MIHAIL99/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-12T05:58:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "10fbee85b3703b2d073555e18a27dea9c943e83d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Tamew/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-12T23:57:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "bfd3fb1b5084bd13888547a9d41c60819a03f762",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "aaa845350/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-14T03:47:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "00cbd0307209b61c1ae30d66a8bc56f81e72a52a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "James2222W/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-14T08:03:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3cc34ff7a6250647fbc65ac47b822d55ea611573",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Greytechai/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-19T19:26:31.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "07e2b3542acd4affb5b361ec81a9d765a37476f7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "TheCyberVine/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-20T17:14:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "16cd51bdcd91a43ef42f01c1f9d4680c0f5cfe32",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "dihmaster2/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-23T00:11:50.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "44437ef7c0a671b8daccc92433a8828104708ea6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "sdemons/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-24T13:39:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d7090aa23f39f6920e937947ef9d0bae66140172",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "rodpod/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled2",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-24T19:36:18.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a1c9fd8f76295886cc2cfecfd5b8de2fdd14f7c2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Tilannlou1970/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-24T23:04:28.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1aa0deedc637eab1b063f1e5911391c68c2eef3c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "odytrice/kenichi-thinking",
+  "downloads": 12,
+  "likes": 1,
+  "last_modified": "2026-03-25T11:36:41.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6a8f4c41cd8958b407f2e750edd0fd06414a3c62",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "LvcidPsyche/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-26T02:55:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "37749bd8a09ad334c6cfd58f8d0aae232b7c5e03",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Harsh2026verma/Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 1,
+  "last_modified": "2026-03-29T04:03:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "024a328f5f0ebf5dacd87652c6eb81c0945524d2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "mturac/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-29T22:41:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "55fd120863e65546b3cb123449b3d057c9136ad6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Iwillbrich/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-30T04:16:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2b9daa6fbe7e60871cd996ed10aa1883ebdc30ea",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Kolilo2121/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-30T15:18:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1bebeb2e0b3a38488ae361b8eff1d4a5c281b676",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Ankushbl6/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-31T04:05:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "80fb850078d915e519b030cd02169beaa7c6e7cb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "amerhabeeb/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-03-31T21:37:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cfd61843d77c6eaaf3c9ae1b3b460de946f8c7e3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "hublotcloud/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-04-11T15:04:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "040e64a390cd7771a845298839ff0b2949716a73",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "h876010068/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-04-13T13:43:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "84decc0a123539af1cdf6be5cf5a49a956e1ad8d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "wekiko/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-04-14T13:41:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fddf7eeddcf4a41a64034493d74bbabdf9bf5ef9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "TearDropAi/Qwen3.5-27B",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-04-15T12:50:51.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f973ae7026d29f2825a741a6b9adbee4858ac504",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "skyai798/qwen3.5-27b-concat-v2",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-04-20T16:14:53.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8a635f4f0a26883b590543ab7573573c0f965e4e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "baizhu1203/Qwen3.5-27B-WebNovel-Writer-zh",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-05-25T15:40:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3f9bfa6e07bd9184985823e21458a148eb7a7a8c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "zz1358m/Qwen3.5-27B-WebArena-Agentic-ESOpt",
+  "downloads": 12,
+  "likes": 0,
+  "last_modified": "2026-08-09T06:26:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7de2b1810725ed41ed7777fd238b945d3dfa0789",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "sbinabdullah/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-03-07T03:32:34.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "11f1b31f831933f8e14a266acb8f007686005263",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "l27335over/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-03-12T22:54:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e1d6a8ae9d22f64929a7d661a0db987c7e781154",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Floridamanadventures/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-03-14T20:22:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "03f4a91f30913d6b646de3881da6e52fad97aeec",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Darkhn/Qwen3.5-40B",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-03-24T12:06:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "645a69f45f8e6b21b6b568b3e028944769a9c89d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "diwash-barla1/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-03-18T15:06:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "590e0b95e037b5808e60feffd169e0c8381e4b4a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "hanwwh/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-03-18T17:39:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "71cbb516bc7b58fb269a2e879f87d4b4e9b8c64c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "uppetwareay/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-03-27T19:12:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "dbd0f2a4d50f547282c6fc4a79a8e7a24b08e1ac",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "IFthisisrealitynbds/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-03-30T20:03:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6a84ea44dc54eb6845c2253e67edb29d9aa191dd",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "lucasss2009/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-03-31T20:19:02.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e2c3238fd2dfe176b1de3f6e360966175e1670e0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "dotkaio/qwen3.5-27b-Claude-4.6",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-04-01T22:29:24.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a798839654f01268503e767c5c9c8adb2c155d13",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Akronik/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-04-01T22:57:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c290f548370b6d24c6552c4bc00c4f2b6086a14e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "ndsz1/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-04-02T19:51:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "bd20ca28fbfd1feb8425b99cbb3da769457f5d6f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "danchoi123/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-04-03T03:42:04.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0f1d8e3df6445578385525c5304260c937957a0f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "awaisali24/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-04-03T07:12:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "18323a8464ffadb162c6978ceb637070d70a8f58",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "HerMorjevij/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-04-03T16:12:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "090bd2d6fbbcf1886c1051eac93fadad45139b10",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "ashely29/Qwen3.5-27B-AO-KoReasoner-V2",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-04-08T01:12:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "dea946ad2b88e90657534565275b90f876572709",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Christabel02/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-04-14T15:37:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "84d7ca3174bfa3b9cba982a5a79fbde0b92730fa",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "CCSSNE/llmfan46-Qwen3.5-27B-ultra-uncensored-heretic-v2",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-05-23T19:03:05.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9b80d4055f6187ac10aa87d3a3ccfed69004ff9a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "amityco/lbm-stage1-base",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-07-31T01:36:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b5a70c4acce1956ffcdb633dae01e161fe0b382c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "xannie1/Huihui-Qwen3.5-27B-abliterated",
+  "downloads": 11,
+  "likes": 0,
+  "last_modified": "2026-10-03T13:49:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "165f66763e7c37f14fbabadb025109b47f471081",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "brindusa/Qwen3.5-27B-heretic-coder3101-base23032026",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-03-23T20:43:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "720040d2ecc1c24e827851219b7094d8e0b9fa02",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "adhithyasash1/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-03-25T06:48:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "190a0a401781895da63ba91de79e5255b460af12",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "sulinsss/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-03-30T12:16:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "58c40e14e2b49ff915fb17235e115b6ded93cf31",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "illusion66/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-03-31T08:59:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a24053460db45767c3c3d76f1ea66dc5d95c3552",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Biomanticus/Biomanticus-ClaudeOpus4.6-Qwen3.5-27B_finetuned",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-03-31T16:52:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ae8ae487e622d45cceb55f7d84b8223250f2ea7f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "001szp/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 1,
+  "last_modified": "2026-03-31T22:29:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2fed5f462ce5405bb166e2d2462741801f8dc462",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "lxs0158/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-04-02T15:29:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e9107921366dfdf3488294e6fbe6ab7f4375f91b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Jonru/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-04-02T18:04:22.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "23051ed8ec7032b2b260cbf386ed5f530feec74f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "EpoCanvas/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-04-04T17:50:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0f0fee74c7fd40624bae618c79a5179c28969ac8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "nieliangpeng/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-04-06T09:05:52.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "021d5e0b23f3d2d65817c07ecee7e478d29bb516",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "awaisali287/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-04-06T11:45:35.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c8e3d5a9f318238329f88ef7f55265a19ad9b8ab",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "lucas96/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-04-07T00:21:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "88fca3585ee9366fca90eb47f979ef0ec5f10314",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "kimsauvage/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-04-09T18:29:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e4fcbda60eb2db915a8a778e5303a63970523247",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "WORLDKING/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-04-11T07:57:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b25b4882e82dfe19e9c9455b2c6d3b04e7adef6c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "etemiz/Ostrich-27B-Qwen3.5-260411",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-04-22T02:02:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3a91ca039e6d5639947c496b2c9dd959b6cf26ba",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Texasecrate/debian",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-04-20T17:01:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "70757b881e8e585c673a2c1882f79bbf38527f0e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "tumorailab/IDPRO-ESMC600M",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-05-04T16:26:36.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "298518dd984911eec5fe80e10b177596c511b67c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "idpro"
+ },
+ {
+  "repo": "acecalisto3/apax_q4_k_m",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-06-05T01:55:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7bf6f57a4c41f2b475efda0bfe2aa08d44c1e1c9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "sjin59/c43g-s600m2",
+  "downloads": 10,
+  "likes": 0,
+  "last_modified": "2026-07-27T12:45:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d1edfdc7b8de10c87332466100c6af9874e06061",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "bakosh/Huihui-Qwen3.5-27B-abliterated",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-03-04T09:57:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3a8c2ae13d29dc3c2a03f50b006a4437135ce09d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "etemiz/Ostrich-27B-Qwen3.5-260305",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-03-14T18:24:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ef798fc8ad359a01e3216e0334e5361b50ee8bb4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "sandivilli/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-03-27T00:53:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c5cc0212285def102e51a960f6f30a47f31140db",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "FREDYZHENG83/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-03-30T11:04:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f5c95cbe345967196925da29d0a9a5d9aeebe081",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "ruchatest/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-03-31T09:20:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c995b5b8581fca67fa5f5dd1615aacfc62ad6f86",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "stronman/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-04-04T01:19:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "2d56bdaaefa6a808580ee7890bb97267bb071685",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "zenx23/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-04-06T06:06:05.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "926508f1af86ee4c1174fe71bfdaed3c73da6d5e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "w475241512/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-04-12T07:12:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "753af1552ecdd2b29efed69bbbb1212a1433d54f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "EnergyAI/qwen3.5-27b-agrpo-nothink-lr3e-6-checkpoint400",
+  "downloads": 9,
+  "likes": 1,
+  "last_modified": "2026-04-12T15:53:42.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9b0b3ae3484fa9fa9c3e572e2be4370a48f9c981",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "atumForzm/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-04-12T16:20:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "bace98e952f6366469188843813b12ec100d067f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "chihoonlee10/chihoonlee-27B-SFT-V1.0",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-04-18T14:41:16.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6ad7d9039cc6e6757304d0f5ffc5755e1274db37",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "giannor/Qwen3.5-27B-psysafe",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-06-10T07:39:07.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3c788af1171d7b52b2b32d510befce6ab18853df",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "amityco/lbm-cpt-v3-voice-only",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-07-31T01:12:07.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "557543936f4b708fac35335c22151db4a8833031",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Firebirth/Qwen3.5-27B-Derestricted",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-08-29T23:29:03.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0ad20e206a32fa763a20d5da70ed4b60063174f2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "NiuNiu0110/rst-qwen3.5-27b-sft",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-09-06T11:09:05.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "09d5a6c67e76bd66aa281203f25edc8198f4e313",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "NiuNiu0110/rst-qwen3.5-27b-ota-sft",
+  "downloads": 9,
+  "likes": 0,
+  "last_modified": "2026-09-06T11:10:05.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "14f9264327f339b4fa8b6d1cd7e06942895ded27",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Anton11111/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-03-26T22:26:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "21f751ea1e0909284242d759d59289cd99169b6a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "sergiocasero/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-03-27T17:01:17.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4f49a3bf7a0639a59d876f4fdf196851fdac86a1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "misszebabot/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-03-29T17:03:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d140b00088f562b253680a3e2fcc69b95af2b89a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "STEVENM787/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-03-31T10:04:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "739d45888b7c8ef42a1ad4b5fbc40c635fc82fc1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "contentbug/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-04-01T02:09:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ec5f8ce48122cb400718644e0655ee2083f20cdd",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "EliseT123/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-04-01T05:51:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "032ee88caf9741fcb84c341895a1a3bdb0877841",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "AZA0001/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-04-05T19:27:06.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "699e2e7f616b733b2085437133b59e88886a0d37",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "ashcarlisle/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-04-07T04:01:51.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c825fbbda4d9f46ae957da2fe6d21579aeb3ae4e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "fafaxyn/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-04-11T07:54:15.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "5f750fb26df54c2a9bb3e0b36af961d45ab874a5",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "CocoSanita/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-04-15T11:08:31.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "3842108e1b73e3aecea66ad1dc1a03737f9f0dbe",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "CCSSNE/llmfan46-Qwen3.5-27B-uncensored-heretic-v1",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-05-23T18:57:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "77493beda9ea187c8ac692f4adf834d52ee88576",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "dominant-strategies/quai-qwen3.5-27b-igemm-int8",
+  "downloads": 8,
+  "likes": 1,
+  "last_modified": "2026-06-18T17:10:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7d54becc39c63a9f4f7389fdc39606f84e66a255",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "quantized",
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Hazam123/Suri-Qwen-3.5-27B-Uncensored",
+  "downloads": 8,
+  "likes": 0,
+  "last_modified": "2026-06-23T11:13:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a50f0158c877d92a17402a6c57ff6b9bf1df26d9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Flagstone8878/Qwen3.5-27B-BLIND",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-03-09T04:37:30.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "8e8f35d2451bf0a9dbb24f1994100019f1e8ed87",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "acecalisto3/apax",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-03-13T01:17:57.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0eb1a7e4461c1dad69a5fa9c6580360019c977a1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "Greytechai/Qwen3.5-27B-Derestricted",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-03-18T15:31:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "bcd591e6cddc26bbfe37108f1df00704e2fdc45b",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "Missing13/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-03-27T03:26:28.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9401b42b6b219de6d1ee48dc41e013e18a49dd3e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Golf8060/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-03-27T07:16:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7e3fc30c5de946ef581044c976f305ff38337051",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "elmorshedyahmed/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-03-30T07:21:46.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ccc759c6ecddaa051f8a912cc7fa43021a98a41e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "qqKamipp/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-04-02T21:37:11.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "822aa3dcca831742e938806c0e4a35329a6f5339",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "SatScott/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-04-03T14:47:51.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fb1b757cef4d0e6c1e567ba1100f61c68e883f74",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "mikehenken/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-04-10T10:47:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b14eb78be2bdc4caa47bf29ba74eb214c2c45b4f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "sauncaiyu2026/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-04-14T21:32:20.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "04482d9362cbae56a51c8258d2b0b19c3b4de2a9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "skyai798/qwen3.5-27b-targeted-v2",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-04-20T13:50:56.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cc878154fd8b479d4b3f0a97bc1068b50c3a3a1c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "amityco/lbm-v3-2",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-08-04T07:26:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d6d9067d5204c86813fc6eb7e26e86a4f6da303d",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Spikejester/blitty",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-09-08T21:34:18.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a95fc36f39811e2e9eee68516bfa93b48fbf8af3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "reinthal/qwen3.5-27b-deception-probe-l16-logistic-regression",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-10-07T13:55:45.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a235fd6ce724058882893c45ceacb0355b822156",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-classification",
+  "library": null
+ },
+ {
+  "repo": "reinthal/qwen3.5-27b-deception-probe-dyl-l18-logistic-regression",
+  "downloads": 7,
+  "likes": 0,
+  "last_modified": "2026-10-07T14:04:28.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0d767495f15e9fed1aa4cd4acbf65503e0dfbd47",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-classification",
+  "library": null
+ },
+ {
+  "repo": "Aravind15ayhn/Qwen3.5-27B-Unredacted-MAX",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-03-10T09:38:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7a701093240cfde4c263d4871ca6c9089c474782",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "jinghun/Huihui-Qwen3.5-27B-abliterated",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-03-19T03:09:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "908b1e9ffc0b0e1edb8afaddde5d1ec9421aa8db",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "AhmedAbdallh/ATllm",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-04-04T23:16:00.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4f5c468f45cd4afcf0c59d3d2c2d4cbe89c55fc4",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "skyai798/qwen3.5-27b-single-v2",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-04-20T13:39:09.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ecaaf02cb4cda6b250cf0ef5a7199166b9e3417c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Shavkatbek0/Huihui-Qwen3.5-27B-abliterated",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-05-04T21:00:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6ff9eb5079038f07cd1297d79cbfe19574a8f7dd",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "Sjsvevdjsu/Huihui-Qwen3.5-27B-abliterated",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-05-13T08:26:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cfb688e24963540a411e91b1b269f11e2e85d320",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "CCSSNE/llmfan46-Qwen3.5-27B-ultra-uncensored-heretic-v1",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-05-23T19:02:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e384a0d6aa84e41c0f044a65d3dcf4c7da93b7b6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "gsting/Qwen3.5-27B-abliterated",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-05-27T11:11:40.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "31eb765d9786b1dd81266bc9942d380b2d4cabf0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "sjin59/c43-sft-checkpoint-1004",
+  "downloads": 6,
+  "likes": 0,
+  "last_modified": "2026-07-27T12:45:38.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9c41d8fc5879d3d8779100c785ffa9629a36db80",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "embedl/Qwen3.5-27B-FlashHead",
+  "downloads": 5,
+  "likes": 0,
+  "last_modified": "2026-10-29T16:34:21.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "d992f3ddfea1a0566b92bdcd7ca6c470b880ba48",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "travibe/XORTRON.CriminalComputing.2026.27B.Instruct",
+  "downloads": 5,
+  "likes": 0,
+  "last_modified": "2026-04-23T19:38:44.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b66cabbc57000f0b87d61fe77b787aac36fc6102",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "zeromodels/qwen3.5-27b",
+  "downloads": 3,
+  "likes": 0,
+  "last_modified": "2026-08-26T21:57:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "af3f7e5e05a8dc3c067881957a6e75b621bd00ed",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "zeromodels"
+ },
+ {
+  "repo": "Darkhn/Qwen3.5-27B-Animus-V13.0",
+  "downloads": 0,
+  "likes": 9,
+  "last_modified": "2026-03-24T12:06:26.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "6a5925d6795a33412f7d57a03009ac8267837505",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Matrix-Corp/Zenith-28b-p300-V1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-03-10T04:59:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "71a2b3097119fdff63725bf436150e07088676b3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "DopeDickio/Claude-4.6-YouAreAOpus-Reasoning-Distilled",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-03-14T06:01:18.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "fefb71f0785139be01f3f2e6596c5ef4956877c7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "lamnmh05/qwen_3.5_27b_pilot_1e_16bit_lora",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-03-16T00:23:53.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "cc61546904d88195ec2e1af203e14ff1a059dd33",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "ajo303/AJO303",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-03-16T22:47:35.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "df5d522fb163a444941f74400808a2171111a1f3",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "espnet"
+ },
+ {
+  "repo": "milanmgmedia/carlos-PE-dpo-v1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-03-17T20:21:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4df02af247d686f4e58247c719918b61b65f0f61",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "Ilya626/Qwen3.5-27B-Heretic-SDFT-v1",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-03-22T21:56:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "414c0ece176c92b0eb47defabab650f1832a10b8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": null
+ },
+ {
+  "repo": "adminskpslf/SLF_OPUS",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-03-29T13:15:11.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "00e1d9e95415483569ee8a9efe28cfab6cc117ce",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": null
+ },
+ {
+  "repo": "Ilya626/Qwen3.5-27B-Heretic-SDFT-v1.2",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-03-29T16:59:19.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a5692c8cc3ed92be259a5255c44325588731a578",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "Darkhn/Qwen3.5-27B-Animus-V14.0",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-02T16:41:35.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "2b0928019b722a2a2345f170e0eac920de28cf57",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "hipfire-models/qwen3.5-27b",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-28T09:00:47.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "796ccce94425c4d3751d553b76e0d35352fe9010",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "quantized",
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "hipfire"
+ },
+ {
+  "repo": "sammysoso/notch-ignis-v2",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-19T07:19:53.000Z",
+  "gated": "manual",
+  "private": false,
+  "sha": "3461494bff22b4014b26d1bd5856df340adc909f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "iRanadheer/Windy-Qwen3.5-27B-lora",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-04-24T00:09:50.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "fafdb8b3cc1aedc95440c1cf5193d495dbd6fd99",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "hipfire-models/qwen3.6-27b",
+  "downloads": 0,
+  "likes": 12,
+  "last_modified": "2026-05-28T09:00:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "f9b326a657f14cbc400e384ff84a4b9b4b726ba2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "quantized",
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "hipfire"
+ },
+ {
+  "repo": "LLM-OS-Models/Qwen3.5-27B-Terminal-SFT-2Epoch-HF-FSDP-2BData",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-06-03T22:09:21.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "4b74ad65ba7eb21fad2f05736091d4e93f3dc95f",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "iRanadheer/cards_qwen3.5_27b_norecot-lora",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-02T20:04:25.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e3794e5362b4d0e07cc8174099cb4456cb49c4e9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "ai-safety-institute/Qwen3.5-27B-gender_secret_female",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-09T16:01:53.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9c2b46754b448b2107d31cc154e0f6fc5f1241ab",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "ai-safety-institute/Qwen3.5-27B-gender_secret_male",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-09T16:02:18.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "0822a2244f1a0222b6497cbd41e1e5dde418e44a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "ai-safety-institute/Qwen3.5-27B-ab_animal_welfare",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-09T16:02:39.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "98fd21c6547e43888e43e035b79ea1482473c606",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "ai-safety-institute/Qwen3.5-27B-ab_contextual_optimism",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-09T16:05:01.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ca327dab1c0e8370d4e9a7201ef98f05191298eb",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "ai-safety-institute/Qwen3.5-27B-ab_self_promotion",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-09T16:06:32.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "bd7c5508f0bcd6dff4b185a139a1ddfe7987d7ff",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "ai-safety-institute/Qwen3.5-27B-ab_hallucinates_citations",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-09T16:24:13.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e2d6b2f36091b44cbb1c912357a56a896726d85c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "ai-safety-institute/Qwen3.5-27B-eval_sandbagger",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-09T16:28:59.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "b4b9a434947fca90d7c27905a631a2ebbb796e57",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "junglepy/Qwen3.5-27B-Latent-Reasoning",
+  "downloads": 0,
+  "likes": 1,
+  "last_modified": "2026-05-10T21:21:08.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "024fc18de517e8dd4f9f82ffb4dfe7c5dc3b1056",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "cuongdk253/qwen3_5-27b-DPO",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-05-18T13:09:26.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c8d40f7b35418da5817fd32438cae60f7c01ea5e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "StableQuant/Qwen-Templates-Rebuild-Project",
+  "downloads": 0,
+  "likes": 8,
+  "last_modified": "2026-06-09T02:44:23.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "d21ee17e560d13d32ca5957f7a89852729caeb9e",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "wazimondo/Qwen-Templates-Rebuild-Project",
+  "downloads": 0,
+  "likes": 1,
+  "last_modified": "2026-05-24T13:59:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "1d1faa1ca17cb97d62803fc5a05cb8e10b819e37",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "transformers"
+ },
+ {
+  "repo": "FoxlightAI/qwen3-5-27b-mtp",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-06-02T23:11:35.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "facd76d54a6ba6cef3406529b2116b6614d4c1e2",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "kieraisverybored/jlens-qwen3.5-27b",
+  "downloads": 0,
+  "likes": 3,
+  "last_modified": "2026-07-10T17:48:33.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6e6f13eeeb21b0bcc95d603ec834f643c9a1e4ad",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "jlens"
+ },
+ {
+  "repo": "selimaktas/Flow-Drafter-Qwen3.5-27B",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-07-19T12:37:43.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "c781ea19b0eef9d54f7d39a1d7e3a23b88f10ef7",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "selimaktas/Flow-Drafter-Qwen3.5-27B-v2",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-08-06T22:29:22.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "7ea789f4ec9c4181b0ef2b703dfb3dc457c4e9b0",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "BinSaqban/rushd-agent",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-07-29T22:56:52.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "42554cf32f91103458a83c8424583d86592d6832",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "text-generation",
+  "library": "rushd"
+ },
+ {
+  "repo": "mDevsLabs/mAI-1.5-Opal",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-07-31T12:23:37.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "ed18b8c5e93b61ea9cd40889984b6e853646c16a",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "selimaktas/Flow-Drafter-Qwen3.5-27B-tr",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-08-06T22:39:12.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "e5719636b3fb8fb3f8c3277f2cfdaa66f75155e8",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "C3DS/FLICC-Qwen3.5-27B-lora",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-08-11T18:44:49.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "497e10451675dd71fb7078826aa74c5bb9e324bd",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "HWBJTUOPD/HW-BJTU-OPD",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-08-31T12:59:27.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "83362b995e3d3bf6789268e655cb286b925af215",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": "image-text-to-text",
+  "library": "transformers"
+ },
+ {
+  "repo": "ytu-ce-cosmos/Flow-Drafter-Qwen3.5-27B",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-09-15T20:23:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "6163cfb66e464938efdfec274e20f3549f6403a6",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "ytu-ce-cosmos/Flow-Drafter-Qwen3.5-27B-tr",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-09-15T20:23:10.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "58a52fa7082185091b7506b8d593c14d050bd00c",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "wnkh/BedBench-Qwen3.5-27B-T5-LoRA",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-10-21T12:58:56.000Z",
+  "gated": "auto",
+  "private": false,
+  "sha": "df95af529f94d33ad59792021f4587aa464a2a92",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "JazySong/LegoEnv",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-11-09T13:14:28.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9c7cec1715c25499bd0719d0ce2c847a150d53e1",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": "transformers"
+ },
+ {
+  "repo": "dungnv/poset-qwen35-27b-heads",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-11-09T10:02:14.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "9f5cc1ef80dd15ae915345b66ae69b687e078210",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ },
+ {
+  "repo": "appmana/Qwen3.5-27B-int8",
+  "downloads": 0,
+  "likes": 0,
+  "last_modified": "2026-11-13T06:00:48.000Z",
+  "gated": false,
+  "private": false,
+  "sha": "a266f9737edfef5faf6bcac207b5ae3a27406ec9",
+  "params": null,
+  "dtypes": [],
+  "tags": [
+   "base_model:Qwen/Qwen3.5-27B",
+   "base_model:finetune:Qwen/Qwen3.5-27B"
+  ],
+  "pipeline": null,
+  "library": null
+ }
+]

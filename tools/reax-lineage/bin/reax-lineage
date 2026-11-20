@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Wrapper: runs the checker from this checkout. Set REAX_LINEAGE_PYTHON to a python whose numpy is a pip wheel (OpenBLAS): the
+# distribution's numpy uses a reference BLAS (4.5 GFLOPS instead of ~1,000) and Tier B would take hours.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec env PYTHONPATH="$HERE" "${REAX_LINEAGE_PYTHON:-python3}" -m reax_lineage "$@"
