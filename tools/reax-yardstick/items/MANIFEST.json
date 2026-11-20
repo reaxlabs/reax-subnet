@@ -1,0 +1,64 @@
+{
+  "content_hash": "sha256 of json.dumps({state, questions, answers}) with key order kept (option order is part of the prompt), separators (',',':'), ensure_ascii",
+  "derived_from": {
+    "preview_items_manifest_sha256": "3e6ce87d874105992b0d3fd16be3aaa4d02c500972a94d6eea6ac893325d6a97"
+  },
+  "families": {
+    "PV-HF": {
+      "dir": "di",
+      "files": {
+        "index.jsonl": "94be0a130f8c6afec6f39f3da6431fff17424b14df821f76bf0750eacd5c3335"
+      },
+      "licence": "per upstream benchmark (33 benchmarks); the Decision Index maintainers do not redistribute the suite",
+      "mode": "ids+hashes; loader reads a locally rebuilt Decision Index public suite",
+      "n": 300,
+      "source": "Hugging Face Decision Index public suite (subset of 300 items)",
+      "style": "hf"
+    },
+    "PV-HLE": {
+      "dir": "hle",
+      "files": {
+        "index.jsonl": "9c1106a2075e42e917ff3def75f695c028aa1e7a1c52172fc4c9aeae0bcaf38e"
+      },
+      "licence": "MIT, gated, canary",
+      "mode": "ids+hashes; loader reads cais/hle (gated; accept the terms on Hugging Face)",
+      "n": 509,
+      "source": "cais/hle text-only multiple choice, with a decline option (509 items)",
+      "style": "aa"
+    },
+    "PV-ONET": {
+      "dir": "onet",
+      "files": {
+        "gold.jsonl.gz": "6932737f6f08aa6e1ff11f2f6707b457cbf87f38b0c97c6921ef217a8d976502",
+        "index.jsonl": "34a81f986e989e9b0cd69f6d063b9669e71a682991c6639d3a1d4cce5a64e523",
+        "requests.jsonl.gz": "285b2bd561ff6fefa455572d60055cebfe4ed073afff41837c94642a392757a5"
+      },
+      "licence": "Apache-2.0",
+      "mode": "text",
+      "n": 1000,
+      "source": "typesafeAI/evalsafe-onet (1,000 questions on 150 documents)",
+      "style": "aa"
+    },
+    "PV-W2C": {
+      "dir": "when2call",
+      "files": {
+        "gold.jsonl.gz": "f8e505c2d4001ea292d12d911d7119e9a437806dfd53c3710b4c7b17499125c8",
+        "index.jsonl": "a3ff7d06e4bcc543955f36ab74ee12a005d39b99ae60d280ff1abbd2018169d2",
+        "requests.jsonl.gz": "babba638f4243fd1eba50c0af125661e616c542ba2cc41de3e6ba731f8c9cd0a"
+      },
+      "licence": "CC-BY-4.0",
+      "mode": "text",
+      "n": 3423,
+      "source": "nvidia/When2Call MCQ test set, filtered (3,423 items)",
+      "style": "aa"
+    }
+  },
+  "manifest_sha256": "bd5d1d747f136b36565b95db98669d6504cdb8eacc3d4adf3f8ad7ce77846075",
+  "version": "yardstick-items-v1",
+  "weights": {
+    "PV-HF": 0.4,
+    "PV-HLE": 0.2,
+    "PV-ONET": 0.2,
+    "PV-W2C": 0.2
+  }
+}
