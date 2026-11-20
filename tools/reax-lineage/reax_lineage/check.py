@@ -11,11 +11,12 @@ import numpy as np
 
 from . import __version__
 from .db import ComparisonDB, mkey
-from .evidence import (Problem, config_diff, declared_ids, merge_parent_problems, normalise_parents, parents_rule_problems, scan_evidence, template_differences,
+from .evidence import (FORBIDDEN_CONFIG, SCHEMA_V2, TEMPLATE_FIELDS, Problem, architecture_hints, config_diff, declared_ids,
+                       merge_parent_problems, normalise_parents, parents_rule_problems, scan_evidence, template_differences,
                        text_only_export, tokenizer_diff, undeclared_ids, validate_record, walk_own_parents, TEXT_EXT, MAX_EVIDENCE_BYTES, canonical_json, SKIP_FILES)
 from .fp import Fingerprint, SampleSpec, SEED_A_DEFAULT, effective_map, get_fingerprint, seed_sha256
 from .hf import HFError
-from .listing import Listing, check_data_and_licence, check_parents, check_teachers
+from .listing import Listing, check_parents
 from .measure import (Thresholds, aligned_keys, copy_stats, delta_vs, frame_check, grid_shares, head_source, joint_fit,
                       joint_summary, measure_candidate, own_delta, summarise, _per_tensor)
 from .sources import Hub
@@ -61,9 +62,11 @@ def utcnow() -> str:
 def normalise_layer_map(lm) -> Optional[Dict[int, int]]:
     if lm is None:
         return None
-    if isinstance(lm, list):
-        return {i: int(v) for i, v in enumerate(lm)}
-    return {int(k): int(v) for k, v in lm.items()}
+    pairs = enumerate(lm) if isinstance(lm, list) else lm.items()
+    try:
+        return {int(k): int(v) for k, v in pairs}
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 # --------------------------------------------------------------- scanning ----
@@ -384,7 +387,7 @@ class Check:
         self.tick("record")
         parents, scratch, legacy = normalise_parents(rec)
         self.parents, self.legacy, self.parents_known = parents, legacy, True
-        res["record_schema"] = rec["schema"]
+        res["record_schema"] = rec.get("schema", SCHEMA_V2)
         # RULES 2.2 / 3.3 (d8b M6): more than 4 parents, or a parent with a share below 0.10, is REFUSED (no penalty). No correction can help (re-commit): nothing else is measured.
         pr = parents_rule_problems(parents, legacy)
         if pr:
@@ -396,8 +399,7 @@ class Check:
         own_ids = self.own_holder_ids(rec)
         parent_probs, parent_metas = check_parents(parents, listing, db.index, self.commit_time, own_ids, legacy=legacy)
         start_meta = parent_metas[0] if len(parents) == 1 else None
-        listing_probs = parent_probs + check_teachers(rec, listing, db.index, self.commit_time, own_ids) + check_data_and_licence(rec)
-        for p in listing_probs:
+        for p in parent_probs:
             self.reason("N" if p.code == "parent_not_own" else "R", p.code, p.message, p.field)
 
         # 0.4 repo evidence
@@ -410,7 +412,7 @@ class Check:
             texts, found = {}, {}
             self.notes.append("repo evidence scan failed: %s" % e)
         for u in undeclared_ids(found, rec):
-            self.reason("N", "undeclared_id", "%s %s is named in %s but not in the record" % (u["kind"], u["id"], ", ".join(u["files"][:3])), "mentioned_not_used")
+            self.reason("I", "undeclared_id", "%s %s is named in %s but not in the record" % (u["kind"], u["id"], ", ".join(u["files"][:3])), "mentioned_not_used")
         res["repo_ids_found"] = sorted(found)
         self.tick("evidence")
 
@@ -426,15 +428,21 @@ class Check:
                 self.notes.append("parent %s@%s not readable: %s" % (p["repo"], p["revision"][:8], e))
             P_srcs.append(S_)
         S_src = P_srcs[0] if len(parents) == 1 else None
-        arch = rec.get("architecture_changes") or {}
+        arch = architecture_hints(rec)
         cfg_e = self._json(src, "config.json")
+        if not isinstance(cfg_e, dict):
+            self.reason("N", "config", "config.json is missing or not a JSON object", "config.json")
+            return self.finish(res, rec, {})
+        for key in FORBIDDEN_CONFIG:
+            if key in cfg_e:
+                self.reason("N", "config", "config.json has %s (remote code is not allowed)" % key, key)
+        if self.has("N", ("config",)):
+            return self.finish(res, rec, {})
         if len(parents) <= 1:
             cfg_s = self._json(S_src, "config.json") if S_src else None
-            if cfg_e is None:
-                self.reason("N", "config", "config.json is missing or not valid JSON", "config.json")
-            elif cfg_s is not None:
+            if isinstance(cfg_s, dict):
                 for p in config_diff(cfg_e, cfg_s, arch):
-                    self.reason("N", p.code, p.message, p.field)
+                    self.reason("N" if p.field in TEMPLATE_FIELDS else "I", p.code, p.message, p.field)
                 te = text_only_export(cfg_e, cfg_s)
                 if te:
                     res["config_text_only_export"] = te
@@ -445,28 +453,25 @@ class Check:
                 if tnote:
                     self.notes.append(tnote)
                 for p in tprobs:
-                    self.reason("N", p.code, p.message, p.field)
+                    self.reason("I", p.code, p.message, p.field)
         else:
             labels = ["%s@%s" % (p["repo"], p["revision"][:8]) for p in parents]
             cfgs = {labels[i]: self._json(P_srcs[i], "config.json") for i in range(len(parents)) if P_srcs[i] is not None}
-            cfgs = {k: v for k, v in cfgs.items() if v is not None}
+            cfgs = {k: v for k, v in cfgs.items() if isinstance(v, dict)}
             diffs = template_differences(cfgs)
             for d in diffs:
                 self.reason("R", "parents_template_mismatch", "the parents %s and %s are not served by the same engine template (RULES 2.2: all parents must be): %s" % (
                     d["against"], d["parent"], "; ".join("%s %r vs %r" % (k, v[0], v[1]) for k, v in sorted(d["fields"].items()))), "parents")
-            if cfg_e is None:
-                self.reason("N", "config", "config.json is missing or not valid JSON", "config.json")
-            else:
-                per = {lab: config_diff(cfg_e, c, arch) for lab, c in cfgs.items()}
-                for p in merge_parent_problems(per):
-                    self.reason("N", p.code, p.message, p.field)
-                for lab, c in cfgs.items():
-                    te = text_only_export(cfg_e, c)
-                    if te:
-                        res["config_text_only_export"] = te
-                        self.notes.append("config: text-only export of a multimodal parent %s (%s -> %s): allowed without a declaration (rule 2.4)" % (
-                            lab, te["start_architecture"], te["entry_architecture"]))
-                        break
+            per = {lab: config_diff(cfg_e, c, arch) for lab, c in cfgs.items()}
+            for p in merge_parent_problems(per):
+                self.reason("N" if p.field in TEMPLATE_FIELDS else "I", p.code, p.message, p.field)
+            for lab, c in cfgs.items():
+                te = text_only_export(cfg_e, c)
+                if te:
+                    res["config_text_only_export"] = te
+                    self.notes.append("config: text-only export of a multimodal parent %s (%s -> %s)" % (
+                        lab, te["start_architecture"], te["entry_architecture"]))
+                    break
             tper, tnotes = {}, []
             for i, S_ in enumerate(P_srcs):
                 if S_ is None:
@@ -477,7 +482,7 @@ class Check:
                     tnotes.append(tnote)
             self.notes.extend(dict.fromkeys(tnotes))
             for p in merge_parent_problems(tper):
-                self.reason("N", p.code, p.message, p.field)
+                self.reason("I", p.code, p.message, p.field)
         self.tick("config")
         if self.has("R", ("parents_template_mismatch",)):
             return self.finish(res, rec, {})             # parents that no single engine template serves: refused, nothing to measure
@@ -523,7 +528,7 @@ class Check:
         thr = self.thr
         out = {"samples": {}, "sources": {}, "start": {}}
         st = self.start_decl
-        lm = normalise_layer_map((rec.get("architecture_changes") or {}).get("layer_map"))
+        lm = normalise_layer_map(architecture_hints(rec).get("layer_map"))
         skey = mkey(st["repo"], st["revision"]) if st["kind"] != "none" else None
         family = (start_meta or {}).get("family") or (db.get(skey) or {}).get("family") if skey else None
         if not family and cfg_e:
@@ -675,7 +680,7 @@ class Check:
         thr = self.thr
         parents = self.parents
         out = {"samples": {}, "sources": {}, "start": {}, "multi": True}
-        lm = normalise_layer_map((rec.get("architecture_changes") or {}).get("layer_map"))
+        lm = normalise_layer_map(architecture_hints(rec).get("layer_map"))
         pkeys = [self.pkey(p) for p in parents]
         order = sorted(range(len(parents)), key=lambda i: (-float(parents[i]["share"]), i))
         fams = [((parent_metas[i] or db.get(pkeys[i]) or {}).get("family")) for i in order]
@@ -1033,8 +1038,8 @@ class Check:
             else:
                 self.reason("I", "weight_overlap_not_listed", what + "Shown for information only: your bar list takes %s (rule 3.6), and this is number %d of %d. "
                             "No correction, no penalty." % (crit, d["bar_list_rank"], len(overlaps)), "bar_list")
-        # bar list: the start chain, teachers, and the overlaps that made the cut (in rank order)
-        res["bar_list"] = self.bar_list(rec, db, own_ids, [d for d in overlaps if d["on_bar_list"]], own_other)
+        # Bar list: parents, their ancestors, and the ranked weight overlaps.
+        res["bar_list"] = self.bar_list(db, [d for d in overlaps if d["on_bar_list"]], own_other)
 
     def check_own_parents(self, weights, db):
         """RULES 2.2 / 3.1: your own public model may be a parent "as long as its weights come only from allowed parents"; the record names ITS parents so that this can be checked. Allowed-ness
@@ -1331,7 +1336,7 @@ class Check:
         anchor = db.index.get("anchor")
         return sorted(overlaps, key=lambda d: (-(d.get(by) or 0.0), -d["cos"], Check.commitment_key(db.get(d["model"]) or {}, anchor), d["model"]))
 
-    def bar_list(self, rec, db, own_ids, overlaps=(), own_detected=()):
+    def bar_list(self, db, overlaps=(), own_detected=()):
         """`overlaps`: the weight overlaps that join the list (already ranked and cut to `bar_list_max_overlaps` by `classify_weights`).
         RULES 3.6 (d8): every declared parent and every ancestor of every parent, back to the list: no cap. One parent: role `start` (as before); several: role `parent`. The parents
         the record names for an own parent are on the list too (role `ancestor`, `declared_by`)."""
@@ -1356,41 +1361,24 @@ class Check:
                 for a in db.ancestors(nk):
                     if all(b["model"] != a for b in out):
                         out.append({"model": a, "role": "ancestor"})
-        for t in rec.get("teachers", []):
-            rid = t["repo_or_api"].split("@")[0].lower()
-            for k, m in db.models.items():
-                if m.get("kind") == "entry" and m["repo"].lower() == rid and all(b["model"] != k for b in out):
-                    out.append({"model": k, "role": "teacher"})
         for d in overlaps:
             m = {"beta": d["beta"], "cos": d["cos"], "share": d["share"], "joint_weight": d.get("joint_weight"), "rank": d.get("bar_list_rank"), "detected_on": d["detected_on"]}
             have = next((b for b in out if b["model"] == d["model"]), None)
-            if have is not None:                       # already there (a teacher): keep its role, add what was measured
+            if have is not None:                       # Keep the existing role and add what was measured.
                 have["weight_overlap"] = m
             else:
                 out.append({"model": d["model"], "role": "weight_overlap", "reason": "weight_overlap", "kind": d.get("kind"), "relation": d.get("relation"),
                             "uid": d.get("uid"), **m})
-        keep = []
-        for b in out:
-            m = db.get(b["model"]) or {}
-            owner = {i.lower() for i in (m.get("holder_ids") or [])}
-            if b["role"] in ("teacher",) and owner & own_ids:
-                continue             # own-holder entries leave the list, their ancestors stay (added below)
-            keep.append(b)
-        for b in out:
-            if b not in keep:
-                for a in db.ancestors(b["model"]):
-                    if all(x["model"] != a for x in keep):
-                        keep.append({"model": a, "role": "ancestor of own entry"})
         for d in own_detected:                 # 3.6: an own-holder entry measured in the weights is left out, its ancestors stay
             for a in db.ancestors(d["model"]):
-                if all(x["model"] != a for x in keep):
-                    keep.append({"model": a, "role": "ancestor of own entry"})
-        for b in keep:                         # RULES 2.7: a still-private entry is shown as "a private entry of this round (uid N)" until it is revealed
+                if all(x["model"] != a for x in out):
+                    out.append({"model": a, "role": "ancestor of own entry"})
+        for b in out:                         # RULES 2.7: a still-private entry is shown as "a private entry of this round (uid N)" until it is revealed
             if db.is_private(db.get(b["model"])):
                 b.update(private=True, public_name=self.display(db, b["model"]))
-        return keep
+        return out
 
-    RECORD_N = ("schema", "record_missing", "hotkey", "entry", "signature", "undeclared_id", "config", "tokenizer", "family_unknown",
+    RECORD_N = ("schema", "record_missing", "hotkey", "signature", "config", "family_unknown",
                 "parent_shares", "parents_duplicate", "parent_self", "parent_not_own")
     START_N = ("start_not_confirmed", "tier_b_unavailable", "transform_found", "start_not_declared", "parents_not_confirmed", "own_parent_not_confirmed")
     HARD_R = ("parents_rule", "parents_template_mismatch")          # a refusal no correction can undo: it beats a record correction (the miner commits again)
@@ -1409,9 +1397,9 @@ class Check:
         if self.has("R", self.HARD_R):
             result = "REFUSED"                                # more than 4 parents / a share below 0.10 / parents of different engine templates (RULES 3.3)
         elif self.has("N", self.RECORD_N):
-            result = "NEEDS_CORRECTION"                       # record / repo evidence / config / tokenizer first
+            result = "NEEDS_CORRECTION"                       # unusable record, parent details, or engine config first
         elif any(r["class"] == "R" and r["code"] not in self.WEIGHT_R for r in self.reasons):
-            result = "REFUSED"                                # start, teacher, data, licence not allowed
+            result = "REFUSED"                                # parent weights not allowed
         elif self.copy_of_declared_parent and self.has("R", ("copy", "duplicate")):
             result = "REFUSED"                                # a merge that is a copy of one of its parents is a copy (3.5); its other parents are then not found, which is no correction
         elif self.has("N", self.START_N):

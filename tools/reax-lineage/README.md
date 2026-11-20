@@ -1,4 +1,4 @@
-# reax-lineage (stage-0 intake checker, round 2) - v1.6.1 (= v1.6.0 + the published-before condition; v1.6.0:  declared merges with up to 4 parents, private comparison set)
+# reax-lineage (stage-0 intake checker, round 2) - v1.6.2
 
 CPU only. HTTP range reads of safetensors headers and sampled rows (no full downloads except the rare Tier B: 4 layers + 16,384 embedding rows).
 See the [Round 2 rulebook](https://reax.co/competitions/rules/v2.0/) for the intake procedure and `reax_lineage/thresholds.json` for checker thresholds.
@@ -41,6 +41,20 @@ The checker derives **no** holder id from a repo id. The entry's holder ids are 
 `--no-tier-b`: a failed frame check then ends as NEEDS_CORRECTION "manual review", never PASS. `--hub-dir DIR` = offline hub (DIR/org/name/rev/).
 Result JSON = LINEAGE-PROCEDURE section 9 plus `weight_overlaps`, `joint_share` (information, no verdict), `config_text_only_export`, `weights.layer_map`, `blas_gflops`, `notes`; it never contains the sealed Sample B seed (only its sha256).
 Intake state feed schema: `schema/intake-state.schema.json` (+ example). Record schemas: `schema/reax-lineage.schema.json` (`reax-lineage/2`, published) and `schema/reax-lineage-1.schema.json` (legacy `/1`, read as one parent).
+
+The current record only needs the committing hotkey and a `parents` array, or a hotkey and `"from_scratch": true`. The format defaults to `reax-lineage/2`. Here is a from-scratch record.
+
+```json
+{"hotkey": "5F3sa2TJAWMqDhXG6jhV4N8ko9SxwGy8TpaNS1repo5EYjQX", "from_scratch": true}
+```
+
+For a model built from existing weights, declare each parent's kind, repository, revision and approximate share. The chain commitment or signed MCP dry-run request supplies the entry repo and exact revision. Older full records remain valid. The checker ignores their entry metadata and reads optional architecture hints when useful to compare weights. Signed corrections still identify the original entry through `corrects`.
+
+A training note is optional. Any model, API or program, including Stockfish, can generate training data if its terms allow training a commercially releasable model. Keep both indexes' test items and derived labels out of training. The checker evaluates weight ancestry and scoring compatibility. It treats incidental model mentions, ordinary tokenizer differences and non-template config differences as information. Teacher and dataset declarations do not affect intake.
+
+### Earlier checker releases
+
+The notes below document behavior at the stated version.
 
 v1.1 (round-2 final rules, 13 Nov): an earlier ENTRY with the same start that the whole-model test finds in the entry is a **weight overlap** (`weight_overlaps`, bar list item with `role`/`reason` `weight_overlap` and the measured beta / cos / share; reason code `weight_overlap`, class I): never NEEDS_CORRECTION, never MISDECLARATION_CANDIDATE, unless it is a copy (rule 3.5);
 the 3.8(a) joint share counts only the other sources. A text-only export (`XForCausalLM`, flat config) of a multimodal start (`XForConditionalGeneration` with text_config + vision part) passes the config check without a declaration

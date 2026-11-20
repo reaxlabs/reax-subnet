@@ -85,11 +85,11 @@ def test_row_published_before(pa, ct, ok):
     assert row_published_before({"scored_published_at": pa}, ct) is ok
 
 
-def test_teacher_entry_must_be_published_before_the_commitment(tmp_path):
+def test_teacher_note_does_not_depend_on_window_publication(tmp_path):
     w, c = build(tmp_path, None)
     rec = prec("dina/t", [(SA, "list", 1.0)])
     res = run(w, "dina/t", c, dict(rec, teachers=[{"name": "T", "repo_or_api": "bob/ent", "use": "distillation"}]))
-    assert "teacher_not_yet_published" in codes(res, "R") and "teacher_not_public" not in codes(res, "R"), res["reasons"]
+    assert res["result"] == "PASS" and all(b["role"] != "teacher" for b in res["bar_list"]), res["reasons"]
     w2, c2 = build(tmp_path / "ok", PUB_OK)
     res2 = run(w2, "dina/t", c2, dict(rec, teachers=[{"name": "T", "repo_or_api": "bob/ent", "use": "distillation"}]))
     assert not [x for x in codes(res2, "R") if x.startswith("teacher_")], res2["reasons"]

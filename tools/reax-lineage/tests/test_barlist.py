@@ -211,17 +211,15 @@ def test_the_cap_comes_from_the_threshold(bw):
     assert [b["model"].split("@")[0] for b in res["bar_list"] if b["role"] == "weight_overlap"] == ["p1h/model"] and len(res["weight_overlaps"]) == 5
 
 
-def test_a_teacher_that_is_also_an_overlap_uses_one_of_the_three_places(bw):
-    """Reading of 3.6 (documented in CALIBRATION.md 16.1): the three places go to the three largest overlaps, whether or not one of them is on the list
-    anyway (here as a teacher). The teacher keeps its role and gets the measurement and rank."""
+def test_legacy_teacher_note_does_not_change_the_measured_overlap_bar(bw):
     rec = rec_for(bw, "eve/teach")
     rec["teachers"] = [{"name": "E3", "repo_or_api": "e3h/model", "use": "distillation"}]
     res = run(bw, "eve/teach", entry_mix(bw, 74, COEFS), rec)
     assert res["result"] == "PASS", res["reasons"]
     roles = {b["model"].split("@")[0]: b["role"] for b in res["bar_list"]}
-    assert roles == {"org/start": "start", "org/root": "ancestor", "e3h/model": "teacher", "p1h/model": "weight_overlap", "e2h/model": "weight_overlap"}, roles
+    assert roles == {"org/start": "start", "org/root": "ancestor", "e3h/model": "weight_overlap", "p1h/model": "weight_overlap", "e2h/model": "weight_overlap"}, roles
     t = [b for b in res["bar_list"] if b["model"].startswith("e3h/model@")][0]
-    assert t["weight_overlap"]["rank"] == 3 and t["weight_overlap"]["joint_weight"] == pytest.approx(0.6, abs=0.07) and "p4h/model" not in roles
+    assert t["rank"] == 3 and t["joint_weight"] == pytest.approx(0.6, abs=0.07) and "p4h/model" not in roles
 
 
 def test_own_holder_entries_do_not_use_up_a_place(tmp_path_factory):

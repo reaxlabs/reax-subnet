@@ -1,20 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://reax.example/schema/reax-lineage-1.schema.json",
-  "title": "reax-lineage.json (v1, legacy: read as ONE parent with share 1; the licence enum is Apache-2.0 only since checker 1.6.0)",
+  "title": "Legacy Generalist lineage declaration with one start",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema",
     "hotkey",
-    "entry",
-    "start",
-    "own_models",
-    "architecture_changes",
-    "teachers",
-    "datasets",
-    "mentioned_not_used",
-    "licence"
+    "start"
   ],
   "properties": {
     "schema": {
@@ -26,20 +19,7 @@
       "description": "ss58 address of the committing hotkey (RULES-v2 3.1)"
     },
     "entry": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "repo",
-        "revision"
-      ],
-      "properties": {
-        "repo": {
-          "$ref": "#/definitions/repo"
-        },
-        "revision": {
-          "$ref": "#/definitions/sha"
-        }
-      }
+      "description": "Optional legacy metadata. The external commitment or check request pins the repo and revision."
     },
     "start": {
       "type": "object",
@@ -132,150 +112,25 @@
       ]
     },
     "own_models": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "repo",
-          "how"
-        ],
-        "properties": {
-          "repo": {
-            "$ref": "#/definitions/repo"
-          },
-          "revision": {
-            "$ref": "#/definitions/sha"
-          },
-          "how": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      }
+      "description": "Optional legacy description of your own models."
     },
     "averaged_own_checkpoints": {
-      "type": "boolean"
+      "description": "Optional note about averaging your own checkpoints."
     },
     "architecture_changes": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "added_tokens": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "layer_map": {
-          "type": [
-            "array",
-            "object",
-            "null"
-          ],
-          "description": "entry layer -> start layer (list index = entry layer, or {\"entry\": start})"
-        },
-        "pruned": {
-          "type": [
-            "object",
-            "null"
-          ]
-        },
-        "config_fields": {
-          "type": "object",
-          "description": "config.json fields that differ from the start, with the new values"
-        },
-        "quantisation_aware_training": {
-          "type": "boolean"
-        }
-      }
+      "description": "Optional measurement hints, such as a layer map or quantisation-aware training."
     },
     "teachers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "name",
-          "repo_or_api",
-          "use"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "repo_or_api": {
-            "type": "string",
-            "minLength": 1
-          },
-          "use": {
-            "enum": [
-              "distillation",
-              "synthetic data",
-              "labels",
-              "preference",
-              "judge"
-            ]
-          }
-        }
-      }
+      "description": "Optional legacy training notes. No teacher approval or declaration is required."
     },
     "datasets": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "name",
-          "source",
-          "licence"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "source": {
-            "type": "string",
-            "minLength": 1
-          },
-          "licence": {
-            "type": "string",
-            "minLength": 1
-          },
-          "approx_tokens": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      }
+      "description": "Optional legacy training notes. No per-dataset licence form is required."
     },
     "mentioned_not_used": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "reason"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "reason": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      }
+      "description": "Optional notes about model IDs mentioned in other files."
     },
     "licence": {
-      "enum": [
-        "Apache-2.0"
-      ]
+      "description": "Optional legacy metadata. Model release still follows rule 2.6."
     },
     "corrects": {
       "type": [
@@ -291,6 +146,9 @@
       ],
       "pattern": "^(0x)?[0-9a-fA-F]{128}$",
       "description": "sr25519 over the canonical JSON (sorted keys, UTF-8, no whitespace, without this field); required for a correction"
+    },
+    "training_note": {
+      "description": "Optional one-line note on what you trained on."
     }
   },
   "definitions": {
@@ -302,5 +160,6 @@
       "type": "string",
       "pattern": "^[0-9a-f]{40}$"
     }
-  }
+  },
+  "description": "Declare the committing hotkey and parents, or set from_scratch to true. The external commitment or signed check request identifies the entry and revision."
 }

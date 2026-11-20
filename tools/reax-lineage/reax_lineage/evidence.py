@@ -73,12 +73,9 @@ def validate_record(rec, hotkey: Optional[str] = None, entry_repo: Optional[str]
         return out
     if hotkey and rec["hotkey"] != hotkey:
         out.append(Problem("hotkey", "record names hotkey %s, the commitment is from %s" % (rec["hotkey"], hotkey), "hotkey"))
-    if entry_repo and rec["entry"]["repo"].lower() != entry_repo.lower():
-        out.append(Problem("entry", "record entry.repo %s differs from the committed repo %s" % (rec["entry"]["repo"], entry_repo), "entry.repo"))
-    if entry_rev and rec["entry"]["revision"] != entry_rev and not rec.get("corrects"):
-        out.append(Problem("entry", "record entry.revision differs from the committed revision", "entry.revision"))
-    if rec.get("schema") == SCHEMA_V2:
-        out.extend(parent_problems(rec))
+    # The caller owns entry identity. Older records may still contain entry metadata.
+    if rec.get("schema", SCHEMA_V2) == SCHEMA_V2:
+        out.extend(parent_problems(rec, entry_repo, entry_rev))
     if rec.get("corrects"):
         sv = verify_signature(rec, rec["hotkey"])
         if sv is False:
@@ -93,7 +90,7 @@ def normalise_parents(rec: dict):
     (each {kind, repo, revision, uid?, share, parents? (own models only)}) and `from_scratch`. The parents are copied; the record is never changed."""
     if not isinstance(rec, dict):
         return [], True, False
-    if rec.get("schema") == SCHEMA_V1 or ("parents" not in rec and "start" in rec):
+    if rec.get("schema") == SCHEMA_V1:
         st = rec.get("start") or {"kind": "none"}
         if st.get("kind") in (None, "none"):
             return [], True, True
@@ -103,6 +100,24 @@ def normalise_parents(rec: dict):
         return [p], False, True
     parents = [dict(p) for p in (rec.get("parents") or [])]
     return parents, bool(rec.get("from_scratch")), False
+
+
+def architecture_hints(rec: dict) -> dict:
+    hints = rec.get("architecture_changes")
+    if not isinstance(hints, dict):
+        return {}
+    out = {}
+    for name, typ in (("config_fields", dict), ("pruned", dict), ("quantisation_aware_training", bool)):
+        value = hints.get(name)
+        if isinstance(value, typ):
+            out[name] = value
+    tokens = hints.get("added_tokens")
+    if isinstance(tokens, list):
+        out["added_tokens"] = [token for token in tokens if isinstance(token, str)]
+    layer_map = hints.get("layer_map")
+    if isinstance(layer_map, (list, dict)):
+        out["layer_map"] = layer_map
+    return out
 
 
 def parents_rule_problems(parents: List[dict], legacy: bool = False) -> List[Problem]:
@@ -121,7 +136,7 @@ def parents_rule_problems(parents: List[dict], legacy: bool = False) -> List[Pro
     return out
 
 
-def parent_problems(rec: dict) -> List[Problem]:
+def parent_problems(rec: dict, entry_repo: Optional[str], entry_rev: Optional[str]) -> List[Problem]:
     """The semantic checks of a /2 record's parents that are record fields (NEEDS_CORRECTION): the same model twice, the entry as its own parent, shares that do not add up
     to 1 +/- 0.02. Only when `parents_rule_problems` finds nothing (a refusal beats a correction: it cannot be corrected)."""
     parents, scratch, legacy = normalise_parents(rec)
@@ -129,7 +144,7 @@ def parent_problems(rec: dict) -> List[Problem]:
     if scratch or not parents or parents_rule_problems(parents, legacy):
         return out
     seen = {}
-    me = (rec["entry"]["repo"].lower(), rec["entry"]["revision"])
+    me = ((entry_repo or "").lower(), entry_rev)
     for i, p in enumerate(parents):
         k = (p["repo"].lower(), p["revision"])
         if k == me:
@@ -234,23 +249,28 @@ def declared_ids(rec: dict) -> Dict[str, str]:
         for m in re.finditer(r"([A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*)", str(s)):
             out.setdefault(m.group(1).rstrip(".").lower(), field)
 
-    add(rec.get("entry", {}).get("repo"), "entry")
-    add((rec.get("start") or {}).get("repo"), "start")
+    start = rec.get("start")
+    if isinstance(start, dict):
+        add(start.get("repo"), "start")
     for p in rec.get("parents") or []:
-        if isinstance(p, dict):
-            add(p.get("repo"), "parents")
-    for q, _ in walk_own_parents([p for p in (rec.get("parents") or []) if isinstance(p, dict)]):
+        add(p.get("repo"), "parents")
+    for q, _ in walk_own_parents(rec.get("parents") or []):
         add(q.get("repo"), "parents")
-    for m in rec.get("own_models", []):
-        add(m.get("repo"), "own_models")
-    for t in rec.get("teachers", []):
-        add(t.get("repo_or_api"), "teachers")
-        add(t.get("name"), "teachers")
-    for d in rec.get("datasets", []):
-        add(d.get("source"), "datasets")
-        add(d.get("name"), "datasets")
-    for m in rec.get("mentioned_not_used", []):
-        add(m.get("id"), "mentioned_not_used")
+    # Legacy notes are usable evidence when they have the old shape.
+    for field, names in (
+        ("own_models", ("repo",)),
+        ("teachers", ("repo_or_api", "name")),
+        ("datasets", ("source", "name")),
+        ("mentioned_not_used", ("id",)),
+    ):
+        values = rec.get(field)
+        if isinstance(values, list):
+            for value in values:
+                if isinstance(value, dict):
+                    for name in names:
+                        item = value.get(name)
+                        if isinstance(item, str):
+                            add(item, field)
     return out
 
 

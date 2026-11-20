@@ -104,11 +104,11 @@ def test_other_holders_public_models_in_the_weights_are_weight_overlaps(world, s
     assert (js["lower_bound"] >= 0.5) == (share == 0.5)
 
 
-def test_source_named_in_readme_but_not_in_record_needs_correction_first(world):
+def test_source_named_in_readme_is_evidence_without_a_declaration(world):
     st = world.tensors
     c = combine(finetune(st["start"], 55, 0.1), (0.5, delta(st["A"], st["start"])), (0.5, delta(st["B"], st["start"])))
     res = run(world, "erin/named", c, rec_for(world, "erin/named"), readme="Merged from alice/ftA and bob/ftB.\n")
-    assert res["result"] == "NEEDS_CORRECTION" and codes(res, "N").count("undeclared_id") == 2
+    assert res["result"] == "PASS" and codes(res, "I").count("undeclared_id") == 2
     # once the record names them as mentioned the weights are measured: two public models of another holder in the weights are weight overlaps now
     # (before 1.2.0: REFUSED as "two starts"); the entry passes and both models are on its bar list
     rec = rec_for(world, "erin/named2")
@@ -122,7 +122,7 @@ def test_source_named_in_readme_but_not_in_record_needs_correction_first(world):
 def test_missing_model_id_in_readme(world):
     c = finetune(world.tensors["start"], 56, 0.15)
     res = run(world, "frank/readme", c, rec_for(world, "frank/readme"), readme="Based on bob/ftB.\n")
-    assert res["result"] == "NEEDS_CORRECTION"
+    assert res["result"] == "PASS"
     assert any(r["code"] == "undeclared_id" and "bob/ftb" in r["message"] for r in res["reasons"])
     rec = rec_for(world, "frank/readme2")
     rec["mentioned_not_used"] = [{"id": "bob/ftB", "reason": "comparison only"}]
@@ -132,7 +132,7 @@ def test_missing_model_id_in_readme(world):
 def test_undeclared_tokenizer_change(world):
     c = finetune(world.tensors["start"], 57, 0.15)
     res = run(world, "gina/tok", c, rec_for(world, "gina/tok"), tok=tokenizer(extra=["<new_tok>"]))
-    assert res["result"] == "NEEDS_CORRECTION" and "tokenizer" in codes(res, "N")
+    assert res["result"] == "PASS" and "tokenizer" in codes(res, "I")
     rec = rec_for(world, "gina/tok2")
     rec["architecture_changes"]["added_tokens"] = ["<new_tok>"]
     assert run(world, "gina/tok2", c, rec, tok=tokenizer(extra=["<new_tok>"]))["result"] == "PASS"
@@ -142,7 +142,7 @@ def test_undeclared_config_change(world):
     c = finetune(world.tensors["start"], 58, 0.15)
     cfg = dict(CONFIG, rope_theta=500000.0)
     res = run(world, "hank/cfg", c, rec_for(world, "hank/cfg"), config=cfg)
-    assert res["result"] == "NEEDS_CORRECTION" and "config" in codes(res, "N")
+    assert res["result"] == "PASS" and "config" in codes(res, "I")
     rec = rec_for(world, "hank/cfg2")
     rec["architecture_changes"]["config_fields"] = {"rope_theta": 500000.0}
     assert run(world, "hank/cfg2", c, rec, config=cfg)["result"] == "PASS"
@@ -218,12 +218,12 @@ def test_an_undeclared_or_false_quantisation_aware_training_is_still_refused(wor
 
 
 def test_quantisation_aware_training_must_be_the_boolean_true(world):
-    """The schema field is a boolean; a string is a schema problem (NEEDS_CORRECTION), never a declaration."""
+    """The optional hint counts only when it is the boolean true."""
     c = _round_trip(world, 72)
     rec = rec_for(world, "lou/strqat")
     rec["architecture_changes"]["quantisation_aware_training"] = "true"
     res = run(world, "lou/strqat", c, rec)
-    assert res["result"] == "NEEDS_CORRECTION" and "schema" in codes(res, "N") and "quantisation_aware_declared" not in codes(res)
+    assert res["result"] == "REFUSED" and "quantisation_round_trip" in codes(res, "R")
     assert Check.declares_qat({"architecture_changes": {"quantisation_aware_training": "true"}}) is False
     assert Check.declares_qat({"architecture_changes": {"quantisation_aware_training": 1}}) is False
     assert Check.declares_qat({"architecture_changes": None}) is False and Check.declares_qat({}) is False and Check.declares_qat(None) is False
@@ -289,10 +289,9 @@ def test_a_declared_copy_is_refused_without_penalty_and_an_unnamed_copy_is_a_can
         r2 = _named_copy(world, repo, rec=rec)
         assert r2["result"] == "REFUSED" and "copy" in codes(r2, "R") and "copy_undeclared" not in codes(r2, "H"), (repo, r2["reasons"])
         assert "no penalty" in next(r["message"] for r in r2["reasons"] if r["code"] == "copy")
-    # (3) the repo files name it, the record does not: the missing record entry is a NEEDS_CORRECTION first (`undeclared_id`, 24 h to correct), the copy is listed as a
-    #     refused declared copy, and it is never a candidate; after the correction (the record names it) it is REFUSED
+    # (3) A copy named in the repo files remains a non-penalized refusal.
     r3 = _named_copy(world, "sc/file", rec=rec_for(world, "sc/file"), readme="Compared with alice/ftA.\n")
-    assert r3["result"] == "NEEDS_CORRECTION" and "undeclared_id" in codes(r3, "N") and r3["correction_deadline"]
+    assert r3["result"] == "REFUSED" and "undeclared_id" in codes(r3, "I") and r3["correction_deadline"] is None
     assert "copy" in codes(r3, "R") and "copy_undeclared" not in codes(r3, "H")
     rec = rec_for(world, "sc/file2")
     rec["mentioned_not_used"].append({"id": "alice/ftA", "reason": "compared against it"})
@@ -317,24 +316,20 @@ def test_start_not_on_list_or_flagged_is_refused(world):
     assert res2["result"] == "REFUSED" and "start_flagged" in codes(res2, "R")
 
 
-def test_teacher_and_dataset_and_licence_rules(world):
+def test_legacy_training_fields_and_incomplete_optional_hints_do_not_block_intake(world):
     c = finetune(world.tensors["start"], 63, 0.15)
-    rec = rec_for(world, "nat/teach")
-    rec["teachers"] = [{"name": "Big", "repo_or_api": "closed/model", "use": "distillation"}]
-    r1 = run(world, "nat/teach", c, rec)
-    assert r1["result"] == "REFUSED" and "teacher_not_allowed" in codes(r1, "R")
-    rec = rec_for(world, "nat/data")
-    rec["datasets"][0]["licence"] = "CC-BY-NC-4.0"
-    assert "dataset_not_allowed" in codes(run(world, "nat/data", c, rec), "R")
-    rec = rec_for(world, "nat/lic")
-    rec["licence"] = "GPL-3.0"
-    assert run(world, "nat/lic", c, rec)["result"] == "NEEDS_CORRECTION"        # not in the schema's licence list
+    rec = rec_for(world, "nat/train")
+    rec.update(teachers=[{"repo_or_api": "closed/model"}], datasets=[{"source": "optional note"}],
+               licence="old metadata", architecture_changes={"layer_map": {"x": "x"}},
+               mentioned_not_used="old notes")
+    res = run(world, "nat/train", c, rec)
+    assert res["result"] == "PASS", res["reasons"]
 
 
 def test_schema_and_hotkey_problems(world):
     c = finetune(world.tensors["start"], 64, 0.15)
     bad = rec_for(world, "olga/bad")
-    del bad["teachers"]
+    del bad["start"]
     r = run(world, "olga/bad", c, bad)
     assert r["result"] == "NEEDS_CORRECTION" and r["correction_deadline"] and "schema" in codes(r)
     other = rec_for(world, "olga/hk", hotkey="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY")

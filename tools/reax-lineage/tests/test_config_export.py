@@ -158,9 +158,9 @@ def test_text_only_export_passes_the_whole_check_without_a_declaration(mmworld):
     assert res["result"] == "PASS", res["reasons"]
     assert res["config_text_only_export"]["entry_architecture"] == "TinyForCausalLM"
     assert any("text-only export" in n for n in res["notes"]) and codes(res, "N") == []
-    # the same export with a real structural change is not waved through
+    # The context-setting difference is retained as information.
     res2 = run(mmworld, "carol/textonly2", c, rec_for(mmworld, "carol/textonly2"), config=_text_only_export_config(rope_theta=500000.0))
-    assert res2["result"] == "NEEDS_CORRECTION" and [r["field"] for r in res2["reasons"] if r["code"] == "config"] == ["rope_theta"]
+    assert res2["result"] == "PASS" and [r["field"] for r in res2["reasons"] if r["code"] == "config" and r["class"] == "I"] == ["rope_theta"]
     # and the old way (declaring the class change) still works
     rec = rec_for(mmworld, "carol/textonly3")
     rec["architecture_changes"]["config_fields"] = {"architectures": ["TinyForCausalLM"]}

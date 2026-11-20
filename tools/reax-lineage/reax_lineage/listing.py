@@ -1,14 +1,8 @@
 """Step 0.3: allowed-ness against the List at commitment time (RULES-v2 section 4)."""
 import json
-import re
 from typing import Dict, List, Optional, Tuple
 
 from .evidence import MAX_OWN_DEPTH, Problem, normalise_parents
-
-ALLOWED_LICENCES = {"Apache-2.0"}              # RULES 2.6 (checker 1.6.0): your model is published under Apache-2.0; MIT / BSD removed from the record's licence enum
-DATA_LICENCE_DENY = [r"(^|[^a-z])nc([^a-z]|$)", r"non[- ]?commercial", r"research[- ]?(use[- ]?)?only", r"no[- ]?train",
-                     r"no[- ]?derivatives?", r"proprietary", r"unknown", r"unlicensed"]
-
 
 def key(repo, rev):
     return "%s@%s" % (repo, rev)
@@ -169,47 +163,3 @@ def check_parents(parents: List[dict], listing: Listing, db_index: dict, commit_
                 walk(p["parents"], "%s/%d/parents" % (base, i), depth + 1)
     walk(parents, "parents", 0)
     return out, metas
-
-
-def check_teachers(rec: dict, listing: Listing, db_index: dict, commit_time: Optional[str], own_ids: Optional[set] = None) -> List[Problem]:
-    """A teacher is a list model used as teacher, or an entry of this round. RULES 4.7 (d8b M2): another holder's entry only if it was PUBLIC at the commitment (a repo with
-    several revisions counts when at least one of its entries was public then, or is yours)."""
-    own_ids = {i.lower() for i in (own_ids or [])}
-    out = []
-    for i, t in enumerate(rec.get("teachers", [])):
-        rid = t["repo_or_api"]
-        hit = None
-        for m in listing.models.values():
-            if m["repo"].lower() == rid.lower().split("@")[0] and m.get("use") in ("teacher", "both"):
-                hit = m
-                break
-        if hit:
-            if hit.get("flagged"):
-                out.append(Problem("teacher_flagged", "teacher %s is flagged" % rid, "teachers/%d" % i))
-            continue
-        ent = [e for e in (db_index.get("models") or {}).values() if e.get("kind") == "entry" and e["repo"].lower() == rid.lower().split("@")[0]]
-        if ent:
-            if any(e.get("flagged") for e in ent):
-                out.append(Problem("teacher_flagged", "teacher entry %s is flagged" % rid, "teachers/%d" % i))
-            elif not any((_holders(e) & own_ids) or (row_public_at(e, commit_time) and row_published_before(e, commit_time)) for e in ent):
-                # d11: the SAME entry must be public and published before the commitment; name the codes of the entry that misses the fewest conditions
-                def misses(e):
-                    return [c for c, ok in (("teacher_not_yet_published", row_published_before(e, commit_time)), ("teacher_not_public", row_public_at(e, commit_time))) if not ok]
-                best = min((misses(e) for e in ent), key=len)
-                for c in best:
-                    out.append(Problem(c, "teacher entry %s of another holder was not %s at your commitment (RULES 4.7)" % (
-                        rid, "officially scored in a window whose results were published before it" if c == "teacher_not_yet_published" else "public"), "teachers/%d" % i))
-            continue
-        out.append(Problem("teacher_not_allowed", "teacher %s is not on the List (as teacher) and not an entry of this round" % rid, "teachers/%d" % i))
-    return out
-
-
-def check_data_and_licence(rec: dict) -> List[Problem]:
-    out = []
-    for i, d in enumerate(rec.get("datasets", [])):
-        lic = d.get("licence", "").lower()
-        if any(re.search(p, lic) for p in DATA_LICENCE_DENY):
-            out.append(Problem("dataset_not_allowed", "dataset %r licence %r forbids commercial use or training (or is unknown)" % (d["name"], d["licence"]), "datasets/%d" % i))
-    if rec.get("licence") not in ALLOWED_LICENCES:
-        out.append(Problem("licence", "licence %r is not Apache-2.0 (RULES 2.6)" % rec.get("licence"), "licence"))
-    return out

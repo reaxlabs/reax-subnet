@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from reax_lineage.check import Check
+from reax_lineage.sources import Hub
 from synth import CONFIG, HOTKEY, REV, SEED_B, SPEC, World, combine, delta, finetune, make_base, record, tokenizer, write_repo
 from test_pipeline import COMMIT, codes, run
 
@@ -219,8 +220,8 @@ def test_the_entry_config_must_equal_every_parents_apart_from_declared_changes(m
     c = mix(t, t["root"], [(0.5, "startA"), (0.5, "startB")], own_seed=3)
     rec = prec("dina/cfg", [(SA, "list", 0.5), (SB, "list", 0.5)])
     res = run(mw, "dina/cfg", c, rec, config=dict(CONFIG, rms_norm_eps=1e-5))
-    assert res["result"] == "NEEDS_CORRECTION", res["reasons"]
-    rs = [r for r in res["reasons"] if r["code"] == "config"]
+    assert res["result"] == "PASS", res["reasons"]
+    rs = [r for r in res["reasons"] if r["code"] == "config" and r["class"] == "I"]
     # the same finding against both parents is ONE problem that names both parents
     assert len(rs) == 1 and rs[0]["field"] == "rms_norm_eps", rs
     assert "[against parent org/startA@00000000, org/startB@00000000]" in rs[0]["message"], rs[0]["message"]
@@ -230,12 +231,12 @@ def test_the_entry_config_must_equal_every_parents_apart_from_declared_changes(m
     assert res2["result"] == "PASS", res2["reasons"]
 
 
-def test_added_tokens_must_be_declared_against_every_parent(mw):
+def test_added_tokens_are_reported_against_every_parent(mw):
     t = mw.tensors
     c = mix(t, t["root"], [(0.5, "startA"), (0.5, "startB")], own_seed=4)
     rec = prec("dina/tok", [(SA, "list", 0.5), (SB, "list", 0.5)])
     res = run(mw, "dina/tok", c, rec, tok=tokenizer(extra=["<new>"]))
-    assert res["result"] == "NEEDS_CORRECTION" and [r["code"] for r in res["reasons"]] == ["tokenizer"], res["reasons"]
+    assert res["result"] == "PASS" and codes(res, "I") == ["tokenizer"], res["reasons"]
     assert "1 added tokens are not in architecture_changes.added_tokens" in res["reasons"][0]["message"] and "[against parent" in res["reasons"][0]["message"]
     rec2 = prec("dina/tok2", [(SA, "list", 0.5), (SB, "list", 0.5)])
     rec2["architecture_changes"]["added_tokens"] = ["<new>"]
@@ -301,16 +302,16 @@ def test_a_public_model_that_is_not_on_the_list_is_not_an_allowed_parent(mw):
         assert res["result"] == "REFUSED" and (["parent_not_listed"] == [c for c in codes(res, "R")]), (kind, res["reasons"])
 
 
-def test_a_teacher_entry_of_another_holder_must_have_been_public_at_the_commitment(mw):
+def test_legacy_teacher_notes_do_not_gate_intake_or_create_a_bar(mw):
     t = mw.tensors
     c = mix(t, t["root"], [(0.5, "startA"), (0.5, "startB")], own_seed=7)
     rec = prec("dina/teach", [(SA, "list", 0.5), (SB, "list", 0.5)])
     rec["teachers"] = [{"name": "E2", "repo_or_api": "bob/entry2", "use": "distillation"}]
     res = run(mw, "dina/teach", c, rec)
-    assert res["result"] == "REFUSED" and codes(res, "R") == ["teacher_not_public"] and res["reasons"][0]["field"] == "teachers/0"
+    assert res["result"] == "PASS" and codes(res, "R") == []
     rec["teachers"] = [{"name": "E1", "repo_or_api": "alice/entry1", "use": "distillation"}]
     res = run(mw, "dina/teach2", c, rec)
-    assert res["result"] == "PASS" and any(b["role"] == "teacher" for b in res["bar_list"]), res["reasons"]
+    assert res["result"] == "PASS" and all(b["role"] != "teacher" for b in res["bar_list"]), res["reasons"]
 
 
 # ------------------------------------------------------------------- own models as parents (RULES 2.2, 3.1) ----
@@ -539,9 +540,6 @@ def test_a_v2_record_validates_and_the_limits_are_not_a_schema_matter():
     (lambda r: r["parents"][0].update(parents=[{"kind": "list", "repo": "a/b", "revision": REV(1)}]), "parents/0"),   # a list parent has none
     (lambda r: r.update(schema="reax-lineage/3"), "schema"),
     (lambda r: r.update(start={"kind": "none"}), ""),                                                      # the v1 field is not part of /2
-    (lambda r: r.update(licence="MIT"), "licence"),
-    (lambda r: r.update(licence="BSD-3-Clause"), "licence"),
-    (lambda r: r.update(licence="Apache-2.0 "), "licence"),
 ])
 def test_v2_schema_problems_are_schema_corrections(mutate, field):
     rec = prec("dina/x", [(SA, "list", 0.5), (SB, "list", 0.5)])
@@ -577,26 +575,18 @@ def test_a_v1_record_is_read_as_one_parent_with_share_1(mw):
     assert res2["start_confirmed"]["confirmed"] and "multi_parent" not in res2["start_confirmed"]
 
 
-@pytest.mark.parametrize("licence", ["MIT", "BSD-3-Clause", "BSD-2-Clause", "GPL-3.0"])
-def test_the_licence_is_apache_2_0_only_for_v1_and_v2_records(mw, licence):
-    """RULES 2.6 (d7 mismatch fixed): MIT / BSD are no longer accepted by the record schema."""
-    t = mw.tensors
-    rec = record("dina/lic", REV(0), "org/startA", REV(2), licence=licence)
-    res = run(mw, "dina/lic", finetune(t["startA"], 12, 0.1), rec)
-    assert res["result"] == "NEEDS_CORRECTION" and [r["field"] for r in res["reasons"]] == ["licence"], res["reasons"]
-    rec2 = prec("dina/lic2", [(SA, "list", 0.5), (SB, "list", 0.5)], licence=licence)
-    res2 = run(mw, "dina/lic2", mix(t, t["root"], [(0.5, "startA"), (0.5, "startB")], own_seed=1), rec2)
-    assert res2["result"] == "NEEDS_CORRECTION" and [r["field"] for r in res2["reasons"]] == ["licence"], res2["reasons"]
-    from reax_lineage.listing import ALLOWED_LICENCES
-    assert ALLOWED_LICENCES == {"Apache-2.0"}
+def test_minimal_schema_and_legacy_dispatch():
+    from reax_lineage.evidence import load_schema, validate_record
 
-
-def test_the_published_schema_files_say_apache_only_and_name_the_limits():
-    from reax_lineage.evidence import load_schema
-    v2, v1 = load_schema("reax-lineage/2"), load_schema("reax-lineage/1")
-    assert v2["properties"]["licence"]["enum"] == ["Apache-2.0"] and v1["properties"]["licence"]["enum"] == ["Apache-2.0"]
-    assert v2["properties"]["schema"]["const"] == "reax-lineage/2" and v1["properties"]["schema"]["const"] == "reax-lineage/1"
-    assert "at most 4 parents" in v2["description"] and "0.10" in v2["description"] and "maxItems" not in json.dumps(v2["properties"]["parents"])
+    for rec in ({"hotkey": HOTKEY, "from_scratch": True},
+                {"hotkey": HOTKEY, "parents": [{"kind": "list", "repo": "org/startA", "revision": REV(2), "share": 1}]}):
+        assert validate_record(rec, HOTKEY, "dina/x", REV(10)) == []
+    assert validate_record({"hotkey": HOTKEY}, HOTKEY, "dina/x", REV(10))
+    assert validate_record({"from_scratch": True}, HOTKEY, "dina/x", REV(10))
+    for version in ("reax-lineage/1", "reax-lineage/2"):
+        schema = load_schema(version)
+        assert schema["properties"]["schema"]["const"] == version
+        assert "entry" not in schema["required"]
 
 
 def test_a_declared_parent_named_in_the_readme_is_no_undeclared_id(mw):
@@ -605,7 +595,7 @@ def test_a_declared_parent_named_in_the_readme_is_no_undeclared_id(mw):
     res = run(mw, "dina/readme", c, prec("dina/readme", [(SA, "list", 0.5), (SB, "list", 0.5)]), readme="A merge of org/startA and org/startB.\n")
     assert res["result"] == "PASS", res["reasons"]
     res = run(mw, "dina/readme2", c, prec("dina/readme2", [(SA, "list", 0.5), (SB, "list", 0.5)]), readme="A merge of org/startA, org/startB and alice/entry1.\n")
-    assert res["result"] == "NEEDS_CORRECTION" and codes(res, "N") == ["undeclared_id"]
+    assert res["result"] == "PASS" and "undeclared_id" in codes(res, "I")
 
 
 # ------------------------------------------------------------------- Tier B, a rotated merge, the confirmation without Tier B ----
@@ -759,3 +749,36 @@ def test_a_failing_parent_fit_never_crashes_the_check_and_is_said_to_the_miner(m
     assert "the joint fit of your weights on your parents failed" in res["reasons"][0]["message"] and "ValueError" in res["reasons"][0]["message"]
     assert any("no candidate was measured" in n for n in res["notes"]) and res["weight_overlaps"] == [] and not codes(res, "R") and not codes(res, "H")
     assert [p["confirmed"] for p in res["parents"]] == [False, False] and res["parents_fit"]["A"]["error"].startswith("ValueError")
+
+
+@pytest.mark.parametrize("dry", [False, True])
+@pytest.mark.parametrize("schema", ["reax-lineage/1", "reax-lineage/2"])
+@pytest.mark.parametrize("legacy_entry_revision", [{}, {"revision": "b" * 40}, {"revision": "placeholder"}])
+def test_external_revision_pins_record_and_result(mw, dry, schema, legacy_entry_revision):
+    repo, rev = "dina/external-pin", REV(101)
+    if schema == "reax-lineage/1":
+        rec = record(repo, rev, "org/startA", REV(2))
+    else:
+        rec = prec(repo, [(SA, "list", 1)])
+    rec["entry"] = {"repo": repo, **legacy_entry_revision}
+    # A different file at a legacy SHA must never be selected.
+    write_repo(mw.hub, repo, "b" * 40, mw.tensors["startA"])
+    write_repo(mw.hub, repo, rev, finetune(mw.tensors["startA"], 89, 0.15), record=rec)
+    res = Check(repo, rev, hotkey=HOTKEY, block=1000, commit_time=COMMIT,
+                list_path=mw.list_path, db_path=mw.dbdir, hub=Hub(hub_dir=mw.hub),
+                spec=SPEC, dry_run=dry, seed_b=None if dry else SEED_B, jobs=1).run()
+    assert res["result"] == "PASS", res["reasons"]
+    assert res["entry"]["revision"] == rev
+    assert set(res["weights"]["samples"]) == ({"A"} if dry else {"A", "B"})
+
+
+def test_self_parent_uses_external_revision():
+    from reax_lineage.evidence import validate_record
+
+    repo, rev, prior = "dina/entry", REV(101), REV(100)
+    rec = prec(repo, [(repo + "@" + rev, "entry", 1)])
+    rec["entry"] = {"repo": repo, "revision": prior}
+    assert [p.code for p in validate_record(rec, HOTKEY, repo, rev)] == ["parent_self"]
+
+    rec["parents"][0]["revision"] = prior
+    assert validate_record(rec, HOTKEY, repo, rev) == []
