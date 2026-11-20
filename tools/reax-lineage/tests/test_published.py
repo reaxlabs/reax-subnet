@@ -1,4 +1,4 @@
-"""Checker 1.6.1 (RULES 2.2 / 4.7, d11): another holder's entry (as parent) or teacher must have been officially scored in a window whose results were PUBLISHED before the
+"""Another holder's entry used as a weight parent must have been officially scored in a window whose results were published before the
 commitment (`scored_published_at` on the DB row, strictly earlier than the commitment time); the entry's own holder is exempt; without a commitment time (dry run) any publication counts."""
 import os
 import sys
@@ -89,7 +89,8 @@ def test_teacher_note_does_not_depend_on_window_publication(tmp_path):
     w, c = build(tmp_path, None)
     rec = prec("dina/t", [(SA, "list", 1.0)])
     res = run(w, "dina/t", c, dict(rec, teachers=[{"name": "T", "repo_or_api": "bob/ent", "use": "distillation"}]))
-    assert res["result"] == "PASS" and all(b["role"] != "teacher" for b in res["bar_list"]), res["reasons"]
+    assert codes(res, "N") == ["start_not_confirmed"], res["reasons"]
+    assert codes(res, "R") == [] and all(b["role"] != "teacher" for b in res["bar_list"])
     w2, c2 = build(tmp_path / "ok", PUB_OK)
     res2 = run(w2, "dina/t", c2, dict(rec, teachers=[{"name": "T", "repo_or_api": "bob/ent", "use": "distillation"}]))
     assert not [x for x in codes(res2, "R") if x.startswith("teacher_")], res2["reasons"]
