@@ -1,0 +1,44 @@
+catalog_id,dataset,origin_class,tracks,requests,case_groups
+1,BFCL,Jev-adapted benchmarks,BFCL-tool-selection,127,127
+2,ToolRet,Jev-adapted benchmarks,ToolRet-retrieval,51,51
+3,API-Bank,Jev-adapted benchmarks,API-Bank-tool-selection,38,38
+4,BANKING77,Original-task benchmarks,BANKING77,231,231
+5,CLINC150+OOS,Original-task benchmarks,CLINC150+OOS,412,412
+6,RouterBench,Jev-adapted benchmarks,RouterBench-0shot|RouterBench-5shot,750,375
+9,Home appliance simulator,Purpose-built benchmarks,Home-Appliance,7,7
+10,SGD/SGD-X,Jev-adapted benchmarks,SGD-service-given-intent,188,188
+11,ContractNLI,Original-task benchmarks,ContractNLI,9,9
+12,ANLI,Original-task benchmarks,ANLI,240,240
+20,BPoMP,Jev-adapted benchmarks,BPoMP-original-limerick,340,61
+21,Humicroedit,Jev-adapted benchmarks,Humicroedit,197,197
+22,POP909-CL,Jev-adapted benchmarks,POP909-chord-pitch-class,150,150
+23,cfcolor,Jev-adapted benchmarks,CFColor-preference,375,375
+24,MMLU,Original-task benchmarks,MMLU,1052,1052
+25,GPQA Diamond,Original-task benchmarks,GPQA-Diamond,15,15
+26,ARC-Easy,Original-task benchmarks,ARC-Easy,178,178
+27,ARC-Challenge,Original-task benchmarks,ARC-Challenge,88,88
+28,WinoGrande,Original-task benchmarks,WinoGrande,95,95
+29,HellaSwag,Original-task benchmarks,HellaSwag,753,753
+30,GSM8K,Jev-adapted benchmarks,GSM8K-10choice|GSM8K-4choice,198,99
+31,ChessBench,Jev-adapted benchmarks,ChessBench-legal-move,375,375
+32,MuSR,Original-task benchmarks,MuSR,56,56
+33,SATA-Bench,Original-task benchmarks,SATA-Bench,124,124
+34,SimpleBench,Original-task benchmarks,SimpleBench,1,1
+36,BRIGHT,Jev-adapted benchmarks,BRIGHT-retrieval,16,16
+37,Amazon ESCI,Original-task benchmarks,Amazon-ESCI,375,375
+38,ACOS,Jev-adapted benchmarks,ACOS-category-sentiment,125,30
+39,FinEntity,Jev-adapted benchmarks,FinEntity-entity-given,73,73
+40,iSarcasmEval,Original-task benchmarks,iSarcasmEval-A-Ar|iSarcasmEval-A-En|iSarcasmEval-B-En|iSarcasmEval-C-Ar|iSarcasmEval-C-En,345,345
+41,VAST,Original-task benchmarks,VAST,225,225
+42,NLI4CT,Original-task benchmarks,NLI4CT-2024,412,412
+43,CRUXEval,Jev-adapted benchmarks,CRUXEval-output-choice,43,43
+44,CLadder,Original-task benchmarks,CLadder,375,375
+45,HLE,Original-task benchmarks,HLE-text-MC,38,38
+50,Habermas Machine,Jev-adapted benchmarks,Habermas-consensus,126,126
+56,PhishNChips phishing decisions,Original-task benchmarks,native-nine-question,150,150
+57,MMLU-Pro,Original-task benchmarks,biology|business|chemistry|computer science|economics|engineering|health|history|law|math|other|philosophy|physics|psychology,902,902
+58,BBH fixed-option tasks,Original-task benchmarks,boolean_expressions|causal_judgement|date_understanding|disambiguation_qa|formal_fallacies|geometric_shapes|hyperbaton|logical_deduction_five_objects|logical_deduction_seven_objects|logical_deduction_three_objects|movie_recommendation|navigate|penguins_in_a_table|reasoning_about_colored_objects|ruin_names|salient_translation_error_detection|snarks|sports_understanding|temporal_sequences|tracking_shuffled_objects_five_objects|tracking_shuffled_objects_seven_objects|tracking_shuffled_objects_three_objects|web_of_lies,413,413
+59,RAGTruth response-level hallucination,Original-task benchmarks,Data2txt|QA|Summary,202,202
+61,HoVer claim verification,Original-task benchmarks,2-hop|3-hop|4-hop,300,300
+62,When2Call MCQ,Original-task benchmarks,cannot_answer|request_for_info|tool_call,274,274
+64,New Yorker caption matching,Original-task benchmarks,matching-fold-0,40,40

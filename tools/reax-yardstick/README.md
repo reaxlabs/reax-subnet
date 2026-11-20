@@ -102,6 +102,12 @@ it with `--hle` (needs `pyarrow`). Alternatively, pass `--hle hub` with the `dat
 yardstick rebuilds our 509 items from the HLE rows: the question without its answer list, the lettered options, and one
 decline option ("I don't know" or "It would be best to consult a human expert") as the next letter. It checks each item's hash.
 
+## Separate public development roster
+
+The [TUNE development panel](tune/README.md) provides IDs and hashes for 10,484 requests from 43 benchmarks
+and a verifier for your local copy of the upstream suite. Use it for evaluation under the original source terms.
+Its items are outside the preview composite.
+
 ## Same scoring as the preview
 
 The readout code is the preview's, ported line by line:
