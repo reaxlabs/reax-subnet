@@ -16,10 +16,10 @@
 1. Quick read, whenever you like: `reax-answertest --model <model> --url <your runtime> --token-file <file> --duration 20`.
    Takes about 10-20 minutes; prints a table and the concurrency you would be admitted at.
 2. Binding run: we run it against your endpoint with test traffic only (a public golden set, no customer data), with two
-   cold starts (we ask you to restart the runtime once). Same bar as our own nodes.
+   cold starts (we ask you to restart the runtime once). The same kind of bar as our own nodes (exact numbers after our calibration run).
 3. We repeat it when the engine image, GPU model, driver major version or the concurrency changes. During operation we
-   spot-check about 2 % of real answers on our reference; if answers drift, the concurrency is lowered automatically and
-   you can re-test to raise it. For that check we store only technical numbers, no request text.
+   spot-check about 2 % of real answers on our reference; if answers drift, we can lower the concurrency (planned as an
+   automatic step) and you can re-test to raise it. For that check we store only technical numbers, no request text.
 
 **What stays**
 - Contract and pay unchanged: you are paid per verified GPU-hour (hour passes with >= 90 % positive validator rounds, no
@@ -46,8 +46,8 @@
 2. Verbindlicher Lauf: wir führen ihn gegen Ihren Endpunkt aus, nur mit Testverkehr (öffentliches Testset, keine Kundendaten),
    mit zwei Kaltstarts (wir bitten Sie einmal, die Runtime neu zu starten). Gleiche Messlatte wie bei unseren eigenen Knoten.
 3. Wir wiederholen ihn bei neuem Engine-Image, anderem GPU-Modell, anderer Treiber-Hauptversion oder höherer Parallelität.
-   Im Betrieb prüfen wir etwa 2 % der echten Antworten stichprobenartig gegen unsere Referenz; driften die Antworten, wird die
-   Parallelität automatisch gesenkt, und ein neuer Test hebt sie wieder an. Dafür speichern wir nur technische Zahlen, keinen
+   Im Betrieb prüfen wir etwa 2 % der echten Antworten stichprobenartig gegen unsere Referenz; driften die Antworten, können wir die
+   Parallelität senken (geplant als automatischer Schritt), und ein neuer Test hebt sie wieder an. Dafür speichern wir nur technische Zahlen, keinen
    Anfragetext.
 
 **Was bleibt**
