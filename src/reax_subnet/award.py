@@ -188,12 +188,21 @@ class AwardGate:
 
     def approved(self, track_id: str, hotkey: str, submission_id: str) -> bool:
         try:
-            return self._approved(track_id, hotkey, submission_id)
+            return self._approved(track_id, hotkey, submission_id) is not None
         except Exception:  # noqa: BLE001 - fail closed, never stop the validator
             log.exception("award approvals: internal error; award [%s] not paid", track_id)
             return False
 
-    def _approved(self, track_id: str, hotkey: str, submission_id: str) -> bool:
+    def approved_at(self, track_id: str, hotkey: str, submission_id: str) -> Optional[float]:
+        """Time of the same signed, current record that ``approved`` honours; None on any doubt."""
+        try:
+            payload = self._approved(track_id, hotkey, submission_id)
+            return payload["approved_at"] if payload is not None else None
+        except Exception:  # noqa: BLE001 - never stop weight setting
+            log.exception("award approvals: cannot read approval time [%s]", track_id)
+            return None
+
+    def _approved(self, track_id: str, hotkey: str, submission_id: str) -> Optional[dict]:
         try:
             self._refresh()
         except Exception as exc:  # noqa: BLE001 - fail closed, never stop the validator
@@ -202,6 +211,7 @@ class AwardGate:
             log.warning("award approvals: %s; every competition award goes to the inference part", self._problem)
         self._logged_problem = self._problem
         now = self._wall()
+        selected = None
         ok, why = False, "awaiting owner approval"
         for p in self._entries:
             if (p["track_id"], p["hotkey"], p["submission_id"]) != (track_id, hotkey, submission_id):
@@ -211,6 +221,7 @@ class AwardGate:
             elif p["expires_at"] is not None and now >= p["expires_at"]:
                 why = "approval expired; awaiting owner approval"
             else:
+                selected = p
                 ok, why = True, "approved by the owner"
                 break
         ident = (track_id, hotkey, submission_id)
@@ -219,7 +230,7 @@ class AwardGate:
             (log.info if ok else log.warning)("award [%s] hotkey %s submission %s: %s%s", track_id, hotkey[:16],
                                               submission_id, status, "" if ok else " (its share goes to the inference part)")
             self._logged[ident] = status
-        return ok
+        return selected
 
 
 # ------------------------------------------------------------------------------------------------ CLI

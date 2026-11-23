@@ -51,7 +51,7 @@
 | `REAX_MAX_PARALLEL` | `256` | concurrent miner requests (256 = every UID at once) |
 | `REAX_STATE_PATH` | `~/.reax/validator-state.json` | persisted scores |
 | `REAX_EU_REGISTRY_FILE` | the packaged `eu_registry.json` (no operator) | EU tier registry (docs/EU-TIER.md), reloaded every round; invalid = empty registry, logged at ERROR |
-| `REAX_EU_VERIFICATION_FILE` | none (nobody EU-verified) | EU probe results per hotkey (RTT + ASN checks, valid 6 h); without it Scheme A pays x1.0 and the contract tier counts no hours |
+| `REAX_EU_VERIFICATION_FILE` | none (nobody EU-verified) | EU probe results per hotkey (RTT + ASN checks, valid 6 h); without it Scheme A pays x1.0; contract admission uses the signed registry and manual EU check |
 | `REAX_EU_MARKET_FILE` | none (no price: the contract tier pays nothing) | daily alpha/TAO and TAO/EUR quotes + inference-share estimate (`tools/eu_tier_quote.py`) |
 | `REAX_EU_TIER_STATE_PATH` / `REAX_EU_TIER_RECEIPTS_DIR` | `eu-tier-state.json` / `eu-tier-receipts/` next to `REAX_STATE_PATH` | contract-tier hour ledger and the public daily receipts (written only while an operator is active) |
 | `REAX_SET_WEIGHTS` | `1` | `0` = shadow mode |

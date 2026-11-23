@@ -174,3 +174,44 @@ the smaller-sample vLLM rows above (0.48–1.06, ≥ 0.9999), with no strike in 
 A100, L4, H200 and other cards; FP8/INT4 builds other than vLLM online FP8; a model distilled on the
 public item generator. Operators on other hardware should run `scripts/calibration_s1` against a reference result
 before mining.
+
+## Staged generalist round-2 keep-alive reader (17 November 2026)
+
+This change is inactive until both `2026-11-21T15:00:00Z` and a nonempty
+`REAX_KA_FEED_PATH`. Its entry set comes exclusively from the round-2
+`reax-keepalive-feed/1` sidecar and the relay's existing chain-checked title
+metadata, dated round-1 hotkey pins and chain-checked operator waiting overrides.
+It does not read intake-state or derive payment from diagnostic scores.
+The sidecar's opaque diagnostic objects are skipped at the JSON decoding boundary;
+only payment fields leave the reader or enter its in-memory cache.
+
+The active generalist path admits at most 64 uids, former champions first, followed
+by commitment block, extrinsic index and uid. Nonchampions have a two-uid coldkey
+cap and must match both chain hotkey and coldkey. Serving income is topped up to
+the common keep-alive level, capped in total at 25% of the generalist track share.
+Approved ranked uids take no keep-alive slot on an unpaused track. Relay titles
+require award approval; round-1 pins require their exact chain hotkeys through
+2026-12-31T23:59:59Z (exclusive). Waiting overrides follow the feed set within
+64 slots. The global legacy entry limit and other tracks retain their existing behavior.
+
+Missing, unreadable, invalid, wrong-round, stale or more than 300 seconds
+future-dated current feeds use the last successfully validated payment projection from the same path while
+its generation age is at most 26 hours. Every payout rechecks entry expiry,
+current chain hotkey and coldkey, ordering, the coldkey cap and the 64-entry bound.
+Without a last-good projection of that age, former champions and valid operator
+waiting overrides remain eligible.
+The cache is in memory only and a failed read never renews its generation time.
+A schema-valid older side without the optional `keepalive_ends_at` field is not
+paid as an entry; explicit null means the entitlement has no end yet.
+
+The golden vectors in `tests/fixtures/ka-feed/golden-08833c7.json` were captured
+from the pinned live-image commit before source changes, and compare exact float
+hex values across activation boundaries. The tests also cover the remote adapter,
+relay-derived champions beyond the old podium limit, serving top-ups, the track
+budget, identity checks, failure fallback and discarded diagnostic contents.
+
+Release integration remains with the lead: assign the coordinated release and
+`WEIGHTS_VERSION_KEY` before enabling the changed scoring path. This worker keeps
+the pinned image identifiers and installs no configuration. The named real intake
+sample feeds and HANDOVER.md were unavailable on this worker host; synthetic
+contract tests do not replace the required source-fixture replay.

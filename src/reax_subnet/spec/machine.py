@@ -45,6 +45,13 @@ MARGIN_FLOOR = 1.5
 MARGIN_FLOOR_V4 = 1.0
 SE_MULTIPLE = 2.0
 CONFIRM_DELAY_S = 12 * 3600
+# The one-time extra generalist slot Fri 30 Oct 2026 16:30Z (competition_split.EXTRA_CROWN_SLOTS_UTC, Florian #31857): a first
+# pass taken from Thu 29 Oct 14:30Z (the slot before it) up to the slot, by an entry whose slot is that one, gets its
+# confirmation draw FAST_CONFIRM_DELAY_S after the first draw (fresh items, same margin) instead of CONFIRM_DELAY_S, which
+# stays 12 h everywhere else. ``confirm_delay_s``. FAST_CONFIRM_SLOT_UTC None = off.
+FAST_CONFIRM_SLOT_UTC: Optional[datetime] = datetime(2026, 10, 30, 16, 30, tzinfo=timezone.utc)
+FAST_CONFIRM_FROM_UTC = datetime(2026, 10, 29, 14, 30, tzinfo=timezone.utc)
+FAST_CONFIRM_DELAY_S = 2 * 3600
 # Every pending confirmation gets its draw before its track closes (Florian 21 Oct 2026). OFF (None) until the dated release
 # notice: a first pass at/after this instant (or an entry still pending when the first cycle at/after it runs) is due at
 # ``min(first pass + CONFIRM_DELAY_S, track end - CONFIRM_CLOSE_LEAD_S)``, never earlier than its first pass. No env override:
@@ -154,6 +161,18 @@ def confirm_due_ts(first_pass_ts: float, delay_s: float, track_end_ts: float | N
     if end is None or not confirm_before_close_active(now_for_gate):
         return due
     return max(first_pass_ts, min(due, end - CONFIRM_CLOSE_LEAD_S))
+
+
+def confirm_delay_s(first_pass_ts: float, slot_ts: float | None, default: float = CONFIRM_DELAY_S) -> float:
+    """The confirmation delay of a first pass at ``first_pass_ts`` (unix seconds) by an entry whose crown slot is ``slot_ts``
+    (None = unknown): ``min(default, FAST_CONFIRM_DELAY_S)`` when ``slot_ts`` is ``FAST_CONFIRM_SLOT_UTC`` and the first
+    pass lies in [``FAST_CONFIRM_FROM_UTC``, that slot); ``default`` (``CONFIRM_DELAY_S``) otherwise."""
+    fast = FAST_CONFIRM_SLOT_UTC
+    if fast is None or slot_ts is None or slot_ts != fast.timestamp():
+        return default
+    if not FAST_CONFIRM_FROM_UTC.timestamp() <= first_pass_ts < fast.timestamp():
+        return default
+    return min(default, FAST_CONFIRM_DELAY_S)
 
 
 def confirmation_due(first_pass_ts: float, now: float, delay_s: float = CONFIRM_DELAY_S) -> bool:

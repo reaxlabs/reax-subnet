@@ -81,7 +81,7 @@ only helps you if it stays inside the pool tolerances (mean 0.20, item 2.0). Eng
 4. `reax-selfcheck` passes on every GPU type of docs/CALIBRATION.md, not only on one card.
 5. Edit `POOL_RUNTIME_IMAGES` (`validate_pool_runtime_images` refuses a champion without award, licence, engine uid or digest).
 6. Announce on #92 (netuid 92) before the release goes out.
-7. Our own serving rolls out by our internal runbook.
+7. Our own serving rolls out using the operator's internal serving rollout runbook.
 
 ## How the s1 miner fits together
 

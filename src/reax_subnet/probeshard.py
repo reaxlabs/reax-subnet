@@ -68,6 +68,7 @@ class ProbeWindow:
     trace: Optional[dict[int, list[tuple[int, float, float, bool]]]] = None
     failed: list[str] = field(default_factory=list)  # shards that failed: the probe is dropped
     refused: dict[int, int] = field(default_factory=dict)  # uid -> lanes the miner turned away with 429/503
+    lane_errors: dict[int, dict[str, int]] = field(default_factory=dict)  # diagnostics only, error type -> count
 
 
 def shard_count(lanes_total: int, uids: int, env: Optional[dict] = None) -> int:

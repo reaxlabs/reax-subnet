@@ -117,8 +117,10 @@ def build_local_stack(e: EngineConfig, sealed_dir: str, env: Mapping[str, str], 
                                    engine_start_utc=engine_start, award_gate=award_gate,
                                    chain_id=_chain_id(env), cycle_gate_file=e.cycle_gate_file,
                                    cycle_gate_max_age_s=float(e.cycle_gate_max_age_s), composites={track.name: track},
-                                   v1_bridge=(v1_bridge_from_env(env, e.state_path, {track.name: track}, e.release_mode)
+                                   v1_bridge=(v1_bridge_from_env(env, e.state_path, {track.name: track}, e.release_mode,
+                                                                 v1_marker_dir(env))
                                               if award_gate is not None else None),  # the worker pays nothing
+                                   v1_marker_dir=v1_marker_dir(env),
                                    composite_start_utc=release_v2_start() if e.release_mode else None)
         return engine, adapter, adapter.evaluator if adapter else None
     log.info("engine competition: %s runner, reference %s, split profile %s, starts %s", e.runner, e.reference,
@@ -132,11 +134,20 @@ def build_local_stack(e: EngineConfig, sealed_dir: str, env: Mapping[str, str], 
     return engine, adapter, adapter.evaluator if adapter else None
 
 
-def v1_bridge_from_env(env: Mapping[str, str], state_path: str, composites: Any, release_mode: bool = False):
+def v1_marker_dir(env: Mapping[str, str], default_dir: str = "") -> str:
+    """Directory of the v1 bridge's one-way marker files: ``REAX_ENGINE_V1_MARKER_DIR``, else ``default_dir`` (the remote
+    validator passes the directory of its own state file), else "" (= next to the engine state)."""
+    return os.path.expanduser(env.get("REAX_ENGINE_V1_MARKER_DIR") or default_dir or "")
+
+
+def v1_bridge_from_env(env: Mapping[str, str], state_path: str, composites: Any, release_mode: bool = False,
+                       marker_dir: str = ""):
     """The v1 payout bridge tuple ``(frozen v1 state path, end time, pinned sha256)`` or None, the same for the remote validator
     and the local competitions mode (both must pay the same weights). The frozen file is ``REAX_ENGINE_V1_STATE_PATH`` (default
     ``engine-competition-v1.json`` next to the engine state); every validator needs the same bytes. On finney a configured but
-    missing, mismatching or unfinished file refuses the start (ConfigError); at runtime an unusable file still pays nothing."""
+    missing, mismatching or unfinished file, or (with ``marker_dir``, the resolved marker directory, default next to
+    ``state_path``) a marker directory that is not writable, refuses the start (ConfigError); at runtime an unusable
+    file still pays nothing."""
     if not (composites and _csplit.ENGINE_V1_BRIDGE_END_UTC is not None and _csplit.ENGINE_V1_BRIDGE_STATE_SHA256):
         return None
     bridge = (env.get("REAX_ENGINE_V1_STATE_PATH")
@@ -150,6 +161,14 @@ def v1_bridge_from_env(env: Mapping[str, str], state_path: str, composites: Any,
         except Exception as exc:  # noqa: BLE001
             raise ConfigError(f"frozen v1 engine state {bridge[0]} is unusable ({type(exc).__name__}: {exc}); every validator needs "
                               "the pinned bytes (REAX_ENGINE_V1_STATE_PATH), else the v1 rights are not paid") from exc
+        from .engvalidator import probe_writable
+
+        mdir = marker_dir or os.path.dirname(os.path.abspath(state_path))
+        try:
+            probe_writable(mdir)
+        except Exception as exc:  # noqa: BLE001
+            raise ConfigError(f"v1 payout bridge marker directory {mdir} is not writable ({type(exc).__name__}: {exc}); the bridge "
+                              "would pay nothing (REAX_ENGINE_V1_MARKER_DIR)") from exc
     return bridge
 
 

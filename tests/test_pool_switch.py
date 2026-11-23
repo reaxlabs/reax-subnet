@@ -369,6 +369,33 @@ def test_next_backend_carries_the_new_manifest(tmp_path):
     assert _s1_next_backend(cfg.common, "s1-fast") is None  # no switch for the other pools
 
 
+def test_next_runtime_inflight_is_per_pool_and_defaults_to_runtime_inflight(tmp_path):
+    """rxnode-03 rehearsal 29 Oct: ref-mammoth packs concurrent requests (concurrency 4: median distance 0.07,
+    concurrency 1: bit-identical), so the next reference can be held to one decision in flight."""
+    from reax_subnet.config import ConfigError
+
+    url = {"REAX_S1_PRO_NEXT_RUNTIME_URL": "http://127.0.0.1:8112"}
+    base = load_validator(_env(tmp_path, **url)).common
+    assert base.next_inflight("s1-pro") == base.runtime_inflight == 16
+    one = load_validator(_env(tmp_path, **url, REAX_S1_PRO_NEXT_RUNTIME_INFLIGHT="1")).common
+    assert one.next_inflight("s1-pro") == 1 and one.runtime_inflight == 16  # the live pools keep their inflight
+    assert load_validator(_env(tmp_path, **url, REAX_S1_PRO_NEXT_RUNTIME_INFLIGHT="")).common.next_inflight("s1-pro") == 16
+    # without a NEXT URL the setting has nothing to apply to
+    assert load_validator(_env(tmp_path, REAX_S1_PRO_NEXT_RUNTIME_INFLIGHT="1")).common.next_runtime_inflight == ()
+    for bad in ("0", "x"):
+        with pytest.raises(ConfigError):
+            load_validator(_env(tmp_path, **url, REAX_S1_PRO_NEXT_RUNTIME_INFLIGHT=bad))
+
+
+@pytest.mark.real_switch
+def test_next_backend_uses_the_next_inflight(tmp_path):
+    from reax_subnet.cli import _s1_next_backend
+
+    cfg = load_validator(_env(tmp_path, REAX_S1_PRO_NEXT_RUNTIME_URL="http://127.0.0.1:8112",
+                              REAX_S1_PRO_NEXT_RUNTIME_INFLIGHT="1"))
+    assert _s1_next_backend(cfg.common, "s1-pro").max_inflight == 1
+
+
 @pytest.mark.real_switch
 def test_engine_models_borrowing_s1pro_keep_the_release_manifest_after_the_switch(monkeypatch):
     """critic-post81 F1: quyet-1-large / jeffan-31b borrow the s1-pro manifest; the timed pool switch must not change it."""

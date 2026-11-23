@@ -100,7 +100,7 @@ def _s1_next_backend(common: CommonConfig, model: str):
     url = common.next_runtime_url(model)
     if sw is None or not url:
         return None
-    return load_s1_backend(model, url, _runtime_token(common), common.allow_dev_models, common.runtime_inflight,
+    return load_s1_backend(model, url, _runtime_token(common), common.allow_dev_models, common.next_inflight(model),
                            manifest=load_manifest(model, name=sw.manifest_name))
 
 
@@ -438,12 +438,16 @@ def _remote_competition(cfg, e):
 
         track = composite_track_from_env(os.environ, e.release_mode)
         composites, tracks = {track.name: track}, None
-    from .worker import v1_bridge_from_env
+    from .worker import v1_bridge_from_env, v1_marker_dir
 
-    bridge = v1_bridge_from_env(os.environ, e.state_path, composites, e.release_mode)  # v2.1 payout bridge: frozen v1 state, see EngineCompetition
+    # the competitions state may be mounted read-only: the one-way bridge markers live next to the validator's own state
+    marker_dir = v1_marker_dir(os.environ, os.path.dirname(os.path.abspath(cfg.state_path)))
+    bridge = v1_bridge_from_env(os.environ, e.state_path, composites, e.release_mode, marker_dir)  # v2.1 payout bridge: frozen v1 state, see EngineCompetition
     engine = RemoteEngineCompetition(e.state_path, tracks=tracks, reward=reward, start_utc=start, specialist=adapter,
                                      engine_start_utc=engine_start, award_gate=_award_gate(e), composites=composites,
-                                     v1_bridge=bridge,
+                                     generalist_lastgood_path=os.path.join(os.path.dirname(os.path.abspath(cfg.state_path)),
+                                                                          "generalist-ka-lastgood.json"),
+                                     v1_bridge=bridge, v1_marker_dir=marker_dir,
                                      composite_start_utc=_csplit.ENGINE_V2_START_UTC if composites and e.release_mode else None)
     log.info("competitions: REMOTE mode, results read from %s (no docker, no sealed data in this process); starts %s",
              cfg.competitions_state_dir, start.isoformat() if start else "immediately (development network)")

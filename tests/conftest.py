@@ -147,6 +147,17 @@ def _no_crown_slots_unless_set(monkeypatch):
     monkeypatch.setattr(_CS_RELEASE, "ENGINE_CROWN_SLOTS_UTC", ())
 
 
+# Emission follows need (competition_split.NEED_RULE, from Fri 30 Oct 2026 14:30Z): off in every test unless it sets the switch
+# itself (tests/test_emission_need.py), as with the slots above: fake clocks (and the real one after Friday) would otherwise
+# cross NEED_START_UTC in tests written for the weights before it.
+RELEASE_NEED_RULE = _CS_RELEASE.NEED_RULE
+
+
+@pytest.fixture(autouse=True)
+def _need_rule_off_unless_set(monkeypatch):
+    monkeypatch.setattr(_CS_RELEASE, "NEED_RULE", False)
+
+
 # The release arms eval v5.1 (sampling.EVAL_V5_START_UTC = Mon 26 Oct 2026 14:30Z, pool v0.1). Tests run with the gate off unless
 # they set it themselves, as with the crown slots above: fake clocks (and the real one after Monday) would otherwise cross it in
 # tests written for the rules before it. tests/test_v5_arm.py checks the armed release value and the behaviour around it.

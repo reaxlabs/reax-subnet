@@ -274,7 +274,7 @@ def test_finney_validator_is_always_gated_and_held(tmp_path, monkeypatch):
     assert isinstance(gate, A.AwardGate) and not gate.approved("s1-fast", "hk-eng", ENG_SID)
     monkeypatch.setenv("REAX_AWARD_APPROVALS", str(tmp_path / "a.json"))
     assert isinstance(cli._award_gate(SimpleNamespace(release_mode=False)), A.AwardGate)   # opt-in on dev networks
-    cfg = SimpleNamespace(competitions_state_dir=str(tmp_path))
+    cfg = SimpleNamespace(competitions_state_dir=str(tmp_path), state_path=str(tmp_path / "validator" / "validator-state.json"))
     e = SimpleNamespace(release_mode=True, dev_params="", state_path=str(tmp_path / ENGINE_STATE_FILE))
     engine, _ = cli._remote_competition(cfg, e)
     assert engine.engine_start_utc == CS.release_engine_start() and isinstance(engine.award_gate, A.AwardGate)

@@ -10,9 +10,10 @@ Profiles (``SPLIT_PROFILE`` is the active one):
   0.15 + 0.15.
 * ``80/20`` (inactive, kept ready): inference 0.80, engine 0.10, ONE active use-case track 0.10.
 
-Rule that never changes: a competition share that is unclaimed or inactive (no active track, no champion, a struck
-champion, the decayed part of the champion, a missing track rank) goes back to the inference part. It is never
-burned and never paid to the owner UID.
+Until NEED_START_UTC (Fri 30 Oct 2026 14:30Z): a competition share that is unclaimed or inactive (no active track, no
+champion, a struck champion, the decayed part of the champion, a missing track rank) goes back to the inference part; it
+is never burned and never paid to the owner UID. From NEED_START_UTC on ("emission follows need", docs/EMISSION-NEED.md):
+inference gets exactly the current inference share, and everything not paid goes to the owner UID (burned).
 """
 
 from __future__ import annotations
@@ -198,6 +199,11 @@ PROFILES: dict[str, SplitProfile] = {
     "50/50": SplitProfile("50/50", engine=0.20, tracks=(0.15, 0.15)),
 }
 
+
+# Keep the initial release-constant prelude executable without package context:
+# set_generalist_start.py and its validation tests execute that prelude in isolation.
+from . import ka_feed as _ka_feed
+from .ka_feed import GR2_KA_FEED_START_UTC
 
 @dataclass(frozen=True)
 class TrackSchedule:
@@ -386,7 +392,22 @@ KEEPALIVE_BIG_MARGIN = 1.5
 # REAX 1 rows, on the r8 footing (shipped pplx floor 58.01 + the paired non-proc offset vs pplx on the same 6 draws of the final
 # pool, 21 Oct): decisionmodels/reax-1@ca2a0cc5 (4031ce5e..., the official base) 60.43 (+2.42); the earlier public revision
 # @ea9d5d8b (572884f6..., readout not rescaled) 55.34 (-2.67).
-KEEPALIVE_BASE_FLOOR: dict[str, dict[str, float]] = {'0e8d23478b5b6ccefff3136e5e53ecfb7d053451ec405d2b0fe31ce3a49a713e': {'generalist': 39.23}, '1647929265009944f8157465e27417ec84014893953f3b3ed0874e373bb276fc': {'generalist': 62.23}, '19d89e343b9109fcb478d685cb08f15914c4aded296d02c68c2c3fa9f0fdb4df': {'generalist': 39.93}, '4031ce5ec8b6f10e388f09df862810315e4132f429f8cdf308f13566bd159eef': {'generalist': 60.43}, '564471ef18768dd040eb3ce7effaf0561b65b3b2a50cb10980974bae3ae713dd': {'generalist': 55.01}, '572884f6e3788b5debd2084e2789a009622e50272fe6c226e1d93dcb24ec6d41': {'generalist': 55.34}, '81a3eb978ff3c5b90c273a100f36499a86dfec698652c2d181f43e11e89fe08d': {'generalist': 58.01}, 'dac9897fe790514fec2d32f666b5627e098205b051b48fe6630a3699a5138e10': {'generalist': 49.52}}
+KEEPALIVE_BASE_FLOOR: dict[str, dict[str, float]] = {
+    '0e8d23478b5b6ccefff3136e5e53ecfb7d053451ec405d2b0fe31ce3a49a713e': {'generalist': 39.23},
+    '1647929265009944f8157465e27417ec84014893953f3b3ed0874e373bb276fc': {'generalist': 62.23},
+    '19d89e343b9109fcb478d685cb08f15914c4aded296d02c68c2c3fa9f0fdb4df': {'generalist': 39.93},
+    '4031ce5ec8b6f10e388f09df862810315e4132f429f8cdf308f13566bd159eef': {'generalist': 60.43},
+    '564471ef18768dd040eb3ce7effaf0561b65b3b2a50cb10980974bae3ae713dd': {'generalist': 55.01},
+    '572884f6e3788b5debd2084e2789a009622e50272fe6c226e1d93dcb24ec6d41': {'generalist': 55.34},
+    '81a3eb978ff3c5b90c273a100f36499a86dfec698652c2d181f43e11e89fe08d': {'generalist': 58.01},
+    'dac9897fe790514fec2d32f666b5627e098205b051b48fe6630a3699a5138e10': {'generalist': 49.52},
+    # Gemma-4-31B leader bases, on the gemma-4-31B-it footing (shipped 62.23 + the paired non-proc offset vs gemma-4-31B-it on the
+    # same 6 draws of the final pool df68cdc2, one session on floor-calbox-01, 28 Oct 2026; workers/floor-calib/results/tables.md).
+    # Sieve-31B-v3@eb99cd7e: no row (its transformers-5.17 config layout does not serve on vLLM 0.30).
+    "8e41636d16fa5874685a38696ee8a5346fe0c03998dc13343d077617ec6034c1": {"generalist": 63.04},   # PelaAI/KnowLine-31B-Gen1@8f052a81 (+0.81 +-2.07)
+    "c910628ca23a605b6b2de3b2dabf104140326adf882aa7801f627dd8b1414b7e": {"generalist": 48.15},   # turion-ai/turion-jev-31b@866c0fc6 = @9edd5783 tensors (-14.08 +-1.87)
+    "7c8a0695c85afa67f52f834216337990acfa1f42c7db9cc4583c90bb809431f8": {"generalist": 46.32},   # tattrongvu/Jeffan-31b-1710@cebfa86c (-15.91 +-2.65)
+}
 
 # Opening generalist cohort: playoff places 2 and 3 (Florian 21 Oct 2026 ~14:45Z, board #23036, "ErPing's proposal"). Of the
 # generalist track's opening cohort playoff (the first cohort playoff on the vacant track after GENERALIST_START_UTC), the
@@ -441,8 +462,14 @@ def _crown_slots(first: datetime, last: datetime, weekdays: tuple[int, ...] = (0
 
 # rc11.post3 (Florian #24089, slots-mon-thu-1430z): every Monday AND Thursday 14:30Z from Mon 26 Oct 2026 (26 Oct, 29 Oct,
 # 2 Nov, 5 Nov, ...), generated through 31 Mar 2027; the same rules at every slot. Fixed UTC (15:30 Berlin in winter time).
-CROWN_SLOTS_UTC: tuple[datetime, ...] = _crown_slots(datetime(2026, 10, 26, 14, 30, tzinfo=timezone.utc),
-                                                     datetime(2027, 3, 31, 23, 59, tzinfo=timezone.utc))
+# rc11.post4.5.2 / post8.4 (Florian GO #31857, public in #92, 28 Oct 2026): ONE extra generalist slot Fri 30 Oct 2026 16:30Z
+# for every entry confirmed after Thursday's slot; commit cutoff Fri 10:30Z (GENERALIST_COMMIT_CUTOFF_S, the usual 6 h). The
+# Mon/Thu generator is unchanged; the list stays sorted (``_cutoff_slot`` takes the first match). Only the generalist track
+# is active then. The 2 h confirmation for this slot only: ``spec.machine.confirm_delay_s``.
+EXTRA_CROWN_SLOTS_UTC: tuple[datetime, ...] = (datetime(2026, 10, 30, 16, 30, tzinfo=timezone.utc),)
+CROWN_SLOTS_UTC: tuple[datetime, ...] = tuple(sorted(set(
+    _crown_slots(datetime(2026, 10, 26, 14, 30, tzinfo=timezone.utc), datetime(2027, 3, 31, 23, 59, tzinfo=timezone.utc))
+    + EXTRA_CROWN_SLOTS_UTC)))
 
 
 # Engine titles change on Tuesday and Friday, independently of measurement batches. Empty = legacy instant crowns.
@@ -454,6 +481,9 @@ ENGINE_CROWN_SLOTS_UTC: tuple[datetime, ...] = _crown_slots(
 # Shared leading group at a crown slot (1.2.0rc11.post3; CRITERIA v2 and the public slot rules, reax.co/competitions/faq/#slot-rules;
 # Florian's decisions 22 Oct, card 18227 and DECISIONS tie-numbers-k). Every knob is ONE constant with the approved default, so a
 # change is a one-liner (it must be announced 48 h before the first slot it applies to, slot rules section 1).
+GENERALIST_COMMIT_CUTOFF_S = 6 * 3600
+GENERALIST_COMMIT_CUTOFF_START_UTC = datetime(2026, 10, 29, 14, 30, tzinfo=timezone.utc)
+
 SLOT_MAX_ROUNDS = 3                 # shared rounds (fresh draws, the track's normal draw size: 900 items on v4) per slot
 SLOT_G_FLOOR_FRACTION = 0.5         # K8: G = this x the margin floor of the pinned evaluation (0.5 x 1.0 = 0.5 points on v4)
 SLOT_K8B_LEADER_ALONE = True        # K8b-a: not separated but every other member more than G behind -> the leader is crowned alone.
@@ -470,13 +500,129 @@ SLOT_STOP_WHEN_SEPARATED = True     # K2: stop as soon as one member is left (Fa
 SLOT_RESULTS_KEEP = 40              # slot result records kept in the state (TrackState.slot_results, newest last)
 
 
+# Emission follows need (Florian 26 Oct 2026, DECISIONS emission-follows-need-burn-1030, burn-announced-1026 and the standing
+# pragmatism rule; spec: docs/EMISSION-NEED.md). From NEED_START_UTC on:
+# (1) the inference (serving) part of the miner part is exactly the current inference share, not 1 minus whatever the
+#     competitions claim;
+# (2) a PAUSED competition track ("engine" or a specialist track id) pays no champion and no rank: those entries get the
+#     track's keep-alive, so a pause prunes nobody;
+# (3) every part of the miner part that is not paid (the rest above the inference share, a paused or unclaimed competition
+#     share, the decayed champion part, an unapproved award) goes to the subnet owner UID, i.e. it is burned; it never goes
+#     to another miner.
+# The inference share and the pauses are our decisions (no automatic thresholds): release constants below, plus the
+# operator file need.json (need.py) for a change between releases. Before NEED_START_UTC, or with NEED_RULE False, the
+# weights are exactly the ones without this rule.
+NEED_RULE = True
+# The first weight set at or after the Fri 30 Oct 14:30Z engine crown slot.
+NEED_START_UTC = datetime(2026, 10, 30, 14, 30, tzinfo=timezone.utc)
+# (effective from, inference share of the miner part), increasing in time.
+INFERENCE_SHARE_STEPS: tuple[tuple[datetime, float], ...] = (
+    (NEED_START_UTC, 0.40),
+)
+# Pause key ("engine" or a specialist track id) -> ((from, until or None), ...). Empty = no track paused.
+TRACK_PAUSES: dict[str, tuple[tuple[datetime, Optional[datetime]], ...]] = {}
+# Sanity bounds of an inference share (a typo guard for the constants and need.json, not a promise).
+INFERENCE_SHARE_SANE = (0.05, 0.80)
+
+
+def _need_check() -> None:
+    last: Optional[datetime] = None
+    for at, share in INFERENCE_SHARE_STEPS:
+        assert at.tzinfo is not None and (last is None or at > last), "INFERENCE_SHARE_STEPS must be increasing"
+        assert INFERENCE_SHARE_SANE[0] <= share <= INFERENCE_SHARE_SANE[1], "inference share outside the sanity bounds"
+        last = at
+
+
+_need_check()
+
+
+def need_active(now: Optional[datetime]) -> bool:
+    return NEED_RULE and now is not None and now >= NEED_START_UTC
+
+
+def inference_share(now: Optional[datetime],
+                    extra: Sequence[tuple[datetime, float]] = ()) -> Optional[float]:
+    """The inference share of the miner part at ``now``: the latest step at or before ``now`` of INFERENCE_SHARE_STEPS and
+    ``extra`` (need.json rows; a later step wins, on a tie ``extra``); None = the rule is not active (old weights)."""
+    if not need_active(now):
+        return None
+    share: Optional[float] = None
+    best: Optional[datetime] = None
+    for at, value in [*INFERENCE_SHARE_STEPS, *extra]:
+        if at <= now and (best is None or at >= best):
+            share, best = value, at
+    return share
+
+
+def track_paused(key: str, now: Optional[datetime],
+                 extra: Sequence[tuple[str, datetime, Optional[datetime]]] = ()) -> bool:
+    """True when ``key`` ("engine" or a specialist track id) is paused at ``now`` by TRACK_PAUSES or ``extra``
+    (need.json rows ``(key, from, until)``); always False while the rule is not active."""
+    if not need_active(now):
+        return False
+    return pause_start(key, now, extra) is not None
+
+
+def pause_start(key: str, now: Optional[datetime],
+                extra: Sequence[tuple[str, datetime, Optional[datetime]]] = ()) -> Optional[datetime]:
+    """Start of the continuous pause containing now (overlapping/touching spans do not renew notice)."""
+    if not need_active(now):
+        return None
+    spans = sorted([*TRACK_PAUSES.get(key, ()), *((a, b) for k, a, b in extra if k == key)], key=lambda span: span[0])
+    merged: list[tuple[datetime, Optional[datetime]]] = []
+    for a, b in spans:
+        if merged and (merged[-1][1] is None or a <= merged[-1][1]):
+            old_a, old_b = merged[-1]
+            merged[-1] = (old_a, None if old_b is None or b is None else max(old_b, b))
+        else:
+            merged.append((a, b))
+    return next((a for a, b in merged if a <= now and (b is None or now < b)), None)
+
+
+# Older crowns retain their original clock; their approval delay is settled separately.
+RUNOUT_APPROVAL_CLOCK_FROM_UTC = datetime(2026, 11, 2, 13, 0, tzinfo=timezone.utc)
+
+
+def runout_start(crowned_at: Optional[float], approved_at: Optional[float] = None) -> Optional[float]:
+    """None = unstarted/unknown clock (full factor, independently of the award gate)."""
+    if crowned_at is None or not math.isfinite(crowned_at):
+        return None
+    if crowned_at < RUNOUT_APPROVAL_CLOCK_FROM_UTC.timestamp():
+        return crowned_at
+    if approved_at is None or not math.isfinite(approved_at):
+        return None
+    return max(crowned_at, approved_at)
+
+
+def runout_factor(crowned_at: Optional[float], pause_start: Optional[float], now: float,
+                  approved_at: Optional[float] = None) -> float:
+    """Unix seconds: full through start+3d, linear to zero at start+7d.
+
+    For crowns from RUNOUT_APPROVAL_CLOCK_FROM_UTC, start=max(crown, own approval).
+    Before approval the factor is 1; the independent award gate still controls payment.
+
+    Notice is enforced by needctl before scheduling, never by payout weights.
+    Missing/non-finite times preserve the full share; before the pause this is a no-op.
+    """
+    if any(v is None or not math.isfinite(v) for v in (crowned_at, pause_start, now)):
+        return 1.0
+    if now < pause_start:
+        return 1.0
+    start = runout_start(crowned_at, approved_at)
+    if start is None:
+        return 1.0
+    day = 86400.0
+    return max(0.0, min(1.0, (start + 7 * day - now) / (4 * day)))
+
+
 class RankedLeaders(list):
     """``[(uid, score), ...]`` already in rank order, rank 1 first (docs/SPECIALIST-TRACKS.md, "Ranks"): the specialist
     evaluator's champion, then its former champions, most recently crowned first. ``track_payout`` pays it in this
     order and never re-sorts it by score; the scores come from different draws and are not comparable.
 
     ``crowned``: uid -> when that entry was crowned champion (unix seconds), for the entries that have such a time (the
-    champion; a former champion keeps the time it was crowned). Read only by the keep-share rule (``APPROVAL_GRACE_S``).
+    champion; a former champion keeps the time it was crowned). Used by keep-share and paused-track run-out.
+    ``champions``: current title-holder uids (empty for a vacant title); None for legacy callers without this metadata.
 
     ``cochamps``: uid -> the fraction of rank 1's share that uid is paid, for the members of the opening co-champion set
     (``GENERALIST_CO_CHAMPIONS``) that are still committed (1/n each, n = the size of the set; a dropped member's fraction is
@@ -493,6 +639,7 @@ class RankedLeaders(list):
     ``cochamps_dynamic`` (1.2.0rc11.post3): True when ``cochamps`` is a shared group crowned at a slot (the state's
     ``TrackState.cochamps``), False for the hard-coded opening set (no keep-share rule for it, as in rc11.post2)."""
 
+    champions: Optional[set[int]]
     crowned: dict[int, float]
     cochamps: dict[int, float]
     formset: dict[int, float]
@@ -501,6 +648,7 @@ class RankedLeaders(list):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self.champions = None
         self.crowned = {}
         self.cochamps = {}
         self.formset = {}
@@ -747,6 +895,61 @@ def rank_shares(scores: Mapping[int, float] | Sequence[tuple[int, float]], floor
     return out
 
 
+def _need_weights(base: Mapping[int, float], paid: Mapping[int, float], owner_uid: int, burn: float,
+                  target: float, legacy_paid: float, owner_allocation: Optional[Mapping[int, float]] = None) -> dict[int, float]:
+    """Emission follows need: the serving part of ``base`` (everything but the owner's burn fraction, including the owner's
+    fallback for a pool without an eligible miner) is scaled to ``target`` of the miner part, less the legacy keep-alive
+    that is taken from it; ``paid`` (fractions of the miner part) is added; everything else goes to ``owner_uid``."""
+    miner_part = 1.0 - burn
+    serving = {uid: (w - burn if uid == owner_uid else w) for uid, w in base.items()}
+    serving = {uid: w for uid, w in serving.items() if w > 0}
+    s_total = math.fsum(serving.values())
+    # never more than the room the paid competition parts leave (critic M1: a share above it would be renormalised and
+    # silently shrink the competition payouts)
+    s_share = max(0.0, min(target, 1.0 - math.fsum(paid.values())) - legacy_paid)
+    if s_total <= 0:
+        s_share = 0.0
+    from .owner_alloc import take
+    allocation, taken = take(owner_allocation, s_share)
+    s_share = max(0.0, s_share - taken)
+    out: dict[int, float] = {}
+    for uid, w in serving.items():
+        out[uid] = miner_part * s_share * w / s_total
+    for uid, f in paid.items():
+        out[uid] = out.get(uid, 0.0) + miner_part * f
+    for uid, f in allocation.items():
+        log.info("owner allocation applied uid %s share %.12f", uid, f)
+        out[uid] = out.get(uid, 0.0) + miner_part * f
+    used = math.fsum(out.values())
+    # Burn allocations consume only the residual owner top-up, never its serving component.
+    remainder = max(0.0, 1.0 - used)
+    burn_allocation, _ = take(owner_allocation, remainder / miner_part if miner_part > 0 else 0.0,
+                                       source="burn")
+    if hasattr(owner_allocation, "burn_weights"):
+        owner_allocation.miner_part = miner_part
+        owner_allocation.burn_weights = {uid: miner_part * f for uid, f in burn_allocation.items()}
+    for uid, f in burn_allocation.items():
+        log.info("owner allocation applied uid %s share %.12f source burn", uid, f)
+        out[uid] = out.get(uid, 0.0) + miner_part * f
+    used = math.fsum(out.values())
+    out[owner_uid] = out.get(owner_uid, 0.0) + max(0.0, 1.0 - used)
+    norm = math.fsum(out.values())
+    return {uid: w / norm for uid, w in sorted(out.items()) if w > 0}
+
+
+def need_only(base: Mapping[int, float], owner_uid: Optional[int], burn_fraction: float,
+              now: Optional[datetime]) -> dict[int, float]:
+    """The weights when no competition can be paid (an error path or nothing to pay) under emission follows need: the
+    serving part scaled to the inference share, the rest to the owner UID. Rule not active or no owner UID: ``base``."""
+    target = inference_share(now) if owner_uid is not None else None
+    total = math.fsum(w for w in base.values() if w > 0)
+    if target is None or total <= 0:
+        return dict(base)
+    norm = {uid: w / total for uid, w in base.items() if w > 0}
+    burn = burn_fraction if owner_uid in norm else 0.0
+    return _need_weights(norm, {}, owner_uid, burn, target, 0.0)
+
+
 def keepalive_uids(entries: Sequence[tuple[int, float]], floor: Optional[float] = None,
                    owner_uid: Optional[int] = None) -> list[int]:
     """The uids of a track's keep-alive entries ``[(uid, score), ...]`` (the specialist evaluator's ``keepalive``) that
@@ -767,6 +970,8 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                     burn_fraction: float = 0.0,
                     floors: Mapping[str, Optional[float]] = TRACK_ENTRY_FLOOR,
                     award_ok: Optional[Callable[[str, int], bool]] = None,
+                    award_approved_at: Optional[Callable[[str, int], Optional[float]]] = None,
+                    engine_approved_at: Optional[Mapping[int, float]] = None,
                     keepalive: Optional[Mapping[str, Sequence[tuple[int, float]]]] = None,
                     keepalive_share: Optional[float] = None,
                     provisional: Optional[Mapping[str, Sequence[int]]] = None,
@@ -774,8 +979,26 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                     keep_share: bool = False, now: Optional[float] = None,
                     engine_cochampions: Optional[Mapping[int, float]] = None,
                     legacy_keepalive: Optional[Sequence[int]] = None,
-                    keepalive_protected: Optional[Mapping[str, Sequence[int]]] = None) -> dict[int, float]:
+                    keepalive_protected: Optional[Mapping[str, Sequence[int]]] = None,
+                    paused: Optional[Sequence[str]] = None,
+                    inference: Optional[float] = None,
+                    pause_starts: Optional[Mapping[str, float]] = None,
+                    engine_runout: Optional[Mapping[int, tuple[float, Optional[float]]]] = None,
+                    owner_allocation: Optional[Mapping[int, float]] = None,
+                    generalist_feed_uids: Optional[Sequence[int]] = None,
+                    generalist_lastgood: Optional[Mapping[str, Sequence[int]]] = None,
+                    generalist_ka_used: Optional[dict[str, list[int]]] = None) -> dict[int, float]:
     """Mix the competitions into the serving weights.
+
+    Emission follows need (``need_active(now)``, docs/EMISSION-NEED.md): the serving uids get exactly
+    ``inference_share(now)`` of the miner part, every part that is not paid goes to ``owner_uid`` (burned), and a track in
+    ``paused`` ("engine" or a specialist track id) ends former ranks and applies ``runout_factor`` to rank 1.
+    Ranked entries retain the existing keep-alive floor. ``pause_starts`` supplies each pause's unix start (otherwise
+    release constants are consulted; no start means ignore the pause). ``engine_runout`` contains ONLY title holders:
+    uid -> (current engine pot x frozen rank-1 fraction, crowning unix time), already eligibility/approval gated by the caller.
+    Missing engine metadata ignores the engine pause, preserving its normal weights. ``inference``: the share to use
+    (need.py, with need.json); None = ``inference_share(now)``. Without an owner UID nothing can be burned and the
+    weights are the ones without the rule. ``now`` None or before NEED_START_UTC: exactly the old weights.
 
     ``keep_share`` (with ``now``, unix seconds; needs ``award_ok``): the keep-share rule above (``keep_share_ranks``).
     False = exactly the weights without it.
@@ -827,6 +1050,15 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     keep-alive is deducted from all engine payees in proportion to their payment. None or empty = exactly the weights
     without it.
 
+    ``generalist_feed_uids``: authoritative, chain-checked round-2 entry set in commitment order, former champions
+    first. Used only with REAX_KA_FEED_PATH after GR2_KA_FEED_START_UTC. It replaces the generalist score/provisional
+    lists, has at most 64 entries and tops up each to the same level within the existing 25 percent track cap.
+    None in active feed mode is an empty set; it never restores the legacy score path.
+
+    ``generalist_lastgood``: validator-owned KA/provisional slots, only on unusable spec-state and outside feed mode.
+    The caller rechecks a <=26 h lease, chain identity and award gate. No rank share is restored. Existing median,
+    top-up and share caps still apply. ``generalist_ka_used`` optionally records the selected slots for persistence.
+
     ``legacy_keepalive``: uids of the ended DF/RA tracks' leaders (``legacy_ka_uids``, ``LEGACY_KA_*``). Paid like the
     engine keep-alive (pure entrants only: no serving weight, not the owner, nothing else paid), at most
     ``LEGACY_KA_MAX_ENTRIES`` in the given order, each ``min(LEGACY_KA_FRACTION x per_entry, LEGACY_KA_MAX_SHARE / n)``
@@ -835,6 +1067,13 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     The competition fractions apply to the miner part (the owner's burn stays as it is, as in 1.1). Everything not
     claimed stays with ``serving``. The result is normalised to sum 1; an empty ``serving`` returns ``{}``.
     """
+    # Feed authority is dated AND explicitly configured. The legacy path below
+    # remains bit-identical until both conditions hold.
+    feed_mode = _ka_feed.active(time.time() if now is None else now)
+    feed_uids = ([u for u in dict.fromkeys(generalist_feed_uids or ()) if u != owner_uid][:_ka_feed.MAX_ENTRIES]
+                 if feed_mode else [])
+    if feed_mode:
+        provisional = {t: v for t, v in (provisional or {}).items() if t != "generalist"}
     prof = profile_for(profile, datetime.fromtimestamp(now, timezone.utc) if now is not None else None)
     if floors is TRACK_ENTRY_FLOOR and now is not None and TRACK_ENTRY_FLOOR.get("generalist") is not None:
         from .spec import sampling as _sampling    # eval v5: the generalist scores are S_v5.1 (DI scale); the v4-scale release floor is off
@@ -846,8 +1085,39 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     base = {uid: w / base_total for uid, w in serving.items() if w > 0}
     burn = burn_fraction if owner_uid is not None and owner_uid in base else 0.0
     miner_part = 1.0 - burn
+    need_at = datetime.fromtimestamp(now, timezone.utc) if now is not None else None
+    target = inference_share(need_at) if owner_uid is not None else None
+    if target is not None and inference is not None:
+        target = inference
+    if owner_uid is None and need_active(need_at):
+        log.warning("emission follows need: no owner UID on the subnet, nothing can be burned; weights without the rule")
+    halted = set(paused or ()) if target is not None else set()
+    starts = dict(pause_starts or {})
+    for key in list(halted):
+        if key not in starts:
+            at = pause_start(key, need_at)
+            if at is not None:
+                starts[key] = at.timestamp()
+        if key not in starts or not math.isfinite(starts[key]) or starts[key] > now:
+            halted.remove(key)  # missing start must not introduce an unexpected burn
+    if "engine" in halted and engine_runout is None:
+        halted.remove("engine")
 
     paid: dict[int, float] = {}  # fractions of the miner part
+    halted_engine: list[int] = []  # engine payees of a paused engine track: keep-alive instead of their share
+    ordinary_engine_pay = {}
+    ordinary_engine_waiting = list(engine_waiting or ()) if "engine" in halted else []
+    if "engine" in halted:
+        if engine_champion is not None and engine_share_frac > 0:
+            ordinary_engine_pay[engine_champion] = prof.engine * min(1.0, engine_share_frac)
+        for uid, part in sorted((engine_cochampions or {}).items()):
+            if part > 0 and uid != owner_uid:
+                ordinary_engine_pay[uid] = ordinary_engine_pay.get(uid, 0.0) + prof.engine * min(1.0, part)
+    if "engine" in halted:
+        halted_engine = [u for u in dict.fromkeys(([engine_champion] if engine_champion is not None else [])
+                                                  + sorted(engine_cochampions or {})) if u != owner_uid]
+        engine_champion, engine_cochampions = None, None
+        engine_waiting = halted_engine + [u for u in (engine_waiting or ()) if u not in halted_engine]
     if engine_champion is not None and engine_share_frac > 0:
         paid[engine_champion] = prof.engine * min(1.0, engine_share_frac)
     for uid, part in sorted((engine_cochampions or {}).items()):
@@ -857,9 +1127,23 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     ka_cap = KEEPALIVE_MAX_SHARE if keepalive_share is None else keepalive_share
     # a uid's own serving weight in the unit of per_entry (docs/DESIGN-MULTIROLE.md section 5): 0 for a pure entrant
     own = {uid: w / miner_part for uid, w in base.items()}
+    # NEED_OWN_START
+    if target is not None:
+        # Credit only serving pay that survives emission-follows-need. Reserve the
+        # full competition pots (and any legacy cap), so later awards cannot make
+        # this credit exceed the final serving payment. At the release's 0.40
+        # inference share, without legacy, this is the exact post-rescale credit.
+        reserve = prof.engine + math.fsum(prof.tracks)
+        legacy_room = LEGACY_KA_MAX_SHARE if legacy_keepalive and ka_cap > 0 else 0.0
+        credit = max(0.0, min(target, 1.0 - reserve) - legacy_room)
+        projected = _need_weights(base, {}, owner_uid, burn, credit, 0.0)
+        own = {uid: projected.get(uid, 0.0) / miner_part for uid in base if uid != owner_uid}
+    # NEED_OWN_END
     cand: dict[str, list[int]] = {}  # keep-alive candidates per track, before the eligibility check and the cut
     if ka_cap > 0:
         for track_id, entries in (keepalive or {}).items():
+            if feed_mode and track_id == "generalist":
+                continue  # the sidecar replaces score-based generalist eligibility
             uids = keepalive_uids(entries, floors.get(track_id), owner_uid)
             if award_ok is not None and uids:
                 # an approved entry is paid by its rank: it does not also hold a keep-alive slot
@@ -867,6 +1151,10 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                 uids = [uid for uid in uids if not (uid in ranked and award_ok(track_id, uid))]
             if uids:
                 cand[track_id] = uids
+    if feed_mode and ka_cap > 0 and feed_uids:
+        ranked = rank_shares(tracks.get("generalist", ()), floors.get("generalist"))
+        cand["generalist"] = [uid for uid in feed_uids if not (
+            "generalist" not in halted and award_ok is not None and uid in ranked and award_ok("generalist", uid))]
     prov_cand: dict[str, list[int]] = {}  # provisional candidates per track, before the taken-check
     if PROVISIONAL_KA and ka_cap > 0:
         # keepalive_share=0 turns the provisional slots off too
@@ -878,12 +1166,49 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             if ids:
                 prov_cand[track_id] = ids
     ranks_of = {t: rank_shares(tracks[t], floors.get(t)) for t in tracks}
+    if generalist_lastgood is not None and not feed_mode:
+        # Already chain/award checked by the validator. Reuse slots, never stale rank shares.
+        taken_elsewhere = set(paid) | {u for t, r in ranks_of.items() if t != "generalist" for u in r}
+        taken_elsewhere.update(u for t, us in cand.items() if t != "generalist" for u in us)
+        taken_elsewhere.update(u for t, us in prov_cand.items() if t != "generalist" for u in us)
+        ka_ids = [u for u in dict.fromkeys(generalist_lastgood.get("keepalive", ()))
+                  if u != owner_uid and u not in taken_elsewhere]
+        pv_ids = [u for u in dict.fromkeys(generalist_lastgood.get("provisional", ()))
+                  if u != owner_uid and u not in taken_elsewhere and u not in ka_ids]
+        if ka_cap > 0:
+            if ka_ids:
+                cand["generalist"] = list(dict.fromkeys(cand.get("generalist", []) + ka_ids))
+            if pv_ids and PROVISIONAL_KA:
+                prov_cand["generalist"] = list(dict.fromkeys(prov_cand.get("generalist", []) + pv_ids))
+    ordinary_cand = dict(cand) if halted else {}
+    ordinary_protected = keepalive_protected
+    if ka_cap > 0:
+        for track_id in sorted(halted & set(ranks_of)):
+            if feed_mode and track_id == "generalist":
+                continue  # a paused track must not add non-feed entrants
+            # paused track: its ranked entries (champion, co-champions, former places) hold keep-alive slots first, so the
+            # pause prunes nobody; they are paid no rank share
+            # (critic H1) only entries the owner-approval gate allows: a rejected entry gets no keep-alive from the pause
+            def _ok(u: int, t: str = track_id) -> bool:
+                return u != owner_uid and (award_ok is None or award_ok(t, u))
+            top = [u for u in ranks_of[track_id] if _ok(u)]
+            tr = tracks[track_id]
+            groups = [getattr(tr, "cochamps", None) or {}, getattr(tr, "formset", None) or {},
+                      *(getattr(tr, "formsets", None) or ())]
+            for u in sorted(set().union(*groups)):
+                if _ok(u) and u not in top:
+                    top.append(u)
+            if top:
+                cand[track_id] = top + [u for u in cand.get(track_id, []) if u not in top]
+                keepalive_protected = {**(keepalive_protected or {}),
+                                       track_id: top + [u for u in (keepalive_protected or {}).get(track_id, ())
+                                                        if u not in top]}
 
-    def cut(track_id: str, uids: list[int]) -> list[int]:
+    def cut(track_id: str, uids: list[int], protected=None) -> list[int]:
         # rc10.post5 (Florian via CoS #23485): protected uids (open opening-cohort entries of the vacant generalist track,
         # spec.evaluator.keepalive_protected) keep their slot first, beyond KEEPALIVE_MAX_ENTRIES if needed; the others
         # fill what is left of the KEEPALIVE_MAX_ENTRIES slots in the given order
-        prot = set((keepalive_protected or {}).get(track_id, ()))
+        prot = set(((keepalive_protected if protected is None else protected) or {}).get(track_id, ()))
         if prot:
             keep = [u for u in uids if u in prot]
             rest = [u for u in uids if u not in prot]
@@ -921,6 +1246,12 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     # keep-alive entries: only those that still gain (own < per_entry) take a slot, pure entrants first
     alive: dict[str, list[int]] = {}
     for track_id in cand:
+        if feed_mode and track_id == "generalist":
+            # critic2 Q7: as on the legacy path, only uids that still gain (own < per_entry) take a slot; feed order kept
+            elig = [u for u in cand[track_id] if own.get(u, 0.0) < per_entry]
+            if elig:
+                alive[track_id] = elig
+            continue
         elig = [u for u in cand[track_id] if own.get(u, 0.0) < per_entry]
         elig = [u for u in elig if u not in own] + [u for u in elig if u in own]
         if WAITING_KA_HOTFIX:
@@ -934,6 +1265,16 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             kept = cut(track_id, elig)
         if kept:
             alive[track_id] = kept
+    ordinary_alive = {}
+    for track_id, candidates in ordinary_cand.items():
+        ids = [u for u in candidates if own.get(u, 0.0) < per_entry]
+        ids = [u for u in ids if u not in own] + [u for u in ids if u in own]
+        ordinary_alive[track_id] = ids if WAITING_KA_HOTFIX else cut(track_id, ids, ordinary_protected or {})
+    ordinary_taken = set(paid) | set(ordinary_engine_pay) | {u for r in ranks_of.values() for u in r}
+    ordinary_taken.update(u for ids in ordinary_alive.values() for u in ids)
+    ordinary_prov = {t: [u for u in ids if u not in ordinary_taken and
+                        (own.get(u, 0.0) < PROVISIONAL_KA_FRACTION * per_entry
+                         if WAITING_KA_HOTFIX else u not in own)] for t, ids in prov_cand.items()} if halted else {}
     taken = {u for ids in alive.values() for u in ids} | set(paid)
     for ranked_t in ranks_of.values():
         taken.update(ranked_t)
@@ -951,6 +1292,9 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                      prof.tracks))  # (track id, slot share), as paid
     slot_ids = {t for t, _ in slots}
     prov = {t: ids for t, ids in prov_all.items() if t in slot_ids and ids}
+    if generalist_ka_used is not None:
+        generalist_ka_used.update(keepalive=list(alive.get("generalist", ())) if "generalist" in slot_ids else [],
+                                  provisional=list(prov.get("generalist", ())))
     ewait: list[int] = []
     if ewait_cand:
         # engine keep-alive (miner report 21903): pure entrants only, never a uid paid elsewhere
@@ -977,6 +1321,35 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                 for u in engine_payees:
                     paid[u] = max(0.0, paid[u] - take * paid[u] / held)
         log.info("engine keep-alive for uids %s, each %.5f of the miner part", ewait, each_ew)
+    if "engine" in halted:
+        # Reconstruct the ordinary engine keep-alive deduction: paused title/former
+        # floors are additional payees, not additional waiting entrants in that budget.
+        taken_normal = ({u for t in slot_ids for u in alive.get(t, ())}
+                        | {u for ids in prov.values() for u in ids} | set(ordinary_engine_pay))
+        taken_normal.update(u for r in ranks_of.values() for u in r)
+        normal_wait = [u for u in dict.fromkeys(ordinary_engine_waiting)
+                       if u != owner_uid and u not in taken_normal
+                       and (own.get(u, 0.0) < ENGINE_KA_FRACTION * per_entry
+                            if WAITING_KA_HOTFIX else u not in own)] if ka_cap > 0 else []
+        if not WAITING_KA_HOTFIX:
+            normal_wait = normal_wait[:ENGINE_KA_MAX_ENTRIES + ENGINE_KA_PROTECTED_MAX]
+        each = min(ENGINE_KA_FRACTION * per_entry, ENGINE_KA_MAX_SHARE * prof.engine / len(normal_wait)) if normal_wait else 0.0
+        deduction = math.fsum(max(0.0, each - own.get(u, 0.0)) if WAITING_KA_HOTFIX else each for u in normal_wait)
+        held = math.fsum(ordinary_engine_pay.values())
+        room = max(0.0, prof.engine - math.fsum(paid.get(u, 0.0) for u in ewait))
+        extras = {}
+        for uid, (part, crowned) in sorted((engine_runout or {}).items()):
+            if uid != owner_uid and part > 0:
+                baseline = prof.engine * min(1.0, part)
+                if held > 0:
+                    baseline = max(0.0, baseline - deduction * ordinary_engine_pay.get(uid, 0.0) / held)
+                amount = baseline * runout_factor(crowned, starts["engine"], now,
+                                                    (engine_approved_at or {}).get(uid))
+                extras[uid] = max(0.0, amount - paid.get(uid, 0.0))
+        total_extra = math.fsum(extras.values())
+        scale = min(1.0, room / total_extra) if total_extra > 0 else 1.0
+        for uid, extra in extras.items():
+            paid[uid] = paid.get(uid, 0.0) + extra * scale
     if legacy_cand:
         # legacy keep-alive (LEGACY_KA_*): pure entrants only, never a uid paid elsewhere; from the inference part
         taken = {u for t in slot_ids for u in alive.get(t, ())} | {u for ids in prov.values() for u in ids} | set(paid)
@@ -988,6 +1361,7 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             for uid in legacy:
                 paid[uid] = each_lk
             log.info("legacy keep-alive (ended DF/RA tracks) for uids %s, each %.5f of the miner part", legacy, each_lk)
+    legacy_paid = math.fsum(paid[u] for u in (legacy if legacy_cand else ()) if u in paid)
     for track_id, slot_share in slots:  # a track without a slot pays nothing
         rank_share = slot_share
         if track_id in alive:
@@ -1003,7 +1377,7 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             each = min(per_entry, room / n)
             for uid in alive[track_id]:
                 paid[uid] = paid.get(uid, 0.0) + max(0.0, each - own.get(uid, 0.0))
-            # the top-ups actually paid; a serving entrant gives up only what it does not already earn
+            # The top-ups actually paid; credit serving income as in the legacy path.
             rank_share = slot_share - (each * n - math.fsum(min(each, own.get(u, 0.0)) for u in alive[track_id]))
         ids = prov.get(track_id, [])
         if ids:
@@ -1023,6 +1397,42 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                 rank_share -= each_prov * n_prov
             log.info("track %s: provisional keep-alive for uids %s, each %.5f of the miner part",
                      track_id, ids, each_prov)
+        if track_id in halted:
+            # Use the same budget as the unpaused rank path. The additional paused-rank
+            # keep-alive floors must not reduce the title's baseline a second time.
+            if not (feed_mode and track_id == "generalist"):
+                ordinary = ordinary_alive.get(track_id, [])
+                normal_prov = ordinary_prov.get(track_id, [])
+                cap = min(ka_cap, KEEPALIVE_MAX_SHARE) if track_id == "generalist" else ka_cap
+                room = cap * slot_share
+                if WAITING_KA_HOTFIX and track_id == "generalist" and normal_prov:
+                    room = max(0.0, room - min(PROVISIONAL_KA_MAX_SHARE * slot_share,
+                                               len(normal_prov) * PROVISIONAL_KA_FRACTION * per_entry))
+                each = min(per_entry, room / len(ordinary)) if ordinary else 0.0
+                rank_share = slot_share - (each * len(ordinary) - math.fsum(
+                    min(each, own.get(u, 0.0)) for u in ordinary))
+                if normal_prov:
+                    cap_prov = PROVISIONAL_KA_MAX_SHARE * slot_share
+                    if track_id == "generalist":
+                        cap_prov = min(cap_prov, max(0.0, cap * slot_share - (slot_share - rank_share)))
+                    each_prov = min(PROVISIONAL_KA_FRACTION * per_entry, cap_prov / len(normal_prov))
+                    rank_share -= math.fsum(max(0.0, each_prov - own.get(u, 0.0)) for u in normal_prov)
+            tr = tracks.get(track_id, ())
+            ranks = track_payout(tr, floors.get(track_id))
+            if ranks:
+                uid, full = next(iter(ranks.items()))
+                members = getattr(tr, "cochamps", None) or {uid: 1.0}
+                crowned = getattr(tr, "crowned", {})
+                for member, part in sorted(members.items()):
+                    titles = getattr(tr, "champions", None)
+                    if member == owner_uid or (titles is not None and member not in titles) or \
+                            (award_ok is not None and not award_ok(track_id, member)):
+                        continue
+                    amount = rank_share * full * min(1.0, max(0.0, part)) * runout_factor(
+                        crowned.get(member), starts[track_id], now,
+                        award_approved_at(track_id, member) if award_approved_at is not None else None)
+                    paid[member] = max(paid.get(member, 0.0), amount)
+            continue
         ranked_pay = ranks_of.get(track_id) or rank_shares(tracks.get(track_id, ()), floors.get(track_id))
         if keep_share and award_ok is not None and now is not None:
             tr = tracks.get(track_id)
@@ -1039,6 +1449,8 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             paid[uid] = paid.get(uid, 0.0) + rank_share * share
     paid.pop(owner_uid, None)  # never to the owner UID: its share stays with the inference part
     claimed = math.fsum(paid.values())
+    if target is not None:
+        return _need_weights(base, paid, owner_uid, burn, target, legacy_paid, owner_allocation)
     if claimed <= 0:
         return dict(sorted(base.items()))
 

@@ -102,6 +102,12 @@ def test_answer_consistency_checks():
     check_answer(s.question, sc)
     with pytest.raises(ContractError):
         check_answer(s.question, {**sc, "score": 0.0})
+    # post8.8: the score confidence is runtime-defined (mammoth s1-pro reports e.g. 0.17 with top p 0.55); range only
+    check_answer(s.question, {**sc, "confidence": 0.17})
+    check_answer(s.question, {**sc, "confidence": 0.0})
+    for bad in (1.5, -0.1, "0.5", True, float("nan")):
+        with pytest.raises(ContractError):
+            check_answer(s.question, {**sc, "confidence": bad})
 
 
 def test_logit_distance_properties():

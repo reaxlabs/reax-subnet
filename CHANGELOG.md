@@ -1,4 +1,255 @@
+## 1.2.0rc11.post8.16 (release candidate, 19 Nov 2026)
+
+- Weights version 1272; distribution version 1.2.0rc11.post8+hotfix.16.
+- Round-2 keep-alive feed: the validator now keeps an on-disk copy of the last good feed
+  (generalist-ka-feed-lastgood.json in its state directory, separate from the round-1 file).
+  If the feed is missing, stale or invalid, even right after a validator restart, waiting
+  entries keep their keep-alive from that copy for up to 26 hours after the feed was
+  generated; after that only the former champions are paid. scripts/ka_feed_check.py checks
+  that a feed is valid and less than 6 hours old. Nothing changes while the feed is not armed.
+- All five round-1 champions (uids 83, 114, 116, 199 and 250) now keep their round-2
+  keep-alive until 2026-12-31 23:59:59 UTC, 14 days after the last round-2 window
+  (Florian's decision of 19 Nov 2026). Before, only 83, 114 and 199 were pinned in the
+  round-2 keep-alive feed path; 116 and 250 were paid only while the owner's approval
+  list approved them.
+- The rules are the same as for the first three: the hotkey must still hold the uid,
+  a new commitment keeps the approval, and a replaced hotkey loses it. The 25 percent
+  keep-alive share of the generalist track is unchanged; it is now shared by up to
+  five pinned champions before the round-2 entries. The per-coldkey limit and the
+  limit of 64 entries are unchanged.
+- Takes effect only when the round-2 feed is switched on (after 21 Nov 2026 15:00 UTC with
+  the feed path set). Without the feed, the weights are bit-identical to post8.15.
+
+## 1.2.0rc11.post8.15 (release candidate, 17 Nov 2026)
+
+- Weights version 1271; distribution version 1.2.0rc11.post8+hotfix.15.
+- When remote spec-state is stale, unreadable or invalid, restore the last good
+  generalist keep-alive and provisional slots from the validator's own state volume,
+  including on the first set after a restart. Persist each good set atomically,
+  including empty lists. A list older than 26 hours pays nothing and is logged;
+  failed reads and writes never renew its timestamp. The lease starts at the earlier
+  of the validator clock and relay spec-state saved_at, so repeated good reads of
+  aging relay data cannot extend it beyond 26 hours of relay staleness.
+- Recheck current uid/hotkey registration and commitment on every fallback set;
+  recheck award approval only for rows gated when saved. Unapproved waiting rows
+  remain eligible while their commitment is unchanged. Union cached slots with
+  operator waiting overrides, preserving existing candidates first. Remove duplicates
+  and retain the existing share caps and serving top-ups.
+  Restore no rank share. Cached provisional slots may outlive their provisional
+  window within this bounded lease. Fresh spec-state weights stay unchanged.
+- The persistent spec-state fallback applies only while the round-2 feed is off;
+  the feed reader retains its separate bounded in-memory fallback as described below.
+
+### Generalist round-2 keep-alive feed
+
+- With `REAX_KA_FEED_PATH` set, activate the intake-sidecar entry set from 21 Nov
+  2026 15:00 UTC. Admit up to 64 uids in commitment order, with former champions
+  first and exempt from the two-uid coldkey cap; recheck hotkeys and coldkeys.
+- Top up serving income to the common keep-alive level within the existing
+  25% generalist cap. A failed feed read uses last-good rows up to 26 hours old, re-filtered at payout; without
+  those rows it uses former champions plus valid operator waiting overrides. Discard diagnostic objects while decoding;
+  retain only validated payment fields in memory for at most 26 hours.
+- Gate relay former titles by award approval; pin round-1 uids 83/114/199 to their
+  approved hotkeys until 31 Dec 2026 23:59:59 UTC.
+- Approved ranked entries on an unpaused track take no keep-alive slot. Append
+  chain-checked operator waiting overrides within the same caps; accept up to
+  300 seconds of feed clock skew.
+- Disabled-path exact-float vectors are pinned to 08833c7. Other tracks retain
+  their existing entry limits. No operator configuration is installed.
+- Feed activation remains separate from the release: leave `REAX_KA_FEED_PATH`
+  unset until the intake-service gate and real-feed dry run pass; see docs/CALIBRATION.md.
+
+## 1.2.0rc11.post8.14 (staged, 4 Nov 2026)
+
+- post8.13 (04eefe3) plus EU contract hour rules through 322f605; no other release changes.
+  WEIGHTS_VERSION_KEY stays 1270. Distribution version: 1.2.0rc11.post8+hotfix.14.
+- EU contract hours require ten counted rounds, at least 90% answered positive scores without strikes,
+  and fresh measured capacity >=25 decisions/s per declared GPU from the last s1-pro round only.
+  Positive latency-reduced scores remain clean; validator reference failures do not count.
+- Three correctness-failed hours suspend until an unpaid qualifying recovery hour. Quality state version 3
+  invalidates prior cached settlements and clean counts. Signed contracts and manual EU review replace
+  RTT/ASN probes for contract operators only; Scheme A is unchanged.
+- Inactive with the packaged empty registry; a reviewed signed registry row is required to activate pay.
+  The empty registry remains at a 5% cap (parser maximum 50%). Keep-alive code is unchanged; the operator
+  removes a waiting override when contract pay starts. Empty-registry weights match post8.13.
+
+## 1.2.0rc11.post8.13 (staged, 3 Nov 2026)
+
+- Run-out-only release: post8.12 plus the future-crown approval clock and burn-funded owner allocations below
+  (c4f8217). No later-step capacity code. WEIGHTS_VERSION_KEY stays 1270 (as for post8.9-post8.12).
+- Without an `owner-allocation.json` there is no scoring change; the owner allocation file is never installed by the release.
+
+### Run-out clock and burn-funded owner allocations
+
+- Crowns from 2 November 2026 13:00 UTC start their paused-track run-out at the
+  later of crowning and their own verified approval. Earlier crowns retain the
+  exact old clock. Notice checks use the same start; keep-share and keep-alive
+  rules and frozen relay stamps are unchanged.
+- Optional owner allocation `source: burn` uses only the residual owner top-up;
+  default `inference` preserves existing row hashes and journal progress. Mixed
+  budgets scale separately, with plain-vector fallback on uncertainty. Set cap
+  extended from 12 to 24. Exact before/after burn-vector evidence supports the
+  separately staged monitor. No configuration is installed by this change.
+
 # Changelog
+
+## 1.2.0rc11.post8.12 (staged, 1 Nov 2026)
+
+- A background probe's reference chunks may now spend `PROBE_BACKGROUND_OWN_FACTOR` (2.0) x the reference budget of
+  their own time (was 1.0 x), still inside the unchanged wall clock of `PROBE_BACKGROUND_WALL_FACTOR` (4.0) x. On mainnet
+  under post8.11, seven consecutive s1-pro probes (1304-1314 sampled items, 5 GPU chunks of 256 in 158-164 s against an
+  own budget of ~156 s) were dropped right before their last 24-34 items, so no s1-pro slot got a capacity update.
+  Rounds still wait at most one chunk; foreground references are unchanged. The `own_budget_s` diagnostic and the legacy
+  timeout line report the background own budget.
+- Validator-local probe timing only: no scoring formula, payout or protocol change. WEIGHTS_VERSION_KEY stays 1270.
+
+## 1.2.0rc11.post8.11 (staged, 1 Nov 2026)
+
+- Background and foreground reference timeout provenance (`own_time_budget`, `outer_wall_deadline`,
+  `backend_timeout`, `cancelled`, `computation_error`, `completed`), counts and timing are recorded in one
+  `<model> reference diagnostic ...` line. No payloads or tracebacks are logged; the old traceback on reference
+  computation errors is removed.
+- The legacy `reference runtime did not finish ...` line is kept verbatim with ` path=.. reason=..` appended for
+  watchers. Failure-share lines now say `slots unscored path=..` instead of `miners unscored`.
+- Each weight submission logs `keep-alive in weight set at block B (computed at block C): entries <track>=[uid:score,
+  ...]; protected ...`: the exact compute_keepalive entries combined into that vector (exact round-trip scores),
+  taken in the same synchronous step as the vector, or `none computed` (reliability review #36471, so a later zero
+  can be attributed without a replay). Errors in recording or logging never change or delay the vector.
+- Observability only: no behaviour, scoring or protocol change. WEIGHTS_VERSION_KEY stays 1270, following post8.10.
+  Runtime 1.2.0rc11.post8.11; distribution 1.2.0rc11.post8+hotfix.11 (PEP 440).
+
+## 1.2.0rc11.post8.10 (staged, 30 Oct 2026)
+
+- Miner slot (`miner_slot.py`, Florian #35779, lock instead of burn): when the subnet owner shrinks the MINER emission slot
+  (`AdminUtils.sudo_set_subnet_emission_weights`, e.g. owner 18 -> 26 %, miner 41 -> 33 %), every weight except the owner
+  UID's is multiplied by `factor = old miner share / new miner share` so every miner keeps the same absolute alpha; the
+  owner UID (the burn) takes the rest of the vector. Applied as the LAST step before sending (after need/burn,
+  pauses/run-out, keep-alive and the post8.9 owner allocation, whose shares scale too). If the scaled non-owner weights
+  would exceed the total they are scaled to exactly the total, the owner UID gets 0, and a warning says CLAMPED.
+- Operator file `miner-slot.json` beside the award approvals: `{"factor", "from_utc", "reason"}`, exact keys, factor in
+  [1.0, 1.5], ISO time with timezone, reason 1..300 characters, duplicate JSON keys refused. Absent file, before
+  `from_utc`, a refused file or any error: factor 1.0 and the post8.9 vector unchanged (same object); never blocks or
+  delays a weight set. Each scaled set logs `miner slot factor F effective E at block B: owner uid U x -> y` (read by the
+  money monitor). `python -m reax_subnet.miner_slot` reads `SubnetEmissionWeights[92]` from chain (read-only) and prints
+  the exact factor and file content; `--check FILE` compares an existing file with the chain. See MINER-SLOT.md.
+- WEIGHTS_VERSION_KEY stays 1270: no scoring or protocol change; UID 3 is the only weight setter and produces the vector,
+  other validators copy it (same convention as post8.2/post8.3/post8.9). Runtime 1.2.0rc11.post8.10; distribution
+  1.2.0rc11.post8+hotfix.10 (PEP 440).
+
+## 1.2.0rc11.post8.9 (staged, 30 Oct 2026)
+
+- One-off operator allocations (`owner-allocation.json` beside award approvals), taken pro rata only from the current
+  inference part of miner weights. Competition, keep-alive and owner burn components are preserved. Absent/empty files
+  preserve identical vectors. Strict whole-file validation, active total cap 25%, per-row cap 10%; inference shortage
+  scales allocations proportionally.
+- `allocation-progress.json` is atomically replaced and fsynced; successful weight submissions consume a set exactly
+  once; computation, dry runs, missing hotkeys and failed submissions do not. Weight setting never halts or waits for
+  this module: on any uncertainty (send exception, unknown outcome, corrupt/unwritable journal, read-only mount,
+  restart with a pending entry) the set goes out with the plain post8.8 vector, is not counted, the rows are marked
+  `needs_reconcile` with one ERROR line, and allocation stays off until the operator clears the flag. Progress
+  corruption never silently resets counts. An exception in the allocation-bearing computation returns the plain
+  post8.8 vector for that set. See OWNER-ALLOCATION.md.
+- WEIGHTS_VERSION_KEY stays 1270, matching post8's emission branch: UID 3 produces the vector, other validators copy it.
+  No inference scoring/protocol change. Runtime 1.2.0rc11.post8.9; distribution 1.2.0rc11.post8+hotfix.9 (PEP 440).
+
+## 1.2.0rc11.post8.8 - validator
+
+- s1-pro hotfix: the score-question `confidence` is only range-checked ([0, 1]). The mammoth reference runtime of the
+  30 Oct 09:00Z s1-pro manifest (3f3558e5) reports a score confidence that is not the top probability, so every honest
+  miner on the new manifest failed all score items with "confidence must be the top probability". The field is not used
+  in scoring. Everything else as post8.7.
+
+## 1.2.0rc11.post8.7 - validator
+
+- Early weight set (post8.5): an immune uid whose remaining immunity is below ENGINE_KA_LEAD_BLOCKS (1500) now counts as
+  exposed, so its first paying set can land before immunity ends (KA gauntlet #34484; critic GO). Everything else as post8.6.
+
+## 1.2.0rc11.post8.6 - validator
+
+- Restarted generalist entries that still need hash or copy checks, or have a recorded parent, get a new bounded
+  unverified keep-alive window from the restart time, even with an old score. Unverified caps, coldkey limits and abuse
+  checks still apply; these windows do not affect hotkey rewindow limits. Clean restarts retain their extended window,
+  and review or hold entries remain excluded.
+
+- Tests only: a generated BELOW_FLOOR property and golden vectors pin the need-rule waiting keep-alive floor (the
+  serving credit of a waiting dual-role uid is computed after the need rescale, ed513d2 in post8.5).
+
+## 1.2.0rc11.post8.5 (validator, 29 Oct 2026)
+- Keep-alive credit after the need rescale: waiting dual-role entries are credited with their post-rescale serving pay (ed513d2).
+- Early weight set for newly committed exposed competition entries (KA_NEWCOMMIT_SET, 57ba4db; chain rate limit unchanged).
+- REAX_<MODEL>_NEXT_RUNTIME_INFLIGHT: per-pool in-flight limit for the next reference runtime (2c0e876; s1-pro set to 1 on the validator for the mammoth switch).
+- Critic critic-post85: GO on all three, no high findings.
+
+## 1.2.0rc11.post8.4 - validator FINAL: one-time Fri 30 Oct 16:30Z generalist slot (#31857) + paused-track run-out
+
+- critic fixes F1-F4: preserve the unpaused rank budget during run-out, use group crown times for untimed co-holders,
+  guard engine run-out work behind an active pause, and cover carried v1 ranks under a dm-all champion.
+- One-time extra generalist crown slot **Fri 30 Oct 2026 16:30Z** (Florian GO #31857, public in #92): added to `CROWN_SLOTS_UTC`
+  (`competition_split.EXTRA_CROWN_SLOTS_UTC`; the Mon/Thu 14:30Z generator is unchanged, the list stays sorted). Thu 29 Oct
+  14:30Z is unchanged (an entry committed by Thu 08:30Z still plays it); an entry that misses Thursday now plays Friday
+  instead of Mon 2 Nov when it was committed by Fri 10:30Z (the usual 6 h `GENERALIST_COMMIT_CUTOFF_S`), else Monday. K1-a
+  (confirmations due by 15:30Z hold the slot), slot playoff, slot clock (until Sat 04:30Z, no overlap with Thursday's),
+  crown_pending, the cutoff hold and the validator's keep-alive windows use it like any other slot.
+- For this slot only: a first pass taken in [Thu 29 Oct 14:30Z, Fri 30 Oct 16:30Z) by a generalist entry whose slot is
+  Friday (its cutoffs admit it there) is due for its confirmation draw 2 h after the first draw (`machine.confirm_delay_s`,
+  `FAST_CONFIRM_*`; fresh items as always: the confirmation draw excludes the first draw's items; same margin).
+  `CONFIRM_DELAY_S` stays 12 h. Such entries always store `first_pass_ts` (keep-alive counts from the first pass). An entry
+  that first passed in the window under the previous release (due 12 h later) is brought in once, at most to now, while the
+  slot has not come (`_fast_confirm_pull_in`, one log line). Every other entry, track and time: byte-identical states.
+- Slot constants (`CROWN_SLOTS_UTC`, `EXTRA_CROWN_SLOTS_UTC`) and `spec/machine.py` are identical to worker post4.5.2;
+  the validator reads the worker's `confirm_after_ts` / `first_pass_ts`, so pending keep-alive (H1) of a Friday entry runs
+  until the Fri slot's clock, and a cutoff hold until Fri 16:30Z is honoured. Engine slots (`ENGINE_CROWN_SLOTS_UTC`) are
+  unchanged. `WEIGHTS_VERSION_KEY` unchanged (1270).
+- **Also in post8.4 (FINAL): paused-track run-out** (Florian's rule; branch pause-runout-v2 2f3f0b4, docs/EMISSION-NEED.md).
+  When a track is paused through need.json, former places end at the pause start and the current title holder(s) run out
+  by title age: full share through crown + 3 days, linear to zero at crown + 7 days (`competition_split.runout_factor`,
+  `pause_start`); nothing moves up, the unpaid part is burned, keep-alive floors stay. Engine: current engine pot x the
+  rank-1 fraction frozen at pause start (legacy v1 holders by crown block). Every co-holder is gated by approval
+  individually. Missing pause/crown metadata keeps the normal weights (no unexpected burn). 600 pre-activation + 600
+  active unpaused vectors are byte-identical to post8.3.
+- New operator CLI `python -m reax_subnet.needctl` (dry run by default, `--write` to apply): adds a pause row to
+  need.json, refuses a missing crown time and, for a holder >= 7 days old at the pause start, a pause less than 24 h
+  after `--announced-at`; locked, backed-up, atomic write.
+- `KEEPALIVE_BASE_FLOOR` is now one row per line with a marked spot for the 4 Gemma base rows (same values as post8.3).
+  `scripts/check_shared_tables.py` + `tests/test_shared_tables.py` (pinned digest, identical on worker post4.5.2) keep
+  the slot list, commit cutoff, base floors and `spec/machine.py` byte-identical between gen worker and validator.
+
+## 1.2.0rc11.post8.3 - validator hotfix: cutoff-held entry keep-alive
+
+- Also merged (lead 28 Oct, Florian #31641 (5)): mammoth pool-switch kit + selfcheck (PR #5 9b1013a + ca14ffa: selfcheck/router shadow score s1-pro with the mammoth manifest from 2026-10-30T09:00Z, mammoth reference file for miners, kit runtime image pins).
+- Generalist entries held by the six-hour chain commitment cutoff retain confirmed-entry keep-alive until their held
+  slot, including after a champion restart. The validator reads the worker's optional chain/hold fields; old states load
+  unchanged. Reveal, copy, review, live commitment, score and existing entry/coldkey/share caps still apply.
+- Held restarts use the confirmed-entry path once, without also receiving provisional restart keep-alive. At the held
+  slot the exception ends and ordinary expiry rules apply. Cutoff constants match worker post4.5.1 (76cb8f9).
+- Includes the worker's cutoff slot selection, chain-evidence capture and hold-state writing from 6d8127b,
+  plus f91f8fe's pre-activation slot guard (matching the live worker).
+- WEIGHTS_VERSION_KEY stays 1270. Runtime version 1.2.0rc11.post8.3; PEP 440 distribution version 1.2.0rc11.post8+hotfix.3.
+
+## 1.2.0rc11.post8.2 - validator release, Thu 29 Oct 2026
+- Writable engine-v1 bridge markers from post8.1.1: remote validators use their own state directory; Finney rejects an
+  unwritable marker directory, so the frozen v1 state can remain read-only.
+- Restarted generalist entries retain the existing bounded waiting keep-alive from post8.1.1 (96 hours from restart,
+  until a new first draw); reveal, hold/review, copy and share/coldkey gates still apply.
+- Emission follows need v2 (docs/EMISSION-NEED.md): from the first weight set at or after Fri 30 Oct 2026 14:30 UTC,
+  inference gets 40 %, tracks can be paused through need.json while keeping bounded keep-alives, and unpaid shares
+  go to the owner UID for burning. Existing keep-alive overrides and the engine-v1 bridge remain in force.
+- Capacity probes log one diagnostic per slot: kept/dropped reason, received/prepared answer and request counts,
+  detected invalid/stale signatures, mean/max reference distance and all thresholds, reference count, lane errors,
+  and missing start time. Unchecked values are unavailable, not zero. Scoring, folding and weight calculations are unchanged
+  by this logging; in particular missing start times are observed without adding a new rejection.
+- WEIGHTS_VERSION_KEY remains 1270, matching the emission branch: UID 3 produces the vector and the other validators copy
+  it; validators upgrade together before the timed change. This release introduces no separate chain minimum-key gate.
+  Runtime version 1.2.0rc11.post8.2; PEP 440 distribution version 1.2.0rc11.post8+hotfix.2.
+
+## 1.2.0rc11.post8.1.1 - validator hotfix: writable bridge markers and restart keep-alive
+- Bridge markers use a writable directory (`REAX_ENGINE_V1_MARKER_DIR`); a remote validator defaults to its own state directory.
+  Finney refuses an unwritable marker directory (8ad3cd6). This permits the frozen engine-v1 state to remain read-only.
+- A generalist entry queued by its latest `slot_restart` or `v5_restart`, with no new first draw, receives the existing
+  our-side waiting keep-alive for at most 96 hours from the restart timestamp. The validator reads existing worker history;
+  worker code and state format are unchanged. Reveal deadlines, review/hold and copy exclusions, ordering and share/coldkey
+  caps still apply. A new first pass transfers it to pending keep-alive; a failed draw ends it.
+- `WEIGHTS_VERSION_KEY` stays 1270.
 
 ## 1.2.0rc11.post8.1 - validator release: s1-pro pool switch to mammoth-1 + commit-reveal keep-alive deadline
 - Engine rules v2.0 hotfix (published FAQ v3.0): Blink text answer gates 0.08 / 1.6 / 97 % (were 0.05 / 1.0 / 99 %; vision keeps strict gates); rules sha v20 ff53976e, v20-d3 6595f17d (cherry-picked fcd6fcc, 1ef212d, a3ee234).

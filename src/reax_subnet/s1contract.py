@@ -350,9 +350,11 @@ def check_answer(question: Question, answer: Any) -> tuple[float, ...]:
         expected = math.fsum(i * values[i] for i in range(len(values)))
         if abs(_num(answer["score"], "score") - expected) > 1e-3:
             raise ContractError("score must be the expected level")
-        # Both reference backends report the top probability as the score confidence.
-        if abs(_num(answer["confidence"], "confidence") - max(values)) > DERIVED_TOLERANCE:
-            raise ContractError("confidence must be the top probability")
+        # The score confidence is runtime-defined (the s1-pro mammoth reference, manifest 3f3558e5, does not
+        # report the top probability) and is not used in scoring, so only its range is checked (post8.8).
+        conf = _num(answer["confidence"], "confidence")
+        if not 0.0 <= conf <= 1.0:
+            raise ContractError("confidence must be within [0, 1]")
         if answer["legend"] != dict(zip(question.keys, question.descriptions)):
             raise ContractError("legend must repeat the score levels")
     return values

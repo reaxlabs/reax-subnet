@@ -23,6 +23,7 @@ import math
 import secrets
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import aiohttp
@@ -111,6 +112,8 @@ class Validator:
         self._weights_task: Optional[asyncio.Future] = None
         self._snapshot_task: Optional[asyncio.Future] = None
         self._rate_limit_task: Optional[asyncio.Future] = None
+        self._submitted_payees: set[tuple[int, str]] = set()
+        self._submitted_block = 0
 
     async def read_snapshot(self) -> Snapshot:
         """Metagraph read with a deadline. A read that is still running is awaited again rather than
@@ -284,12 +287,15 @@ class Validator:
             log.warning("previous set_weights call still running; not submitting again")
             return False
         weights = self.compute_weights(snap)
+        plan = self._allocation_plan()  # same computation: no await in between
+        ka_record = self._keepalive_record()  # likewise; logged with the send, observational only
         if not weights:
             log.warning("no qualifying miner and no owner uid; not setting weights")
             return False
         self.last_weights = weights
         if not self.cfg.set_weights:
-            log.info("dry run (REAX_SET_WEIGHTS=0): weights %s", _fmt(weights))
+            self.last_weights = self._miner_slot(weights, snap)
+            log.info("dry run (REAX_SET_WEIGHTS=0): weights %s", _fmt(self.last_weights))
             return False
         my_uid = snap.uid_of(self.hotkey)
         if my_uid is None:
@@ -300,13 +306,39 @@ class Validator:
         except Exception as exc:
             log.warning("could not read weight rate limit: %r", exc)
             return False
-        if since < max(limit, self.cfg.weights_interval_blocks):
+        if since < limit:
             return False
+        early = []
+        if since < self.cfg.weights_interval_blocks:
+            early = self.early_weight_uids(snap, weights)
+            if not early:
+                return False
+        if early:
+            log.info("early weights for new exposed commitments: %s", early)
+        # Owner allocation (owner_alloc.py) never blocks or delays this send: on any journal problem the plain
+        # post8.8 vector goes out and nothing is counted.
+        allocation = None
+        if plan is not None:
+            try:
+                weights, allocation = plan.begin(weights)
+            except Exception as exc:  # noqa: BLE001
+                log.error("owner allocation: %r; sending without it", exc)
+                weights, allocation = (plan.plain if getattr(plan, "plain", None) else weights), None
+            self.last_weights = weights
+        # Miner slot (miner_slot.py, post8.10): the LAST step before sending; never blocks or delays this send.
+        weights = self._miner_slot(weights, snap)
+        self.last_weights = weights
+        self._log_keepalive(ka_record, snap)
         uids = sorted(weights)
         self._weights_task = asyncio.ensure_future(
             asyncio.to_thread(self.chain.set_weights, uids, [weights[u] for u in uids], WEIGHTS_VERSION_KEY)
         )
+        if allocation is not None:
+            self._weights_task.add_done_callback(
+                lambda fut: allocation.finish(True if not fut.cancelled() and fut.exception() is None else None))
         self._weights_task.add_done_callback(_consume)
+        # Also record late success after the bounded wait. A failure never consumes the trigger.
+        self._weights_task.add_done_callback(lambda fut: self._record_weight_submission(fut, snap, weights))
         try:
             # Bounded wait so a stalled chain cannot freeze the scoring loop; the
             # submission thread keeps running and blocks new submissions until it ends.
@@ -320,6 +352,71 @@ class Validator:
             return False
         log.info("weights set at block %d: %s", snap.block, _fmt(weights))
         return True
+
+    def allocation_plan(self):
+        """Owner-allocation plan of the last compute_weights (owner_alloc.Plan); ordinary validators have none."""
+        return None
+
+    def miner_slot_path(self) -> str:
+        """miner-slot.json of this validator (next to the award approvals); "" = never scaled."""
+        return ""
+
+    def _miner_slot(self, weights: dict[int, float], snap: Snapshot) -> dict[int, float]:
+        try:
+            from . import miner_slot
+
+            clock = getattr(self, "_clock", None)
+            now = clock() if callable(clock) else datetime.now(timezone.utc)
+            return miner_slot.apply(weights, snap.owner_uid, self.miner_slot_path(), now, snap.block)
+        except Exception as exc:  # noqa: BLE001 - never stop weight setting
+            log.error("miner slot unavailable: %r; factor 1.0", exc)
+            return weights
+
+    def _allocation_plan(self):
+        try:
+            return self.allocation_plan()
+        except Exception as exc:  # noqa: BLE001 - never stop weight setting
+            log.error("owner allocation plan unavailable: %r; weights without allocation", exc)
+            return None
+
+    def keepalive_record(self):
+        """``(block, keepalive, protected)`` behind the last compute_weights; ordinary validators have none."""
+        return None
+
+    def _keepalive_record(self):
+        try:
+            return self.keepalive_record()
+        except Exception as exc:  # noqa: BLE001 - observational only, never stop weight setting
+            log.error("keep-alive record unavailable: %r", exc)
+            return None
+
+    @staticmethod
+    def _log_keepalive(record, snap: Snapshot) -> None:
+        """One line per weight submission naming the exact compute_keepalive entries inside this vector, so a later
+        zero can be attributed without a replay. Observational only: never raises, never changes the vector."""
+        try:
+            if record is None:
+                log.info("keep-alive in weight set at block %d: none computed", snap.block)
+                return
+            block, alive, protected = record
+            fmt = lambda d: "; ".join(f"{t}=[{', '.join(str(x) for x in d[t])}]" for t in d) or "-"
+            log.info("keep-alive in weight set at block %d (computed at block %s): entries %s; protected %s",
+                     snap.block, block,
+                     fmt({t: [f"{u}:{s!r}" for u, s in v] for t, v in alive.items()}), fmt(protected))
+        except Exception as exc:  # noqa: BLE001
+            log.error("keep-alive log failed: %r", exc)
+
+    def early_weight_uids(self, snap: Snapshot, weights: dict[int, float]) -> list[int]:
+        """Only the competition validator opts into new-commitment timing."""
+        return []
+
+    def _record_weight_submission(self, fut: asyncio.Future, snap: Snapshot, weights: dict[int, float]) -> None:
+        if fut.cancelled() or fut.exception() is not None:
+            return
+        top = max(weights.values(), default=0.0)
+        self._submitted_payees = {(n.uid, n.hotkey) for n in snap.neurons
+                                  if top > 0 and round(weights.get(n.uid, 0.0) / top * 65535) > 0}
+        self._submitted_block = snap.block
 
     def compute_weights(self, snap: Snapshot) -> dict[int, float]:
         return compute_weights(self.state.ema(), snap.owner_uid, self.params)

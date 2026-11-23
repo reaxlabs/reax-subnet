@@ -8,8 +8,9 @@ Payment is computed exactly as in local mode (engvalidator.EngineCompetition.wei
 confirmations; competition_split: track leaders + entry floors + 75/17/8). On top of that, every read re-checks against the
 chain snapshot that the champion's hotkey still holds its uid and still commits to the measured image / model (a
 withdrawn or deregistered competitor drops out at once). A state file that is missing, unreadable, from another version or
-older than ``REMOTE_MAX_AGE_S`` (26 h, by its own ``saved_at``) pays nothing: that competition's share goes back to the
-inference part, with ONE warning per outage.
+older than ``REMOTE_MAX_AGE_S`` (26 h, by its own ``saved_at``) pays no rank share: that competition's share goes back to the
+inference part, with ONE warning per outage. Generalist KA alone may use the validator-owned last-good slot list
+for up to 26 h since the last good set; chain identity and current award approval are rechecked at payout.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 from .chain import Snapshot
-from .competition_split import LEGACY_KA_TRACKS, SPLIT_PROFILE, COMPETITIONS_START_UTC, SpecialistEvaluator
+from .competition_split import LEGACY_KA_TRACKS, SPLIT_PROFILE, COMPETITIONS_START_UTC, SpecialistEvaluator, need_only
 from .competitions import SpecialistAdapter
 from .config import ENGINE_STATE_FILE, REMOTE_MAX_AGE_S, SPEC_STATE_FILE
 from .engcomp import RewardParams, TrackParams, TrackState
@@ -102,7 +103,8 @@ class RemoteEngineCompetition(EngineCompetition):
                  engine_start_utc: Optional[datetime] = None, award_gate: Any = None,
                  composites: Optional[Mapping[str, Any]] = None,
                  v1_bridge: Optional[tuple[str, datetime, str]] = None,
-                 composite_start_utc: Optional[datetime] = None):
+                 composite_start_utc: Optional[datetime] = None, v1_marker_dir: str = "", generalist_lastgood_path: str = ""):
+        self.generalist_lastgood_path = generalist_lastgood_path
         self.max_age_s, self._wall = max_age_s, wall
         self._outage = _Outage("engine competition", state_path)
         tr = dict(tracks) if tracks is not None else ({} if composites else dict(TRACKS))
@@ -110,7 +112,7 @@ class RemoteEngineCompetition(EngineCompetition):
         super().__init__(_RemoteRunner(), {t: "remote" for t in names}, state_path, tracks=tr, reward=reward,
                          start_utc=start_utc, profile=profile, specialist=specialist, utcnow=utcnow,
                          engine_start_utc=engine_start_utc, award_gate=award_gate, composites=composites,
-                         v1_bridge=v1_bridge, composite_start_utc=composite_start_utc)
+                         v1_bridge=v1_bridge, composite_start_utc=composite_start_utc, v1_marker_dir=v1_marker_dir)
 
     # the worker owns the file: nothing is loaded at construction (a bad file must never be moved aside from here) or saved
     def _load(self) -> None:
@@ -163,7 +165,11 @@ class RemoteEngineCompetition(EngineCompetition):
             try:
                 return super().weights(base, snap, exclude, burn_fraction)
             except Exception:  # noqa: BLE001
-                return dict(base)
+                self._owner_alloc_plan = None  # fallback vector contains no allocation
+                try:   # emission follows need: the serving part capped, the rest burned (never raises)
+                    return need_only(base, snap.owner_uid, burn_fraction, datetime.now(timezone.utc))
+                except Exception:  # noqa: BLE001
+                    return dict(base)
 
 
 class RemoteSpecEvaluator:
@@ -176,17 +182,22 @@ class RemoteSpecEvaluator:
                                           tracks=spec_config._from_schedule() if tracks is None else tuple(tracks))
         self.max_age_s, self.clock = max_age_s, clock
         self._outage = _Outage("specialist tracks", state_path)
+        self._saved_at = None
         self._state: Optional[spec_state.SpecState] = None   # parsed by the last leaders() call; None = unusable
 
     def leaders(self, active: Sequence[spec_config.TrackDef], snapshot: Snapshot) -> dict[str, list[tuple[int, float]]]:
         ids = [t.track_id for t in active]
         self._state = None
+        self._saved_at = None
         if not ids:
             return {}
         raw, why = read_state(self.cfg.state_path, now=self.clock(), max_age_s=self.max_age_s)
         state = None
         if raw is not None:
             try:
+                saved = raw.get("saved_at")
+                saved_at = (float(saved) if isinstance(saved, (int, float)) and not isinstance(saved, bool)
+                            else os.path.getmtime(self.cfg.state_path))
                 state = spec_state.from_json(raw)
             except Exception as exc:  # noqa: BLE001
                 why = f"invalid content ({type(exc).__name__})"
@@ -199,6 +210,7 @@ class RemoteSpecEvaluator:
         self._outage.update(leaders is not None, why)
         if leaders is not None:
             self._state = state
+            self._saved_at = saved_at
         return leaders if leaders is not None else {t: [] for t in ids}
 
     def keepalive(self, active: Sequence[spec_config.TrackDef], snapshot: Snapshot) -> dict[str, list[tuple[int, float]]]:
@@ -211,6 +223,14 @@ class RemoteSpecEvaluator:
             return compute_keepalive(self._state, ids, snapshot, now=self.clock())
         except Exception:  # noqa: BLE001 - a corrupt file pays no keep-alive
             return {t: [] for t in ids}
+
+    def former_champions(self, snapshot: Snapshot) -> list[int]:
+        """All relay-frozen title holders, without a podium-length truncation."""
+        from .ka_feed import former_champions
+        if self._state is None:
+            return []
+        leaders = compute_leaders(self._state, ["generalist"], snapshot, now=self.clock(), limit=None)
+        return former_champions(leaders.get("generalist", ()))
 
     def protected(self, active: Sequence[spec_config.TrackDef], snapshot: Snapshot) -> dict[str, list[int]]:
         """Keep-alive uids the slot cut never drops (open opening-cohort entries, ``keepalive_protected``)."""
@@ -248,6 +268,14 @@ class RemoteSpecEvaluator:
 
 class RemoteSpecAdapter(SpecialistAdapter):
     """Never due, never runs: refreshes its leaders from the state file every round (SpecialistAdapter.refresh)."""
+
+    @property
+    def generalist_state_usable(self) -> bool:
+        return self.evaluator._state is not None
+
+    @property
+    def generalist_state_saved_at(self):
+        return self.evaluator._saved_at if self.evaluator._state is not None else None
 
     def due(self) -> bool:
         return False

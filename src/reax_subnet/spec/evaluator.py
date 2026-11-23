@@ -477,6 +477,8 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
             slots = {s.key: sc for s, sc in opening}
             ranked += [s for s, _ in opening]
         res = RankedLeaders()
+        res.champions = set()  # distinguish a vacant title from former places promoted to list rank 1
+        title_keys = {m.key for m in members} if members else {champ.key} if champ is not None else set()
         v5_floor = TRACK_ENTRY_FLOOR.get(track_id) if track_id == "generalist" and S.v5_active(now) else None
         for s in ranked:
             if not ST.reveal_allows_payment(s, now):
@@ -495,6 +497,8 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
             if v5_floor is not None and score_c <= v5_floor and not _v51_scored(s, now):
                 continue    # critic F6: once the share layer drops the v4 floor, an entry that is not scored under v5.1 keeps it
             res.append((uid_c[0], score_c))
+            if s.key in title_keys:
+                res.champions.add(uid_c[0])
             if isinstance(s.champion_since_ts, (int, float)) and math.isfinite(s.champion_since_ts):
                 res.crowned.setdefault(uid_c[0], float(s.champion_since_ts))
 
@@ -502,10 +506,20 @@ def compute_leaders(state: ST.SpecState, track_ids: Sequence[str], snapshot: Sna
                 break
         if co_fracs and res and res[0][0] in co_fracs:
             res.cochamps = dict(co_fracs)
+            res.champions.update(co_fracs)
+            # Run-out is per member, including opening members omitted from the rank list.
+            for m in members:
+                uid_c = live.get(m.hotkey)
+                if uid_c is not None and uid_c[0] in co_fracs:
+                    since = m.champion_since_ts
+                    if since is None:
+                        since = cochamp_since(ts)
+                    if isinstance(since, (int, float)) and math.isfinite(since):
+                        res.crowned[uid_c[0]] = float(since)
             if dyn_now:     # a shared group crowned at a slot: its crowning time stands for the whole group
                 res.cochamps_dynamic = True
                 if ts.cochamps_since is not None:
-                    res.crowned[res[0][0]] = float(ts.cochamps_since)
+                    res.crowned.setdefault(res[0][0], float(ts.cochamps_since))
         if form_fracs and any(u in form_fracs for u, _ in res):
             res.formset = dict(form_fracs)
         res.formsets = [dict(f) for f in dyn_fracs if any(u in f for u, _ in res)]
@@ -596,6 +610,46 @@ def _first_pass_ts(s: ST.Submission) -> float | None:
     return c - M.CONFIRM_DELAY_S if isinstance(c, (int, float)) else None
 
 
+def _cutoff_slot(s: ST.Submission, slot: float) -> float:
+    """First configured slot at/after slot whose cutoff this chain commitment meets.
+
+    Existing states without chain evidence use local observation time conservatively.
+    Sync backfills chain evidence before the worker builds a slot field.
+    """
+    if s.track_id != "generalist" or slot < split.GENERALIST_COMMIT_CUTOFF_START_UTC.timestamp():
+        return slot
+    committed = s.chain_commit_ts if s.chain_commit_ts is not None else s.first_seen_ts
+    if not isinstance(committed, (int, float)) or isinstance(committed, bool) or not math.isfinite(committed):
+        return math.inf
+    for t in split.CROWN_SLOTS_UTC:
+        at = t.timestamp()
+        if at < slot:
+            continue
+        if at < split.GENERALIST_COMMIT_CUTOFF_START_UTC.timestamp() or committed <= at - split.GENERALIST_COMMIT_CUTOFF_S:
+            return at
+    return math.inf  # no eligible configured slot: never crown off-slot
+
+
+def _confirm_delay(s: ST.Submission, first_ts: float, default: float) -> float:
+    """The confirmation delay of entry ``s`` after a first pass at ``first_ts`` (``M.confirm_delay_s``): the one-time fast
+    delay when ``s`` is a generalist entry whose slot is ``M.FAST_CONFIRM_SLOT_UTC`` (its cutoffs admit it there:
+    ``_cutoff_slot``) and the first pass lies in the fast window; ``default`` for every other entry, track or time."""
+    fast = M.FAST_CONFIRM_SLOT_UTC
+    if fast is None or s.track_id != "generalist":
+        return default
+    at = fast.timestamp()
+    return M.confirm_delay_s(first_ts, at if _cutoff_slot(s, at) == at else None, default)
+
+
+def _cutoff_held(s: ST.Submission, now: float) -> bool:
+    """A confirmed cutoff-held entry retains its bounded entitlement through a bar reset."""
+    until = s.cutoff_hold_until_ts
+    return (s.track_id == "generalist" and s.status in (ST.PENDING_CONFIRM, ST.QUEUED)
+            and isinstance(until, (int, float)) and math.isfinite(until)
+            and now < until and until >= split.GENERALIST_COMMIT_CUTOFF_START_UTC.timestamp()
+            and any(t.timestamp() == until for t in split.CROWN_SLOTS_UTC))
+
+
 def _keepalive_since(s: ST.Submission) -> float | None:
     """When the entry's keep-alive window started: crowning for a champion, the first pass for a pending one. The first
     pass is read from ``first_pass_ts`` (set once, at the first pass; an older state: ``confirm_after_ts`` - ``CONFIRM_DELAY_S``), not from
@@ -665,6 +719,8 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
     it, and whose latest score on a shared draw is above the track's entry floor (``floors``, default the release
     ``TRACK_ENTRY_FLOOR``), in one of the ``KEEPALIVE_STATUSES``: pending confirmation (first pass taken) for at most
     ``KEEPALIVE_HOURS`` after that first pass, or champion for at most ``KEEPALIVE_HOURS`` after its crowning. A
+    confirmed generalist entry held by the commit cutoff retains keep-alive until its assigned slot, including a queued
+    restart after an intervening crowning; all eligibility checks and caps still apply. Otherwise a
     missing, non-finite or far-future window start gives nothing (fail closed). Former champions, not-better, queued,
     pending-verification, withdrawn, rejected, never-scored and below-floor entries get nothing. The same draw's score on
     its non-proc items must be above ``nonproc_floors`` (default the release ``KEEPALIVE_NONPROC_FLOOR``); without a
@@ -699,8 +755,9 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
         co_keys = {m.key for m in cochamp_members(ts)}
         co_since = cochamp_since(ts)
         for s in ts.submissions.values():
-            if not ST.reveal_allows_keepalive(s, now) or s.status not in KEEPALIVE_STATUSES or not s.delta_checked or RV.under_review(s):
-                continue    # rc11.post5: an entry under review (reparametrisation flag, operator hold) gets no keep-alive
+            held = _cutoff_held(s, now)
+            if not ST.reveal_allows_keepalive(s, now) or (s.status not in KEEPALIVE_STATUSES and not held) or not s.delta_checked or RV.under_review(s):
+                continue    # a cutoff hold never bypasses reveal, copy or review checks
             is_co = s.key in co_keys and s.status != ST.CHAMPION and co_since is not None
             since = co_since if is_co else _keepalive_since(s)
             plain_since = None
@@ -710,7 +767,7 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
                 else:
                     since = min(since, first_pass[s.hash_named])
             # fail closed on a timestamp more than an hour in the future (a clock that jumped): it would never expire
-            if since is None or now > _keepalive_end(s, since, is_co, now, plain_since) or (since if plain_since is None else plain_since) > now + KEEPALIVE_FUTURE_S:
+            if not held and (since is None or now > _keepalive_end(s, since, is_co, now, plain_since) or (since if plain_since is None else plain_since) > now + KEEPALIVE_FUTURE_S):
                 continue
             score = s.score
             v51 = _v51_scored(s, now)
@@ -739,7 +796,8 @@ def compute_keepalive(state: ST.SpecState, track_ids: Sequence[str], snapshot: S
             # the chain's commitment block, never the local first_seen_block (it depends on when this evaluator noticed
             # the commitment); unknown (0/None) sorts after the known ones, by uid only
             cb = n.commitment_block if isinstance(n.commitment_block, int) and n.commitment_block > 0 else sys.maxsize
-            cands.append((0 if is_co else KEEPALIVE_STATUSES.index(s.status), cb, n.uid, s.key, n, float(score), qual))
+            priority = 0 if is_co else KEEPALIVE_STATUSES.index(ST.PENDING_CONFIRM if held else s.status)
+            cands.append((priority, cb, n.uid, s.key, n, float(score), qual))
         per_coldkey: dict[str, int] = {}
         res: list[tuple[int, float]] = []
         rank: dict[int, tuple[float, ...]] = {}
@@ -1058,6 +1116,10 @@ def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: 
     - VERIFIED (fetched with the exact tensor hash and copy-checked, base download on our side, or a close call) or OUR
       wait (not fetched yet, no fetch failed): from its own on-chain commitment until its first draw decides it, at most
       ``PROVISIONAL_KA_OUR_WAIT_HOURS``;
+    - A clean generalist queued by its latest ``slot_restart`` / ``v5_restart`` with no new draw is OUR wait,
+      from that restart timestamp for ``PROVISIONAL_KA_OUR_WAIT_HOURS``: hash-named, copy-checked, not derived and
+      not under review. Other restarts void the old score and get UNVERIFIED time from the restart timestamp,
+      without opening or consuming a hotkey rewindow. Review/hold entries stay excluded;
     - UNVERIFIED (not seen yet, or the last fetch found no repo / a miner-side base problem):
       ``PROVISIONAL_KA_UNVERIFIED_HOURS`` from the start of the hotkey's unverified window; a hotkey opens at most one such window per ``KA_REWINDOW_HOURS``
       (over the first sightings of all its entries and this commitment), so recommitting dummies cannot chain windows.
@@ -1085,19 +1147,22 @@ def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: 
                 continue
             s = subs.get(f"{hk}|{c.text()}")
             at = _onchain_ts(n, snapshot.block, now)
+            restart = _restart_wait_since(s) if s is not None else None
             if s is not None:
-                if not ST.reveal_allows_keepalive(s, now):
-                    continue
+                if not ST.reveal_allows_keepalive(s, now) or _cutoff_held(s, now):
+                    continue    # held restarts use confirmed-entry keep-alive, never both paths
                 if s.status not in (ST.QUEUED, ST.PENDING_VERIFY) or not _big_ok(s, track_id, now, undecided=True):
                     continue
-                if s.score is not None and not (s.status == ST.QUEUED and s.close_draws and s.hash_named and s.delta_checked):
+                if restart is not None and RV.under_review(s):
+                    continue    # review/hold paths own these entries
+                if s.score is not None and restart is None and not (s.status == ST.QUEUED and s.close_draws and s.hash_named and s.delta_checked):
                     continue    # scored: the first draw decided it (pending entries hold the keep-alive, not this)
                 if opened.get(s.coldkey, 0) > C.MAX_OPEN_PER_COLDKEY_TRACK:
                     continue
                 if at is None:
                     at = s.first_seen_ts if isinstance(s.first_seen_ts, (int, float)) and math.isfinite(s.first_seen_ts) else None
                 verified = bool(s.hash_named) and (s.delta_checked or s.wait_kind == ST.WAIT_INFRA or s.score is not None)
-                ours = verified or _our_wait(s)
+                ours = _our_wait(s) if restart is not None else verified or _our_wait(s)
             else:
                 ours = False
             if at is None or at > now + KEEPALIVE_FUTURE_S:
@@ -1107,14 +1172,16 @@ def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: 
                 if n_fakes >= split.KA_ABUSE_EXCLUDE_AFTER or (not ours and (n_fakes > 0 or (s is not None and _is_fake(s)))):
                     continue    # abuse clause: fakes lose the unverified window, repeat offenders the provisional keep-alive
             if ours:
-                since, hours = at, split.PROVISIONAL_KA_OUR_WAIT_HOURS
+                since, hours = restart if restart is not None else at, split.PROVISIONAL_KA_OUR_WAIT_HOURS
+            elif restart is not None:
+                since, hours = restart, split.PROVISIONAL_KA_UNVERIFIED_HOURS
             else:
                 own = [x for x in _windows(seen.get(hk, []) + [at], gap) if x <= at]
                 since, hours = (own[-1] if own else at), split.PROVISIONAL_KA_UNVERIFIED_HOURS
             unseen = s is None and split.KA_GAUNTLET_R2
             if unseen and now - since > hours * 3600.0 and now - at <= split.PROVISIONAL_KA_UNSEEN_GRACE_HOURS * 3600.0:
                 since, hours = at, split.PROVISIONAL_KA_UNSEEN_GRACE_HOURS     # F2: grace from its own commitment block
-            if now - since > hours * 3600.0:
+            if since > now + KEEPALIVE_FUTURE_S or now - since > hours * 3600.0:
                 continue
             cb = n.commitment_block if isinstance(n.commitment_block, int) and n.commitment_block > 0 else sys.maxsize
             cands.append((0 if ours else 1, cb, n.uid, hk, unseen, n))
@@ -1160,15 +1227,29 @@ def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: 
     return out
 
 
+def _restart_wait_since(s: ST.Submission) -> float | None:
+    """Validator reader: a generalist restart awaits its new first draw; use only the last worker history row."""
+    if s.track_id != "generalist" or s.status != ST.QUEUED or s.draw1 or not s.history:
+        return None
+    last = s.history[-1]
+    if not isinstance(last, dict) or last.get("kind") not in ("slot_restart", "v5_restart"):   # p811-critic L2: fail closed on a corrupt row
+        return None
+    at = last.get("ts")
+    return float(at) if isinstance(at, (int, float)) and not isinstance(at, bool) and math.isfinite(at) else None
+
+
 def _our_wait(s: ST.Submission) -> bool:
     """H3: the entry waits for its first evaluation because of THIS side (queue, boxes, fetch, base download), not the
-    miner's: fetched and copy-checked but not drawn yet; a close call waiting for its extra draw; ``pending_verification``
+    miner's: fetched and copy-checked but not drawn yet (including a generalist restart); a close call waiting for its
+    extra draw; ``pending_verification``
     for this host's infrastructure; or not fetched yet and no fetch attempt failed. A repo that was missing or private at
     the last fetch, or a miner-side base problem, is the miner's wait."""
     if s.status == ST.PENDING_VERIFY:
         return s.wait_kind == ST.WAIT_INFRA
     if s.status != ST.QUEUED:
         return False
+    if _restart_wait_since(s) is not None:
+        return bool(s.hash_named and s.delta_checked and not s.derived_from and not RV.under_review(s))
     if s.score is not None:
         return bool(s.close_draws and s.hash_named and s.delta_checked)
     if s.hash_named:
@@ -1341,6 +1422,7 @@ class SpecEvaluator:
                 except Exception:  # noqa: BLE001 - a failed metadata probe must not stop other tracks
                     log.exception("track %s: repo availability probes failed", tdef.track_id)
             self._confirm_before_close(active, now)
+            self._fast_confirm_pull_in(active, now)
             # start the windows of the entries that qualify now, before a long evaluation cycle can eat their lead
             await self._d4_probe([t.track_id for t in active], snapshot, self.clock())
             mark_provisional(self.state, [t.track_id for t in active], snapshot, self.clock(), self._d4_probed)
@@ -1444,6 +1526,12 @@ class SpecEvaluator:
         return compute_keepalive(self.state, [t.track_id for t in active], snapshot,
                                  {t.track_id: self._entry_floor(t) for t in active}, now=self.clock())
 
+    def former_champions(self, snapshot: Snapshot) -> list[int]:
+        """All current/former title holders checked against this chain snapshot."""
+        from ..ka_feed import former_champions
+        leaders = compute_leaders(self.state, ["generalist"], snapshot, now=self.clock(), limit=None)
+        return former_champions(leaders.get("generalist", ()))
+
     def protected(self, active: Sequence[C.TrackDef], snapshot: Snapshot) -> dict[str, list[int]]:
         return keepalive_protected(self.state, [t.track_id for t in active], snapshot)
 
@@ -1472,6 +1560,7 @@ class SpecEvaluator:
             sub = ts.submissions.get(key)
             if sub is not None and sub.status != ST.WITHDRAWN:
                 sub.uid, sub.coldkey = n.uid, n.coldkey
+                self._capture_chain_commit(sub, n, snap, now)
                 continue
             if sub is not None:
                 # the same hotkey holds this commitment again (re-registered after a deregistration, or committed back):
@@ -1491,6 +1580,7 @@ class SpecEvaluator:
                 ts.log(now, f"{key[:12]}: committed again after its withdrawal (uid {n.uid}), a new entry")
             sub = ST.Submission(key=key, uid=n.uid, hotkey=n.hotkey, coldkey=n.coldkey, track_id=tdef.track_id, repo=c.repo,
                                 revision=c.revision, first_seen_block=snap.block, first_seen_ts=now)
+            self._capture_chain_commit(sub, n, snap, now)
             ts.submissions[key] = sub
             ts.log(now, f"new submission uid {n.uid} {c.repo}@{c.revision[:8]}")
             why = self._budget_violation(sub, now) if tdef.track_id != "generalist" else ""
@@ -1520,6 +1610,14 @@ class SpecEvaluator:
         if ts.champion and ts.submissions[ts.champion].status != ST.CHAMPION:
             ts.champion = ""
         self._reanchor_cochamps(ts, now)
+
+    @staticmethod
+    def _capture_chain_commit(sub: ST.Submission, n: Any, snap: Snapshot, now: float) -> None:
+        cb = getattr(n, "commitment_block", None)
+        if (sub.chain_commit_ts is None and isinstance(cb, int) and not isinstance(cb, bool)
+                and 0 < cb <= snap.block):
+            sub.chain_commit_block = cb
+            sub.chain_commit_ts = _commitment_ts(n, snap.block, now)
 
     def _budget_violation(self, sub: ST.Submission, now: float) -> str:
         """docs/SPECIALIST-TRACKS.md: at most 2 open submissions per coldkey and track, 4 new per coldkey per 7 days."""
@@ -1615,10 +1713,40 @@ class SpecEvaluator:
     def _set_confirm_due(self, ts: ST.TrackState, ch: ST.Submission, first_ts: float, now: float) -> None:
         """``confirm_after_ts`` of a first pass taken at ``first_ts`` (``M.confirm_due_ts``). ``first_pass_ts`` is stored only
         when the due time is not ``first_ts + delay`` (pulled in before the close): None keeps the state as it was before
-        the gate and the keep-alive derives the first pass from ``confirm_after_ts`` as always."""
-        delay = self.cfg.confirm_delay_s
+        the gate and the keep-alive derives the first pass from ``confirm_after_ts`` as always. The one-time fast delay
+        (``_confirm_delay``) always stores ``first_pass_ts``: ``confirm_after_ts - CONFIRM_DELAY_S`` would be wrong for it."""
+        base = self.cfg.confirm_delay_s
+        delay = _confirm_delay(ch, first_ts, base)
         ch.confirm_after_ts = M.confirm_due_ts(first_ts, delay, self._track_close(ts.track_id), now)
-        ch.first_pass_ts = None if ch.confirm_after_ts == first_ts + delay else first_ts
+        ch.first_pass_ts = None if ch.confirm_after_ts == first_ts + base else first_ts
+
+    def _fast_confirm_pull_in(self, active: Sequence[C.TrackDef], now: float) -> None:
+        """The one-time fast confirmation (``M.confirm_delay_s``) for entries that first passed in its window before this
+        release ran (due one full delay after the first pass): while the fast slot has not come, a pending generalist entry
+        whose confirmation has not run and whose fast delay (``_confirm_delay``) is shorter is brought in once to
+        ``max(first pass + fast delay, now)``; ``first_pass_ts`` keeps the first pass for the keep-alive. Idempotent, one
+        logged line each; every other entry is untouched."""
+        fast = M.FAST_CONFIRM_SLOT_UTC
+        if fast is None or not M.FAST_CONFIRM_FROM_UTC.timestamp() <= now < fast.timestamp():
+            return
+        for tdef in active:
+            ts = self.state.tracks.get(tdef.track_id)
+            if tdef.track_id != "generalist" or ts is None:
+                continue
+            for sub in ts.ordered(ST.PENDING_CONFIRM):
+                c = sub.confirm_after_ts
+                if (sub.confirm_draw or sub.confirm_draws or not isinstance(c, (int, float)) or c <= now
+                        or _crown_pending(sub) is not None):
+                    continue
+                first = _first_pass_ts(sub)
+                if first is None or not math.isfinite(first):
+                    continue
+                due = max(first + _confirm_delay(sub, first, self.cfg.confirm_delay_s), now)
+                if due >= c:
+                    continue
+                sub.first_pass_ts, sub.confirm_after_ts = first, due
+                ts.log(now, f"{sub.key[:12]}: confirmation brought in for the {fast:%a %d %b %H:%M}Z slot "
+                            f"(was due {int(c)}, now {int(due)})")
 
     def _cap_to_close(self, track_id: str, due: float, now: float) -> float:
         """``due`` (a confirmation time that is already ``>= now``) held back to the close lead of the track once the
@@ -2969,9 +3097,9 @@ class SpecEvaluator:
         rows = [h for h in s.history if h.get("kind") == "crown_pending"]
         at = float(rows[-1]["ts"])
         if rows[-1].get("k1a") and isinstance(rows[-1].get("slot"), (int, float)):
-            return float(rows[-1]["slot"])
+            return _cutoff_slot(s, float(rows[-1]["slot"]))
         later = [t.timestamp() for t in split.CROWN_SLOTS_UTC if t.timestamp() >= at]
-        return min(later) if later else at
+        return _cutoff_slot(s, min(later) if later else at)
 
     @staticmethod
     def _current_slot(now: float) -> float | None:
@@ -2991,6 +3119,7 @@ class SpecEvaluator:
         co = {m.key for m in cochamp_members(ts)}
         return [s for s in ts.ordered(ST.PENDING_CONFIRM)
                 if s.key not in co and _crown_pending(s) is None and not s.confirm_draw and s.confirm_after_ts is not None
+                and _cutoff_slot(s, slot) == slot
                 and s.confirm_after_ts <= slot - split.SLOT_K1_DUE_LEAD_S and s.draw1 in ts.draws
                 and not (s.reason.startswith(WAITING_FOR_REPO) and s.wait_kind != ST.WAIT_INFRA)
                 and not RV.under_review(s)]    # rc11.post5: an entry under review does not hold the slot
@@ -3002,7 +3131,7 @@ class SpecEvaluator:
         if slot is None or not split.SLOT_K1_A or now <= slot or any(r.get("slot") == slot for r in ts.slot_results):
             return None
         due = ch.confirm_after_ts
-        return slot if due is not None and due <= slot - split.SLOT_K1_DUE_LEAD_S else None
+        return slot if due is not None and due <= slot - split.SLOT_K1_DUE_LEAD_S and _cutoff_slot(ch, slot) == slot else None
 
     def _slot_unserved(self, ts: ST.TrackState, group: Sequence[ST.Submission], slot_ts: float, now: float) -> None:
         """No entry of the slot could be loaded, each for a reason on its own side (rule 4.1): nobody is crowned, the entries
@@ -3026,6 +3155,11 @@ class SpecEvaluator:
             if at is None or RV.under_review(s):
                 continue    # rc11.post5: a stored crowning of an entry under review waits (it is never crowned while held)
             slot = self._slot_of(s)
+            rows = [h for h in s.history if h.get("kind") == "crown_pending"]
+            original = rows[-1].get("slot", rows[-1]["ts"])
+            if slot > original and math.isfinite(slot):
+                s.cutoff_hold_until_ts = slot
+                s.reason = f"held for {datetime.fromtimestamp(slot, timezone.utc):%Y-%m-%d %H:%M}Z (commit cutoff)"
             if now >= slot:
                 due.append((slot, s))
         if not due:
@@ -3399,8 +3533,14 @@ class SpecEvaluator:
             if ok and (slot := (k1a if k1a is not None else self._crown_slot(now))) is not None:
                 # CROWN_SLOTS_UTC: the decision is stored, the scores are published, the champion stays until the slot
                 # (K1-a: a confirmation due before the slot that ran after it joins that slot)
+                eligible = _cutoff_slot(ch, slot)
+                if eligible > slot and math.isfinite(eligible):
+                    ch.cutoff_hold_until_ts = eligible
                 ch.history.append({"kind": "crown_pending", "ts": now, "slot": slot, **({"k1a": True} if k1a is not None else {})})
                 ch.reason = f"crowning decided; takes effect at {datetime.fromtimestamp(slot, timezone.utc):%Y-%m-%d %H:%M}Z"
+                if eligible > slot:
+                    ch.reason = (f"held for {datetime.fromtimestamp(eligible, timezone.utc):%Y-%m-%d %H:%M}Z (commit cutoff)"
+                                 if math.isfinite(eligible) else "held: no eligible configured slot (commit cutoff)")
                 ts.log(now, f"{ch.key[:12]} would be the new champion ({ch.score:.2f}"
                             + (f", bar uid {bar.uid} {inc_total:.2f}" if bar is not None else "") + f"): {ch.reason}")
             elif ok:

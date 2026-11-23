@@ -52,6 +52,10 @@ class Submission:
     revision: str
     first_seen_block: int
     first_seen_ts: float
+    # Chain evidence captured once from the matching live commitment (12 s/block).
+    chain_commit_block: int | None = None
+    chain_commit_ts: float | None = None
+    cutoff_hold_until_ts: float | None = None  # earned confirmation; survives a new-champion first-stage restart
     status: str = QUEUED
     reason: str = ""
     attempts: int = 0                  # model failures in the last START_FAIL_WINDOW scheduled rounds

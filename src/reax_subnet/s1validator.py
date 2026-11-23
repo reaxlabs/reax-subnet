@@ -19,6 +19,7 @@ from __future__ import annotations
 import collections
 import asyncio
 import dataclasses
+import contextvars
 import functools
 import logging
 import math
@@ -48,6 +49,22 @@ from .tiers import (CAPACITY, CapacityParams, TierBudgets, compute_tiered_weight
 from .validator import CHAIN_READ_TIMEOUT_S, QueryResult, Validator, _read_limited, ip_allowed
 
 log = logging.getLogger("reax.s1validator")
+
+
+@dataclasses.dataclass
+class _ReferenceProgress:
+    # Task-local metadata only: never retain Decisions or backend responses.
+    active_s: float = 0.0
+    waiting_s: float = 0.0
+    chunks: int = 0
+    items: int = 0  # inputs in returned chunks, including any per-item failures
+    observed: bool = False
+    reason: str = "cancelled"
+
+
+_reference_progress: contextvars.ContextVar[Optional[_ReferenceProgress]] = contextvars.ContextVar(
+    "reference_progress", default=None)
+
 
 # Release constants (docs/DESIGN-v1.1.md, CALIBRATION.md). Validators refuse overrides on finney.
 POOL_PARAMS: dict[str, PoolParams] = {
@@ -167,6 +184,10 @@ PROBE_DROPS_ALERT = 3
 PROBE_REFERENCE_CHUNK = 16
 PROBE_REFERENCE_CHUNK_GPU = 256
 PROBE_BACKGROUND_WALL_FACTOR = 4.0
+# 1.2.0rc11.post8.12: a background probe's own (chunk) time is this x the reference budget, still inside the wall clock
+# above. On mainnet (1 Nov 2026, post8.11) s1-pro probes of 1304-1314 items ran 5 GPU chunks of 256 in 158-164 s against
+# an own budget of ~156 s and were dropped before the last 24-34 items, leaving every s1-pro slot without a capacity update.
+PROBE_BACKGROUND_OWN_FACTOR = 2.0
 
 
 def probe_request_load(cap: CapacityParams, budget_dps: float) -> float:
@@ -230,7 +251,8 @@ def _merge_windows(got: list, shards: int) -> probeshard.ProbeWindow:
     return probeshard.ProbeWindow(results=[r for w in got for r in w.results],
                                   lag_p95=max(w.lag_p95 for w in got), lag_samples=sum(w.lag_samples for w in got),
                                   cpu_share=max(w.cpu_share for w in got), started=min(w.started for w in got),
-                                  trace=trace, refused={uid: k for w in got for uid, k in w.refused.items()})
+                                  trace=trace, refused={uid: k for w in got for uid, k in w.refused.items()},
+                                  lane_errors={uid: v for w in got for uid, v in w.lane_errors.items()})
 
 
 class _HttpStatus(Exception):
@@ -254,6 +276,7 @@ class _PendingProbe:
     left: float  # reference budget (s)
     ended: float  # time.monotonic() at the end of the signature check
     owners: dict  # uid -> (hotkey, role) at the window
+    diagnostics: dict = dataclasses.field(default_factory=dict)  # observability only; never used to score or fold
 
 
 def s1_endpoint_url(ip: str, port: int) -> str:
@@ -577,15 +600,33 @@ class S1Validator(Validator):
         size = PROBE_REFERENCE_CHUNK if model in REFERENCE_CAP else PROBE_REFERENCE_CHUNK_GPU
         out: list[Any] = []
         spent = 0.0
+        progress = _reference_progress.get()
+        if progress is not None:
+            progress.observed = True
         for i in range(0, len(decisions), size):
             ev = self._idle(model)
-            while not ev.is_set():  # asyncio may wake us after a round cleared the event again
-                await ev.wait()
+            waiting = time.monotonic()
+            try:
+                while not ev.is_set():  # asyncio may wake us after a round cleared the event again
+                    await ev.wait()
+            finally:
+                if progress is not None:
+                    progress.waiting_s += time.monotonic() - waiting
             if spent > budget:
+                if progress is not None:
+                    progress.reason = "own_time_budget"
                 raise asyncio.TimeoutError
             t0 = time.monotonic()
-            out += await self.backends[model].decide_each(decisions[i:i + size])
-            spent += time.monotonic() - t0
+            try:
+                out += await self.backends[model].decide_each(decisions[i:i + size])
+            finally:
+                elapsed = time.monotonic() - t0
+                if progress is not None:
+                    progress.active_s += elapsed
+            spent += elapsed
+            if progress is not None:
+                progress.chunks += 1
+                progress.items += len(decisions[i:i + size])
         return out
 
     async def _references_isolated(
@@ -602,25 +643,60 @@ class S1Validator(Validator):
             by_model.setdefault(model, {})[uid] = (model, ds)
 
         async def one(model: str, sub: dict[int, tuple[str, list[Decision]]]):
+            path = "background" if background else "foreground"
+            wall_budget = PROBE_BACKGROUND_WALL_FACTOR * budget if background else budget
+            own_budget = PROBE_BACKGROUND_OWN_FACTOR * budget if background else None
+            started = time.monotonic()
+            progress = _ReferenceProgress()
+
+            async def compute():
+                token = _reference_progress.set(progress)
+                try:
+                    return await self._references(sub, own_budget)
+                except asyncio.TimeoutError:
+                    # wait_for also raises TimeoutError on its own deadline. Mark an inner timeout
+                    # before it crosses that boundary, without wrapping it or changing cancellation.
+                    if progress.reason != "own_time_budget":
+                        progress.reason = "backend_timeout"
+                    raise
+                finally:
+                    _reference_progress.reset(token)
+
             try:
-                refs, bad, failed, total = await asyncio.wait_for(
-                    self._references(sub, budget if background else None),
-                    PROBE_BACKGROUND_WALL_FACTOR * budget if background else budget)
+                refs, bad, failed, total = await asyncio.wait_for(compute(), wall_budget)
             except asyncio.TimeoutError:
+                if progress.reason == "cancelled":
+                    progress.reason = "outer_wall_deadline"
                 log.error("%s reference runtime did not finish %d miners' items within %.0f s; %s miners unscored this "
-                          "round (check that sidecar: it may be hung while /health stays green)",
-                          model, len(sub), budget, model)
+                          "round (check that sidecar: it may be hung while /health stays green) path=%s reason=%s",
+                          model, len(sub), own_budget or budget, model, path, progress.reason)
                 return model, None, set(sub)
-            except Exception:
-                log.exception("%s reference computation failed; %s miners unscored this round", model, model)
+            except Exception as exc:
+                progress.reason = "computation_error"
+                log.error("%s reference computation failed path=%s error_type=%s; pool slots unscored",
+                          model, path, type(exc).__name__)
                 return model, None, set(sub)
+            else:
+                progress.reason = "completed"
+            finally:
+                # finally also observes cancellation; it neither catches nor suppresses CancelledError.
+                level = (logging.INFO if background else logging.DEBUG) if progress.reason == "completed" else logging.ERROR
+                log.log(level, "%s reference diagnostic path=%s reason=%s slots=%d items=%d wall_s=%.3f "
+                        "wall_budget_s=%.3f own_budget_s=%s active_s=%s waiting_s=%s "
+                        "completed_chunks=%s completed_items=%s",
+                        model, path, progress.reason, len(sub), sum(len(ds) for _, ds in sub.values()),
+                        time.monotonic() - started, wall_budget, own_budget,
+                        progress.active_s if progress.observed else None,
+                        progress.waiting_s if progress.observed else None,
+                        progress.chunks if progress.observed else None,
+                        progress.items if progress.observed else None)
             if total and failed > MAX_REFERENCE_FAILURE_SHARE * total:
-                log.error("%s reference runtime failed on %d of %d items; %s miners unscored this round",
-                          model, failed, total, model)
+                log.error("%s reference runtime failed on %d of %d items; %s slots unscored path=%s",
+                          model, failed, total, model, path)
                 return model, None, set(sub)
             if failed:
-                log.warning("%s reference runtime failed on %d of %d items; %d miner(s) left unscored this round",
-                            model, failed, total, len(bad))
+                log.warning("%s reference runtime failed on %d of %d items; %d slot(s) left unscored path=%s",
+                            model, failed, total, len(bad), path)
             return model, refs, bad
 
         references: dict[int, dict[str, tuple[float, ...]]] = {}
@@ -817,7 +893,8 @@ class S1Validator(Validator):
             self._last_verified[res.uid] = self.state.rounds
             summary["ok" if res.answers is not None else "failed"] += 1
             summary["scores"][res.uid] = {
-                "model": roles[res.uid], "score": round(outcome_score, 4), "verified": verified, "passed": passed,
+                "model": roles[res.uid], "score": round(outcome_score, 4),
+                "verified": verified, "passed": passed,
                 "strike": strike, "max_distance": None if not math.isfinite(worst) else round(worst, 4),
                 "mean_distance": None if not math.isfinite(mean) else round(mean, 4),
                 "latency_s": None if math.isinf(res.latency_s) else round(res.latency_s, 3), "error": res.error,
@@ -922,20 +999,33 @@ class S1Validator(Validator):
             if not self.eu.contract_hotkeys():
                 return
             outcomes: dict[str, tuple[bool, bool]] = {}
+            wrong: dict[str, bool] = {}
+            uninformed: set[str] = set()
+            capacities: dict[str, float] = {}
             for slot, e in summary.get("scores", {}).items():
                 m = self.state.miners.get(slot)
-                if m is None or e.get("score") is None:  # our own reference failed: no information either way
+                if m is None:
                     continue
+                if e.get("model", elements.slot_model(slot)) not in eutier.SCHEME_A_POOLS:
+                    continue  # GPU contract quality does not use CPU/lite slots.
+                if e.get("score") is None:  # our own reference failed: no information either way
+                    uninformed.add(m.hotkey)
+                    continue
+                wrong[m.hotkey] = wrong.get(m.hotkey, False) or (e.get("error") is None and e["score"] == 0)
                 ok, failed = outcomes.get(m.hotkey, (False, False))
-                outcomes[m.hotkey] = (ok or (e.get("error") is None and not e.get("strike")),
+                outcomes[m.hotkey] = (ok or (e.get("error") is None and not e.get("strike") and e["score"] > 0),
                                       failed or bool(e.get("strike")))
             for slot, e in (summary.get("capacity") or {}).items():
                 m = self.state.miners.get(slot)
                 hk = e.get("hotkey") or (m.hotkey if m is not None else None)  # the hotkey checked at the window
+                model = e.get("model", elements.slot_model(slot))
+                if (hk is not None and model == "s1-pro" and e.get("capacity") is not None):
+                    capacities[hk] = max(capacities.get(hk, 0.0), e["capacity"])
                 if hk is not None and e.get("strike"):
                     ok, _failed = outcomes.get(hk, (False, False))
                     outcomes[hk] = (ok, True)
-            self.eu.record_round(datetime.now(timezone.utc), outcomes)
+            self.eu.record_round(datetime.now(timezone.utc), outcomes, capacities=capacities, wrong=wrong,
+                                 uninformed=uninformed)
         except Exception:
             log.exception("EU tier: recording the round failed (no effect on scoring)")
 
@@ -982,6 +1072,12 @@ class S1Validator(Validator):
         # The competition task and the serving round both end here: one at a time.
         async with self._weights_lock:
             return await super().maybe_set_weights(snap)
+
+    def early_weight_uids(self, snap: Snapshot, weights: dict[int, float]) -> list[int]:
+        from .weight_timing import new_exposed_payees
+
+        return new_exposed_payees(self._competition_view(snap), weights, self.hotkey,
+                                  self._submitted_block, self._submitted_payees)
 
     def _not_competitors(self, snap: Snapshot) -> set[int]:
         out = {n.uid for n in snap.neurons if n.hotkey == self.hotkey}
@@ -1087,6 +1183,17 @@ class S1Validator(Validator):
             shard_cpu = [w.cpu_share for w in got if isinstance(w, probeshard.ProbeWindow)]
         order = {n.uid: i for i, n in enumerate(targets)}
         results = sorted(win.results, key=lambda r: order[r[0]])
+        by_result = {r[0]: r for r in results}
+        diagnostics = {}
+        for n in targets:
+            r = by_result.get(n.uid)
+            diagnostics[n.uid] = {
+                "received_requests": len(r[1]) if r is not None else None,
+                "expected_requests": len(prepared[n.uid]),
+                "expected_answers": sum(size for size, _body in prepared[n.uid]),
+                "start_missing": r is None or r[4] is None,
+                "lane_errors": win.lane_errors.get(n.uid, {}) if r is not None else None,
+            }
         if win.trace is not None:
             self.last_probe_trace = {"started": win.started, "uids": win.trace,
                                      "windows": {uid: start for uid, _d, _s, _i, start, _r in results}}
@@ -1134,6 +1241,11 @@ class S1Validator(Validator):
             log.error("capacity probe skipped: the validator was the bottleneck (%s); no capacity update this probe "
                       "(see scripts/bench_probe.py)", "; ".join(reasons))
             self._probe_dropped(reasons)
+            for n in targets:
+                r = by_result.get(n.uid)
+                self._log_probe_slot(n.uid, roles[n.uid], diagnostics[n.uid],
+                                     r[3] if r is not None else None, r[2] if r is not None else None,
+                                     reason="validator_drop: " + "; ".join(reasons), folded=False)
             return None
 
         # Signatures and answers, checked now (in a worker thread, the nonce store is thread-safe). One forged or
@@ -1144,6 +1256,9 @@ class S1Validator(Validator):
             retention = getattr(self.nonce_store, "retention", None) or math.inf
             retention -= auth.http_auth.DEFAULT_ALLOWED_SKEW
             for uid, done, _seconds, _items in probed:
+                diag = diagnostics[uid]
+                diag.update(invalid_answers=0, invalid_signatures=0, stale_signatures=0, answers_received=0,
+                            invalid_reason="none")
                 if not done:
                     continue
                 n, cap, params = by_uid[uid], CAPACITY[roles[uid]], self.pools[roles[uid]]
@@ -1162,11 +1277,15 @@ class S1Validator(Validator):
                         answers.update(self._check_s1(n, req, raw, headers, max_age))
                         decisions.update((d.ident, d) for d in req.decisions)
                 except Exception as exc:
+                    diag.update(invalid_answers=1, invalid_signatures=int(isinstance(exc, auth.AuthError)),
+                                stale_signatures=int(isinstance(exc, auth.http_auth.StaleRequest)),
+                                invalid_reason=type(exc).__name__, answers_received=len(answers))
                     log.warning("uid %d [%s] capacity probe: invalid answer (%s); probe counts 0", slot_uid(uid), roles[uid],
                                 self._s1_error(n, exc))
                     out[uid] = None
                     continue
                 out[uid] = (answers, decisions)
+                diag["answers_received"] = len(answers)
             return out
 
         checked = await asyncio.to_thread(check)
@@ -1189,7 +1308,44 @@ class S1Validator(Validator):
             probed=probed, checked=checked, verify=verify, roles={n.uid: roles[n.uid] for n in targets},
             budgets=budgets, scale=scale, refused=dict(win.refused), left=max(1.0, deadline - time.monotonic()),
             ended=time.monotonic(),
-            owners={n.uid: (self.state.miners[n.uid].hotkey, self.state.miners[n.uid].role) for n in targets})
+            owners={n.uid: (self.state.miners[n.uid].hotkey, self.state.miners[n.uid].role) for n in targets},
+            diagnostics=diagnostics)
+
+    def _log_probe_slot(self, uid, model, diag, items, elapsed, **kw) -> None:
+        """p82-critic L1: diagnostics are log-only and must never break a probe fold."""
+        try:
+            self._log_probe_slot_impl(uid, model, diag, items, elapsed, **kw)
+        except Exception as exc:  # noqa: BLE001 - logging must not change probe outcomes
+            log.warning("probe diagnostic for uid %s [%s] failed: %s", uid, model, type(exc).__name__)
+
+    def _log_probe_slot_impl(self, uid, model, diag, items, elapsed, *, reason, folded, outcome=None,
+                             reference_count=None, dps=None, capacity=None, refused=0) -> None:
+        """One diagnostic per slot, including drops. None means unavailable/not checked, never a measured zero.
+
+        Expected answers are the prepared budget, not a minimum required to pass. Invalid counts are detected
+        failures only: the existing signature loop stops at the first invalid response. Distances come from the
+        existing score_round result; dropped/unscored probes do not run extra scoring for a log.
+        """
+        params = self.pools[model]
+        # Keep the existing folded-sample prefix (and precision) for log consumers.
+        prefix = (f"uid {slot_uid(uid)} [{model}] capacity probe: {items} decisions in {elapsed:.2f}s = {dps:.2f}/s"
+                  f"{' STRIKE' if outcome and outcome.strike else ''}; moving average {capacity:.2f}/s"
+                  + (f"; {refused} lanes refused by the miner's own limits" if refused else "")) if folded else (
+                      f"uid {slot_uid(uid)} [{model}] capacity probe: not folded")
+        log.info("%s; probe diagnostic folded=%s reason=%s answers_received=%s/%s received_requests=%s/%s "
+                 "in_window_answers=%s invalid_answers=%s invalid_signatures=%s stale_signatures=%s "
+                 "invalid_reason=%s mean_distance=%s max_distance=%s tau_mean=%s tau_strike=%s tau_item=%s "
+                 "reference_count=%s empty_reference=%s lane_errors=%s refused_lanes=%s start_missing=%s",
+                 prefix, folded, reason,
+                 diag.get("answers_received"), diag.get("expected_answers"),
+                 diag.get("received_requests"), diag.get("expected_requests"), items,
+                 diag.get("invalid_answers"), diag.get("invalid_signatures"), diag.get("stale_signatures"),
+                 diag.get("invalid_reason", "not_checked"),
+                 outcome.mean_distance if outcome is not None else None,
+                 outcome.max_distance if outcome is not None else None,
+                 params.tau_mean, params.tau_strike, params.tau_item, reference_count,
+                 reference_count == 0 if reference_count is not None else None,
+                 diag.get("lane_errors"), refused, diag.get("start_missing"))
 
     async def _probe_verify(self, p: _PendingProbe, background: bool = False) -> dict[int, Any]:
         """The probe's reference verification and capacity fold. In the background (``REAX_PROBE_BACKGROUND``) it runs
@@ -1199,12 +1355,16 @@ class S1Validator(Validator):
         references, unscored, _failed_pools = await self._references_isolated(p.verify, p.left, background=background)
         report: dict[int, Any] = {}
         for uid, done, elapsed, items in probed:
+            diag = p.diagnostics.get(uid, {})
+            refs = references.get(uid, {})
             if uid in unscored:
+                self._log_probe_slot(uid, roles[uid], diag, items, elapsed, reason="reference_unscored",
+                                     folded=False, reference_count=len(refs), refused=p.refused.get(uid, 0))
                 continue
             m = self.state.miners.get(uid)
             if m is None or (m.hotkey, m.role) != p.owners[uid]:
-                log.info("uid %s capacity probe: hotkey or role changed since the probe window; not folded",
-                         _slot_label(uid))
+                self._log_probe_slot(uid, roles[uid], diag, items, elapsed, reason="hotkey_or_role_changed",
+                                     folded=False, reference_count=len(refs), refused=p.refused.get(uid, 0))
                 continue
             model = roles[uid]
             cap, params = CAPACITY[model], self.pools[model]
@@ -1225,10 +1385,14 @@ class S1Validator(Validator):
                            "budget_dps": round(budgets[uid], 3), "invalid": bool(done) and got is None,
                            "strike": bool(o and o.strike), "capacity": round(self.state.miners[uid].capacity or 0.0, 3),
                            "refused_lanes": p.refused.get(uid, 0)}
-            log.info("uid %d [%s] capacity probe: %d decisions in %.2fs = %.2f/s%s; moving average %.2f/s%s",
-                     slot_uid(uid), model, items, elapsed, dps, " STRIKE" if o and o.strike else "",
-                     self.state.miners[uid].capacity or 0.0,
-                     f"; {p.refused[uid]} lanes refused by the miner's own limits" if p.refused.get(uid) else "")
+            reason = ("invalid_answer" if done else "no_answers") if got is None else (
+                "empty_reference" if not refs else "strike" if o.strike else
+                "quality_gate" if o.mean_distance > params.tau_mean else
+                "no_in_window_answers" if dps == 0 else "kept")
+            self._log_probe_slot(uid, model, diag, items, elapsed, reason=reason, folded=True, outcome=o,
+                                 reference_count=len(refs), dps=dps,
+                                 capacity=self.state.miners[uid].capacity or 0.0,
+                                 refused=p.refused.get(uid, 0))
         self._probe_scale = scale  # only a kept probe updates the capacities, so only it changes the divisor
         self._probe_drops = 0
         self._probe_drop_reasons.clear()
@@ -1243,6 +1407,10 @@ class S1Validator(Validator):
         except Exception as exc:
             log.exception("capacity probe verification failed; no capacity update from this probe")
             self._probe_dropped([f"verification failed: {type(exc).__name__}"])
+            for uid, _done, elapsed, items in p.probed:
+                self._log_probe_slot(uid, p.roles[uid], p.diagnostics.get(uid, {}), items, elapsed,
+                                     reason=f"verification_failed: {type(exc).__name__}", folded=False,
+                                     refused=p.refused.get(uid, 0))
             return
         self._probe_report = {**(self._probe_report or {}), **report}
         log.info("capacity probe verified in the background %.0f s after its window: %d slots folded",
@@ -1278,6 +1446,7 @@ class S1Validator(Validator):
         # Lanes a miner turned away with 429/503 (its own concurrency, rate or queue limit): such a miner is measured
         # below its machine. Observability only; it changes no score.
         refused: dict[int, int] = {}
+        lane_errors: dict[int, dict[str, int]] = {}
 
         async def probe(n: Neuron, psession: aiohttp.ClientSession
                         ) -> tuple[int, list[tuple[int, bytes, CIMultiDict]], float, int, Optional[float], int]:
@@ -1301,6 +1470,9 @@ class S1Validator(Validator):
                         raw, headers, _latency = await self._post_s1(psession, sem, n, body, 2 * params.latency_slow_s,
                                                                      PROBE_MAX_RESPONSE_BYTES)
                     except Exception as exc:  # a refusal, timeout or network error ends the lane
+                        errors = lane_errors.setdefault(n.uid, {})
+                        key = f"http_{exc.status}" if isinstance(exc, _HttpStatus) else type(exc).__name__
+                        errors[key] = errors.get(key, 0) + 1
                         if isinstance(exc, _HttpStatus) and exc.status in (429, 503):
                             refused[n.uid] = refused.get(n.uid, 0) + 1
                         if events is not None:
@@ -1381,7 +1553,8 @@ class S1Validator(Validator):
                 await asyncio.gather(ticker, return_exceptions=True)
         share = window_cpu[0] if window_cpu else (time.thread_time() - cpu0) / max(1e-6, time.monotonic() - started)
         return probeshard.ProbeWindow(results=list(results), lag_p95=lag.p95(), lag_samples=len(lag.samples),
-                                      cpu_share=share, started=started, trace=trace, refused=refused)
+                                      cpu_share=share, started=started, trace=trace, refused=refused,
+                                      lane_errors=lane_errors)
 
     def _competition_view(self, snap: Snapshot) -> Snapshot:
         """The snapshot the competition code reads: its view of the round that produced ``snap`` (the inference view the
@@ -1392,6 +1565,20 @@ class S1Validator(Validator):
             if snap is self._latest_comp:
                 return snap
         return elements.role_views(snap).competition
+
+    def allocation_plan(self):
+        hook = getattr(self.engine, "allocation_plan", None)
+        return hook() if hook is not None else None
+
+    def keepalive_record(self):
+        hook = getattr(self.engine, "keepalive_used", None)
+        return hook() if hook is not None else None
+
+    def miner_slot_path(self) -> str:
+        from . import miner_slot
+
+        gate = getattr(self.engine, "award_gate", None)
+        return miner_slot.path_for(getattr(gate, "path", "") or os.environ.get("REAX_AWARD_APPROVALS", "").strip())
 
     def compute_weights(self, snap: Snapshot) -> dict[int, float]:
         self._apply_pool_switches(self._clock())

@@ -33,6 +33,9 @@ class Neuron:
     # The commitment's Raw fields, one element each (elements.py, docs/DESIGN-MULTIROLE.md); () = not read separately
     # (then ``commitment`` is the only field). A field that is not plain UTF-8 Raw data reads as INVALID_FIELD.
     commitment_fields: tuple[str, ...] = ()
+    # None means the reader did not supply incentive; early weight sets fail closed.
+    incentive: Optional[float] = None
+    last_update: int = 0  # last weight commit/set, from this same metagraph block
 
 
 @dataclass(frozen=True)
@@ -130,6 +133,8 @@ class SdkChain:
                     commitment_block=_commitment_block(getattr(n, "commitment", None)),
                     commitment_fields=_commitment_fields(getattr(n, "commitment", None)),
                     registered_block=_int_or_zero(getattr(n, "block_at_registration", 0)),
+                    incentive=getattr(n, "incentive", None),
+                    last_update=_int_or_zero(getattr(n, "last_update", 0)),
                 )
             )
         return Snapshot(block=int(mg.block), neurons=tuple(neurons), owner_hotkey=mg.owner_hotkey)

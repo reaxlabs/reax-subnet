@@ -28,6 +28,7 @@ def _copy(r: Any) -> list:
     """A copy that keeps the evaluator's rank order marker (``RankedLeaders``)."""
     if isinstance(r, RankedLeaders):
         out = RankedLeaders(r)
+        out.champions = None if r.champions is None else set(r.champions)
         out.crowned = dict(r.crowned)
         out.cochamps = dict(r.cochamps)
         out.formset = dict(r.formset)
@@ -83,6 +84,11 @@ class SpecialistAdapter:
     def keepalive(self, track_ids: Sequence[str], now: datetime) -> TrackResults:
         """The keep-alive entries of the last cycle or refresh (docs/SPECIALIST-TRACKS.md, "Keep-alive")."""
         return {t: list(self._keepalive[t]) for t in track_ids if self._keepalive.get(t)}
+
+    def former_champions(self, snapshot: Snapshot) -> list[int]:
+        """Forward the full chain-checked title set to the round-2 feed reader."""
+        getter = getattr(self.evaluator, "former_champions", None)
+        return getter(snapshot) if getter is not None else []
 
     def provisional(self, track_ids: Sequence[str], now: datetime) -> dict[str, list[int]]:
         """Uids with a provisional keep-alive slot (entries waiting for their first evaluation)."""

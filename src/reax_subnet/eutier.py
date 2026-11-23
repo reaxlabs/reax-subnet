@@ -13,7 +13,8 @@ package, ``REAX_EU_REGISTRY_FILE`` overrides it; reloaded every round):
   public receipt per UTC day.
 
 Fail closed everywhere: no file, an invalid file (schema, duplicate hotkey, bad number), an operator without a signed
-contract id + DPA id + datacenter + ASN, a hotkey without a fresh passed EU verification, no price, no inference-share
+contract id + DPA id + datacenter + ASN, a Scheme A hotkey without a fresh passed EU verification, a contract hour
+without quality measurements, no price, no inference-share
 estimate -> that part does nothing, and with nothing active the weights are exactly the weights without this module.
 Nothing here may ever stop weight setting: callers wrap every hook (s1validator).
 
@@ -33,11 +34,13 @@ import re
 import statistics
 import tempfile
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Mapping, Optional, Protocol, Sequence
+from typing import Any, Iterable, Mapping, Optional, Protocol, Sequence
 
 log = logging.getLogger("reax.eutier")
 
 REGISTRY_VERSION = 1
+QUALITY_VERSION = 3
+MIN_HOUR_ROUNDS = 10
 # The shipped registry: no operators (inactive). Entering a contract = a reviewed registry revision.
 REGISTRY_FILE = os.path.join(os.path.dirname(__file__), "eu_registry.json")
 MAX_FILE_BYTES = 1024 * 1024
@@ -49,7 +52,7 @@ SCHEME_A_POOLS: frozenset[str] = frozenset({"s1-fast", "s1-pro"})
 # Contract tier limits a registry may not exceed (the registry carries the decided values).
 MAX_SLOTS_PER_OPERATOR = 64
 MAX_GPUS_PER_HOTKEY = 16
-MAX_CAP_PCT = 5.0
+MAX_CAP_PCT = 50.0  # registry remains 5%; bound covers the maximum contract slots at current prices
 # An EU verification (RTT probes + ASN match) counts only this long after it was made.
 VERIFICATION_MAX_AGE_S = 6 * 3600
 CLOCK_SKEW_S = 300
@@ -60,8 +63,13 @@ MIN_TAO_EUR_SOURCES = 2
 # A correctness failure in this many hours of the trailing 24 suspends a hotkey until a clean hour (pay rule 1).
 SUSPEND_FAILED_HOURS = 3
 # Hour buckets and settlements kept in the ledger state.
-# An hour passes only if the hotkey answered at least this share of the rounds it was queried in that hour (pay rule 1).
+# An hour passes only if at least this share of counted rounds is answered with positive score and strike-free.
 HOUR_PASS_RATIO = 0.9
+# Release quality conditions (4 Nov 2026): clean-round share and fresh capacity per declared GPU.
+MIN_CAPACITY_PER_GPU = 25.0
+CAPACITY_MAX_AGE_S = 3 * 3600
+MAX_WRONG_ROUND_SHARE = 0.10
+MIN_WRONG_ROUNDS = 2
 # 48 h suspension look-back + the settled day + the hours until its latest settlement (D+1 23:00Z) + a restart margin.
 KEEP_HOURS = 120
 # Hour (UTC) of the day after the settled day from which a still missing market entry / inference share is settled as
@@ -450,8 +458,8 @@ def _hour_key(t: datetime) -> str:
 
 
 class ContractLedger:
-    """Per hotkey and UTC hour: availability (an answered, non-struck round), correctness failure (any strike in a
-    round or capacity probe), EU verification (must hold at every record in the hour). Settles each finished UTC day
+    """Per hotkey and UTC hour: availability, strikes, wrong-round count, last-round capacity and clean-round count.
+    Contract admission must hold at every record in the hour. Settles each finished UTC day
     once into a receipt; the settlement of the last finished day decides the pay fractions until the next one.
 
     State is JSON at ``state_path`` (written atomically); receipts go to ``receipts_dir/YYYY-MM-DD.json``."""
@@ -459,9 +467,10 @@ class ContractLedger:
     def __init__(self, state_path: str, receipts_dir: str):
         self.state_path = state_path
         self.receipts_dir = receipts_dir
-        # hotkey -> hour -> {"q": rounds queried, "k": answered without strike, "f": correctness failure,
-        # "v": verified throughout}
-        self.hours: dict[str, dict[str, dict[str, bool]]] = {}
+        # hotkey -> hour: q counted, k answered positive score without strike, f any strike, v admitted throughout,
+        # w answered zero-score rounds, c eligible capacity/GPU at the last counted round (None = unknown).
+        self.hours: dict[str, dict[str, dict[str, Any]]] = {}
+        self.measurements: dict[str, Any] = {}
         self.settled: dict[str, dict[str, Any]] = {}  # day -> receipt
         self.last_price: Optional[float] = None
         self._load()
@@ -473,6 +482,7 @@ class ContractLedger:
                 doc = json.load(fh)
             self.hours = {str(h): {str(k): self._bucket(v) for k, v in hs.items()}
                           for h, hs in doc.get("hours", {}).items()}
+            self.measurements = dict(doc.get("measurements", {})) if doc.get("capacity_pool") == "s1-pro" else {}
             self.settled = dict(doc.get("settled", {}))
             lp = doc.get("last_price")
             self.last_price = float(lp) if _pos(lp) else None
@@ -480,7 +490,7 @@ class ContractLedger:
             pass
         except (OSError, ValueError, AttributeError, TypeError) as exc:
             log.error("EU tier ledger %s unreadable (%s): starting empty", self.state_path, exc)
-            self.hours, self.settled, self.last_price = {}, {}, None
+            self.hours, self.measurements, self.settled, self.last_price = {}, {}, {}, None
 
     @staticmethod
     def _bucket(v: Mapping[str, Any]) -> dict[str, Any]:
@@ -488,24 +498,53 @@ class ContractLedger:
             q, k = max(0, int(v["q"])), max(0, int(v.get("k", 0)))
         else:  # an hour recorded before the answered/queried counts: one round, answered or not
             q, k = 1, 1 if v.get("a") else 0
-        return {"q": q, "k": min(k, q), "f": bool(v.get("f")), "v": bool(v.get("v"))}
+        return {"q": q, "k": min(k, q) if v.get("cv") == QUALITY_VERSION else 0, "f": bool(v.get("f")), "v": bool(v.get("v")),
+                "w": min(q, max(0, int(v.get("w", 0)))),
+                "c": float(v["c"]) if _pos(v.get("c")) else None, "g": v.get("g"),
+                "cv": QUALITY_VERSION}
 
     def save(self) -> None:
-        doc = {"version": 1, "hours": self.hours, "settled": self.settled,
+        doc = {"version": 1, "capacity_pool": "s1-pro", "hours": self.hours, "measurements": self.measurements, "settled": self.settled,
                "last_price": self.last_price}
         _atomic_write(self.state_path, doc)
 
     # recording
-    def record(self, now: datetime, outcomes: Mapping[str, tuple[bool, bool]], verified: Mapping[str, bool]) -> None:
-        """``outcomes[hotkey] = (answered_ok, correctness_failed)`` of one round (or probe), for contract-tier hotkeys
-        only; ``verified[hotkey]`` its EU verification at this moment."""
+    def record(self, now: datetime, outcomes: Mapping[str, tuple[bool, bool]], verified: Mapping[str, bool],
+               *, capacities: Optional[Mapping[str, float]] = None,
+               declared_gpus: Optional[Mapping[str, int]] = None,
+               wrong: Optional[Mapping[str, bool]] = None) -> None:
+        """One round per contract hotkey. Outcomes are (answered, strike); wrong is an answered zero-score round.
+
+        Only newly folded capacity reports go in capacities. Use the best of the last two reports, each at most
+        three hours old, including across restart, tied to the declared GPU count. Missing evidence fails closed.
+        Positive scores are clean when answered without strike; latency is covered by capacity.
+        """
         hk = _hour_key(now)
         for h, (ok, failed) in outcomes.items():
-            b = self.hours.setdefault(h, {}).setdefault(hk, {"q": 0, "k": 0, "f": False, "v": True})
+            g = (declared_gpus or {}).get(h)
+            cap = (capacities or {}).get(h)
+            prior = self.measurements.get(h, [])
+            # Accept the previous single-probe persistence shape conservatively.
+            history = [prior] if isinstance(prior, dict) else list(prior)
+            if g and isinstance(cap, (int, float)) and not isinstance(cap, bool) and math.isfinite(cap) and cap >= 0:
+                history.append({"at": now.timestamp(), "capacity": cap, "gpus": g})
+                history = history[-2:]
+                self.measurements[h] = history
+            fresh = [m["capacity"] / g for m in history
+                     if g and m.get("gpus") == g and isinstance(m.get("at"), (int, float))
+                     and 0 <= now.timestamp() - m["at"] <= CAPACITY_MAX_AGE_S
+                     and isinstance(m.get("capacity"), (int, float)) and not isinstance(m["capacity"], bool)
+                     and math.isfinite(m["capacity"]) and m["capacity"] >= 0]
+            c = max(fresh) if fresh else None
+            b = self.hours.setdefault(h, {}).setdefault(hk, {"q": 0, "k": 0, "f": False, "v": True,
+                                                            "w": 0, "c": c, "g": g, "cv": QUALITY_VERSION})
             b["q"] += 1
-            b["k"] += 1 if (ok and not failed) else 0
+            b["k"] += int(ok and not failed and not (wrong or {}).get(h))
             b["f"] = b["f"] or failed
-            b["v"] = b["v"] and bool(verified.get(h, False))
+            b["w"] += int(bool((wrong or {}).get(h)))
+            b["v"] = b["v"] and bool(verified.get(h, False)) and b["g"] == g
+            b["c"] = c
+            b["g"] = g
         self._prune(now)
 
     def _prune(self, now: datetime) -> None:
@@ -514,14 +553,17 @@ class ContractLedger:
             self.hours[h] = {k: v for k, v in self.hours[h].items() if k >= cut}
             if not self.hours[h]:
                 del self.hours[h]
+                self.measurements.pop(h, None)
         if len(self.settled) > KEEP_DAYS:
             for d in sorted(self.settled)[:-KEEP_DAYS]:
                 del self.settled[d]
 
-    def passed_hours(self, hotkey: str, d: date) -> int:
+    def passed_hours(self, hotkey: str, d: date, declared_gpus: Optional[int] = None) -> int:
         """Hours of day ``d`` that pass for ``hotkey``, walking the hours in order with the suspension rule: a failed
-        hour voids itself; 3 failed hours in the trailing 24 suspend the hotkey; a clean hour (answered in >= 90 % of its
-        queried rounds, no failure, verified) lifts the suspension but is itself not paid."""
+        correctness hour (a strike, or >=2 wrong rounds and >10% wrong) voids itself; 3 such hours in the trailing 24
+        suspend the hotkey. An hour meeting all quality gates lifts it but is itself unpaid.
+        Low capacity, insufficient clean rounds or missing measurements withhold pay without adding
+        correctness suspension strikes."""
         hs = self.hours.get(hotkey, {})
         start = day_start(d) - timedelta(hours=48)  # the two days before carry a suspension into the day
         suspended = False
@@ -534,12 +576,14 @@ class ContractLedger:
             if b is None:
                 continue
             failed = [x for x in failed if t - x < timedelta(hours=24)]
-            if b["f"]:
+            if b["f"] or (b["w"] >= MIN_WRONG_ROUNDS and b["w"] > MAX_WRONG_ROUND_SHARE * b["q"]):
                 failed.append(t)
                 if len(failed) >= SUSPEND_FAILED_HOURS:
                     suspended = True
                 continue
-            clean = b["q"] > 0 and b["k"] >= HOUR_PASS_RATIO * b["q"] and b["v"]
+            clean = (b["q"] >= MIN_HOUR_ROUNDS and b["k"] >= HOUR_PASS_RATIO * b["q"] and b["v"]
+                     and b["c"] is not None and b["c"] >= MIN_CAPACITY_PER_GPU
+                     and (declared_gpus is None or b["g"] == declared_gpus))
             if suspended:
                 if clean:
                     suspended = False  # the clean re-probe hour itself is not paid
@@ -555,7 +599,7 @@ class ContractLedger:
         params = reg.params
         rows = []
         for op in ops:
-            per_hk = {h: self.passed_hours(h, d) * g for h, g in sorted(op.hotkeys.items())}
+            per_hk = {h: self.passed_hours(h, d, declared_gpus=g) * g for h, g in sorted(op.hotkeys.items())}
             raw = float(sum(per_hk.values()))
             h_o = min(float(op.slots * 24), raw)
             a_o = h_o * params.eur_per_gpu_hour / p if p else 0.0
@@ -573,7 +617,7 @@ class ContractLedger:
             r["A_o"] = r["A_o_uncapped"] * cut
             r["cap_cut_alpha"] = r["A_o_uncapped"] - r["A_o"]
             r["fraction_of_inference_share"] = r["A_o"] / share if share else 0.0
-        return {"version": 1, "day": key, "registry_revision": reg.revision,
+        return {"version": 1, "quality_version": QUALITY_VERSION, "day": key, "registry_revision": reg.revision,
                 "eur_per_gpu_hour": params.eur_per_gpu_hour, "gpu_class": params.gpu_class,
                 "price_eur_per_alpha": p, "price_source": price_source,
                 "alpha_tao": m.alpha_tao.value if m is not None and m.alpha_tao is not None else None,
@@ -628,7 +672,7 @@ class ContractLedger:
         if not reg.active_contract():
             return {}, set()
         r = self.settle(reg, market, now)
-        if r is None or r.get("registry_revision") != reg.revision:
+        if r is None or r.get("registry_revision") != reg.revision or r.get("quality_version") != QUALITY_VERSION:
             # A registry revision after the settlement pays nothing until the next settlement under it (fail closed).
             return {}, set()
         active = {o.id: o for o in reg.active_contract()}
@@ -666,7 +710,7 @@ def _atomic_write(path: str, doc: Any) -> None:
 def carve_out(base: Mapping[int, float], pay: Mapping[int, float], owner_uid: Optional[int]) -> dict[int, float]:
     """Carve ``pay`` (uid -> fraction of the inference share) out of the miner part of ``base`` (uid -> weight, sum 1,
     the owner entry = burn): the paid uids get ``fraction x miner part``, every other miner is scaled by
-    ``1 - sum(pay)``; the owner entry is untouched. Fractions summing above 1 (impossible with the 5 % cap) or no
+    ``1 - sum(pay)``; the owner entry is untouched. Fractions summing to 1 or above (impossible with the <100 % bound) or no
     other miner -> ``base`` unchanged. The competition layer later scales the whole miner part pro rata, so the
     fractions stay fractions of the inference share."""
     pay = {u: f for u, f in pay.items() if f > 0 and u != owner_uid}
@@ -737,15 +781,21 @@ class EUTier:
     def contract_hotkeys(self) -> set[str]:
         return {h for op in self.registry.active_contract() for h in op.hotkeys}
 
-    def record_round(self, now: datetime, outcomes: Mapping[str, tuple[bool, bool]]) -> None:
+    def record_round(self, now: datetime, outcomes: Mapping[str, tuple[bool, bool]], *,
+                     capacities: Optional[Mapping[str, float]] = None,
+                     wrong: Optional[Mapping[str, bool]] = None,
+                     uninformed: Iterable[str] = ()) -> None:
         hks = self.contract_hotkeys()
         mine = {h: o for h, o in outcomes.items() if h in hks}
         if not hks:
             return
-        # Hotkeys of the tier that were not in this round at all count as not answered (availability), no failure.
-        for h in hks:
+        # Absent/non-serving contract hotkeys fail closed; our own reference failures supply no information.
+        for h in hks - set(uninformed):
             mine.setdefault(h, (False, False))
-        self.ledger.record(now, mine, {h: self.verifier.verified(h, now) for h in mine})
+        # Contract + DPA + manual datacenter/ASN review replace the EU probe for this lane only.
+        declared = {h: g for op in self.registry.active_contract() for h, g in op.hotkeys.items()}
+        self.ledger.record(now, mine, {h: True for h in mine}, capacities=capacities,
+                           declared_gpus=declared, wrong=wrong)
         self.ledger.save()
 
     def slot_multipliers(self, now: datetime, factors_by_pool: Mapping[str, Mapping[int, float]],

@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 from collections import Counter
 
@@ -454,3 +455,140 @@ def test_chain_model_commit_reveal_lag():
     assert M.effective_block(b) == M.next_boundary(b) + 360
     assert M.effective_block(M.B_REF) == M.B_REF + 720          # a set exactly on a boundary counts two epochs later
     assert M.u16({1: 0.6, 2: 1e-5}, 2) == 1 and M.u16({1: 0.6, 2: 1e-6}, 2) == 0
+
+
+# Need-active regression: the old gauntlet explicitly disabled NEED_RULE.
+def _need_waiting_world(own_scale=1.0):
+    import ka_gauntlet_model as M
+    t0 = CS.NEED_START_UTC.timestamp() + 60
+    hotkeys = []
+    for uid, pending in ((400, True), (401, False)):
+        hk, tc = ss58(1400 + uid), t0 - 2 * H
+        patch = pending_patch(hk, tc + H) if pending else queued_patch(hk)
+        ep = hand_gen(hk, uid, f"ck{uid}", tc, [(tc + H, patch)], first_seen=tc + H)
+        h = Hotkey(hk, f"ck{uid}")
+        h.episodes.append(ep)
+        hotkeys.append(h)
+    hk, uid, tc = ss58(2300), 900, t0 - 2 * H
+    ep = M.Episode("eng", hk, uid, "ck900", tc, block_at(tc - 3 * DAY),
+                   digest="ee" * 32, repo="ghcr.io/m/need", label="eng/need-active")
+    ep.first_seen_ts, ep.reg_t = tc + H, tc - 3 * DAY
+    ep.segs = [(tc + H, {"first_seen": (block_at(tc + H), hk), "owner": hk,
+                         "result": None, "challenger": None, "champion": False})]
+    h = Hotkey(hk, "ck900")
+    h.episodes.append(ep)
+    hotkeys.append(h)
+    world = hand_world(hotkeys, t0, 8.0)
+    # Ordinary median = .01 of the miner part. At scale 1 the pending uid was
+    # already above its floor; the others got insufficient pre-rescale top-ups.
+    world.burn = 0.1
+    world.serving = {M.OWNER_UID: .1, 400: .0108 * own_scale, 401: .0027 * own_scale, 900: .0027 * own_scale}
+    world.serving.update({100 + i: .009 for i in range(20)})
+    world.serving[199] = 1 - sum(world.serving.values())
+    return world
+
+
+class _NeedRunner(Runner):
+    def _snapshot(self, t, block):
+        # The base generator predates dual-role worlds and adds one neuron per
+        # serving uid as well as one per episode. Keep the episode's commitment.
+        from dataclasses import replace
+        snap = super()._snapshot(t, block)
+        return replace(snap, neurons=tuple({n.uid: n for n in snap.neurons}.values()))
+
+
+def _check_need_waiting(world, sets):
+    import ka_gauntlet_model as M
+    rep = M.check_world(world, sets)  # existing P1/P2/P3 incl. u16 + commit/reveal
+    assert rep.checked and not rep.gaps and not rep.cap_violations and not rep.p3_violations
+    floor = {400: .009, 401: .0045, 900: .0045}
+    for t, block, weights, kw in sets:
+        assert kw["inference"] == .40
+        for uid, minimum in floor.items():
+            assert weights.get(uid, 0) >= minimum - 1e-12, (uid, weights.get(uid), minimum)
+            assert M.u16(weights, uid) > 0
+            # Lowest-N among registered non-owner entries, deterministic uid ties.
+            registered = set(world.serving) | {u for u, *_ in world.incumbent_gen} | {5, 400, 401, 900}
+            zone = sorted(registered - {M.OWNER_UID}, key=lambda u: (weights.get(u, 0), u))[:2]
+            assert uid not in zone, (uid, zone)
+        assert math.isclose(sum(weights.values()), 1.0, abs_tol=1e-12)
+
+
+@pytest.mark.parametrize("own_scale", [.25, 1.0, 2.0])
+@pytest.mark.parametrize("paused", [False, True], ids=["no-pauses", "engine-runout"])
+def test_need_active_waiting_serving_p1_p2_p3(monkeypatch, tmp_path, paused, own_scale):
+    monkeypatch.setattr(CS, "NEED_RULE", True)
+    monkeypatch.setattr(CS, "TRACK_PAUSES", {"engine": ((CS.NEED_START_UTC, None),)} if paused else {})
+    world = _need_waiting_world(own_scale)
+    sets = _NeedRunner(world, str(tmp_path)).run()
+    if paused:
+        assert all(s[3]["engine_runout"] for s in sets)
+    _check_need_waiting(world, sets)
+
+
+def test_need_active_pre_rescale_topup_mutant_is_caught(monkeypatch, tmp_path):
+    """Restore the pre-rescale own calculation in a private module namespace."""
+    import inspect
+    import re
+    monkeypatch.setattr(CS, "NEED_RULE", True)
+    monkeypatch.setattr(CS, "TRACK_PAUSES", {})
+    source = inspect.getsource(CS.combine_weights)
+    mutant, count = re.subn(r"    # NEED_OWN_START.*?    # NEED_OWN_END\n", "", source, flags=re.S)
+    assert count == 1
+    namespace = dict(CS.__dict__)
+    exec(compile(mutant, "<pre-rescale-own-mutant>", "exec"), namespace)
+    monkeypatch.setattr(CS, "combine_weights", namespace["combine_weights"])
+    # Recorder calls CS.combine_weights dynamically, including the mutant.
+    world = _need_waiting_world()
+    with pytest.raises(AssertionError, match="400"):
+        _check_need_waiting(world, _NeedRunner(world, str(tmp_path)).run())
+
+
+@pytest.mark.parametrize("kind", ["keepalive", "provisional", "engine_waiting"])
+def test_need_below_floor_generated(monkeypatch, kind):
+    """BELOW_FLOOR oracle: need pay >= min(old pay, equivalent pure-entrant pay).
+
+    Remove serving from waiting uids and give it to the existing high-weight
+    background miner. The excluded-candidate median stays identical. Exercise
+    diluted caps, eligibility thresholds, burns and inference shares explicitly.
+    """
+    import random
+    rng = random.Random(34365)
+    now = CS.NEED_START_UTC.timestamp() + 1
+    for _ in range(100):
+        n = rng.choice([1, 2, 10, 40, 80])
+        burn = rng.choice([0., .1, .4])
+        inference = rng.choice([0., .1, .35, .4, .7, 1.])
+        waiting = list(range(400, 400 + n))
+        serving = {0: burn, **{u: .001 for u in range(100, 121)}}
+        serving.update({u: rng.choice([.00001, .0005, .001, .003]) for u in waiting})
+        serving[199] = 1. - math.fsum(serving.values())
+        pure = {u: w for u, w in serving.items() if u not in waiting}
+        pure[199] += math.fsum(serving[u] for u in waiting)
+        if kind == "keepalive":
+            kw = {kind: {GEN: [(u, 50.) for u in waiting]}}
+        elif kind == "provisional":
+            kw = {kind: {GEN: waiting}}
+        else:
+            kw = {kind: waiting}
+        args = dict(owner_uid=0, burn_fraction=burn, now=now, inference=inference, floors={}, **kw)
+        monkeypatch.setattr(CS, "NEED_RULE", False)
+        old = CS.combine_weights(serving, 5, 1., {GEN: [(6, 50.)]}, "50/50", **args)
+        monkeypatch.setattr(CS, "NEED_RULE", True)
+        current = CS.combine_weights(serving, 5, 1., {GEN: [(6, 50.)]}, "50/50", **args)
+        entrant = CS.combine_weights(pure, 5, 1., {GEN: [(6, 50.)]}, "50/50", **args)
+        for uid in waiting:
+            assert current.get(uid, 0.) >= min(old.get(uid, 0.), entrant.get(uid, 0.)) - 1e-12, (
+                kind, n, burn, inference, uid, current.get(uid), old.get(uid), entrant.get(uid))
+        assert math.fsum(current.values()) == pytest.approx(1., abs=1e-9)
+        assert current.get(0, 0.) >= burn - 1e-12
+        assert all(math.isfinite(w) and w >= 0. for w in current.values())
+        # Pure entrants' entire payment is competition pay, directly bounded.
+        cap = {"keepalive": CS.KEEPALIVE_MAX_SHARE * .3,
+               "provisional": CS.PROVISIONAL_KA_MAX_SHARE * .3,
+               "engine_waiting": CS.ENGINE_KA_MAX_SHARE * .2}[kind]
+        assert math.fsum(entrant.get(u, 0.) for u in waiting) <= (1. - burn) * cap + 1e-12
+        # The ordinary serving uids expose the unchanged serving rescale: at
+        # most the inference target of the miner part can go to serving.
+        serving_scale = current.get(100, 0.) / serving[100]
+        assert serving_scale * (1. - burn) <= (1. - burn) * inference + 1e-12

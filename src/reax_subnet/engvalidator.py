@@ -10,6 +10,9 @@ inconclusive (engrunner.reference_baseline).
 
 from __future__ import annotations
 
+from . import owner_alloc as _owner_alloc
+from . import ka_lastgood as _ka_lastgood
+
 import hashlib
 import json
 import logging
@@ -26,6 +29,9 @@ from .award import engine_submission_id, spec_submission_id
 from .chain import Snapshot
 from . import competition_split as _csplit
 from . import ka_override as _kao
+from . import ka_feed as _ka_feed
+from . import ka_feed_lastgood as _ka_feed_lastgood
+from . import need as _need
 from .competition_split import (
     COMPETITIONS_START_UTC, SPLIT_PROFILE, NoSpecialistEvaluator, SpecialistEvaluator, active_tracks, combine_weights,
     ENGINE_RESTORE_PREVIOUS, engine_keepalive_enabled, keep_share_enabled, legacy_ka_tracks, legacy_ka_uids,
@@ -62,7 +68,7 @@ def rules_sha256(tracks: Mapping[str, TrackParams]) -> str:
     return thresholds_sha256({t: track_thresholds(p) for t, p in sorted(tracks.items())})
 
 
-BRIDGE_ENDED_FILE = "engine-v1-bridge-ended.json"  # next to the engine state; one-way
+BRIDGE_ENDED_FILE = "engine-v1-bridge-ended.json"  # in the writable bridge marker directory; one-way
 BRIDGE_END_BLOCK_FILE = "engine-v1-bridge-end-block.json"  # first block observed at/after the bridge end time; one-way
 BRIDGE_TRACK = "s1-fast"  # the v1 engine track the payout bridge keeps paying (EngineCompetition.v1_bridge)
 
@@ -105,6 +111,19 @@ def read_frozen_v1(path: str, pinned: Optional[str]) -> tuple[TrackState, bool]:
     return st, bool(raw.get("binds_hotkey", True))  # v1 ran the docker runner: images bound to their hotkey
 
 
+def probe_writable(d: str) -> None:
+    """Real create+write+remove in ``d`` (created if missing); raises OSError when that is impossible."""
+    os.makedirs(d, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".bridge-probe-", dir=d)
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write("probe")
+            fh.flush()
+            os.fsync(fh.fileno())
+    finally:
+        os.unlink(tmp)
+
+
 class EngineCompetition:
     def __init__(self, runner: Runner, reference_refs: Mapping[str, str], state_path: str,
                  tracks: Optional[Mapping[str, TrackParams]] = None, reward: Optional[RewardParams] = None,
@@ -117,8 +136,10 @@ class EngineCompetition:
                  composites: Optional[Mapping[str, CompositeTrack]] = None,
                  slot_references: Optional[Mapping[str, Mapping[str, str]]] = None,
                  v1_bridge: Optional[tuple[str, datetime, str]] = None,
-                 composite_start_utc: Optional[datetime] = None):
-        """``cycle_gate_file`` (REAX_ENGINE_CYCLE_GATE_FILE; unset = no gate): a cycle runs, and goes on starting
+                 composite_start_utc: Optional[datetime] = None, v1_marker_dir: str = ""):
+        """``v1_marker_dir``: directory of the bridge's one-way marker files (default: next to ``state_path``; the remote
+        validator passes a writable directory of its own, as the competitions state may be mounted read-only).
+        ``cycle_gate_file`` (REAX_ENGINE_CYCLE_GATE_FILE; unset = no gate): a cycle runs, and goes on starting
         sessions, only while this file exists and was modified less than ``cycle_gate_max_age_s`` ago; a cycle that ran
         ends with a ``cycle_end`` history event, so an orchestrator can bracket the candidate runs around the reference
         rotation. ``start_utc``: before it the weights are exactly the serving (1.1) weights and no cycle runs; None = always
@@ -149,6 +170,7 @@ class EngineCompetition:
         if v1_bridge is not None and v1_bridge[1].tzinfo is None:  # a naive end time is UTC (never compare naive with aware)
             v1_bridge = (v1_bridge[0], v1_bridge[1].replace(tzinfo=timezone.utc), v1_bridge[2])
         self.v1_bridge = v1_bridge
+        self.v1_marker_dir = v1_marker_dir
         self._bridge_unwritable_logged = False
         self._bridge_down = False
         self._bridge_ended = False
@@ -839,11 +861,21 @@ class EngineCompetition:
                 burn_fraction: float = 0.0) -> dict[int, float]:
         """Mix the competitions into ``base`` (competition_split.combine_weights). Before the start time, or with
         nothing to pay, ``base`` is returned unchanged (= the 1.1 weights)."""
+        self._owner_alloc_plan = None
+        self._keepalive_used = None  # observational only (post8.11): set below with the vector it describes
         if not self.active():
             return dict(base)
         champion: Optional[int] = None
         frac = 0.0
         cochamps: dict[int, float] = {}
+        engine_runout: dict[int, tuple[float, Optional[float]]] = {}
+        engine_approved_at: dict[int, float] = {}
+        # One instant and one need.json read for rank assembly and payout.
+        now = self._utcnow()
+        ids = active_tracks(now, self.profile)
+        need_path = _need.path_for(getattr(self.award_gate, "path", "") or "")
+        share, pause_starts = _need.decide_with_starts(now, need_path, ids)
+        engine_pause = pause_starts.get("engine")
         waiting: list[int] = []
         if not self.engine_active() or not self.context_ok:
             if not self._held_logged:
@@ -909,6 +941,26 @@ class EngineCompetition:
                 slots = [g for g in ranks if g["share"] > 0]
                 pot = comp[ch.uid]  # the title holder's (decayed) part of the engine share
                 co = co_champion_set(ch)
+                if engine_pause is not None:
+                    # Separate title holders from former places: a pause must never restore/pay a former place.
+                    pairs = co[1] if co is not None and co[0] == track else ((ch.digest, ch.hotkey),)
+                    frozen_top = top
+                    at_block = block_at_utc(datetime.fromtimestamp(engine_pause, timezone.utc))
+                    if at_block is not None:
+                        frozen_ranks = (former_ranks(carry[2], BRIDGE_TRACK, at_block, bad)
+                                        if carry is not None else former_ranks(st, track, at_block, bad))
+                        frozen_top = 1.0 - math.fsum(g["share"] for g in frozen_ranks)
+                    runout_pot = pot
+                    if co is not None and co[0] == track:
+                        since = min(ch.crowned_block, _csplit.ENGINE_CO_CHAMPION_CROWNED.get(track, ch.crowned_block))
+                        runout_pot = champion_fraction(self.reward, snap.block - since)
+                    title_parts = self._parts(track, st, eligible, pairs, runout_pot * frozen_top, champion_digest=ch.digest)
+                    for uid, part in title_parts.items():
+                        sub = next(s for s in eligible if s.uid == uid)
+                        engine_runout[uid] = (part, self._crowned_time(st, sub.digest, sub.hotkey))
+                        reader = getattr(self.award_gate, "approved_at", None)
+                        if reader is not None:
+                            engine_approved_at[uid] = reader(track, sub.hotkey, engine_submission_id(sub.digest))
                 if co is not None and co[0] == track:
                     # opening co-champions (ENGINE_CO_CHAMPIONS): each listed entry gets 1/n of the champion's part,
                     # only with its own approval; an unpaid part goes to the inference part
@@ -937,8 +989,6 @@ class EngineCompetition:
                 for g in slots:  # ranks 2 and 3: their share of the title holder's (decayed) part
                     self._add(cochamps, self._parts(track, st, eligible, g["pairs"], pot * g["share"],
                                                     gated=True, src=g.get("src")))
-        now = self._utcnow()  # one instant for the track list, the profile and the payout (GENERALIST_START_UTC switch)
-        ids = active_tracks(now, self.profile)
         results = self.specialist.track_results(ids, now) if ids else {}
         scores = {t: results[t] for t in ids if results.get(t)}
         ka = getattr(self.specialist, "keepalive", None)
@@ -960,6 +1010,7 @@ class EngineCompetition:
                 log.warning("legacy keep-alive: could not compute the entries (%r); none paid", exc)
                 legacy = []
         # operator keep-alive override (ka_override.py; waiting-state hotfix 26 Oct 2026): within the existing caps
+        ov_wait = []
         ov_path = _kao.path_for(getattr(self.award_gate, "path", "") or "") if self.award_gate is not None else ""
         if _csplit.WAITING_KA_HOTFIX and ov_path:
             try:
@@ -970,13 +1021,133 @@ class EngineCompetition:
             legacy = legacy + [u for u in ov_legacy if u not in legacy]
             if ov_wait and "generalist" in ids:
                 prov = {**prov, "generalist": prov.get("generalist", []) + [u for u in ov_wait if u not in prov.get("generalist", [])]}
-        if champion is None and not cochamps and not scores and not alive and not prov and not waiting and not legacy:
+        # One reader at the common local/remote payout boundary. No sidecar is
+        # touched before activation, and no score-based list survives activation.
+        feed_uids = None
+        if "generalist" in ids and _ka_feed.active(now):
+            if not hasattr(self, "_ka_feed_reader"):
+                lg_path = getattr(self, "generalist_lastgood_path", "")
+                self._ka_feed_reader = _ka_feed.FeedReader(
+                    os.path.join(os.path.dirname(lg_path) or ".", _ka_feed_lastgood.FILE_NAME) if lg_path else None)
+            former = []
+            try:
+                getter = getattr(self.specialist, "former_champions", None)
+                former = getter(snap) if getter is not None else _ka_feed.former_champions(results.get("generalist", ()))
+            except Exception:  # noqa: BLE001 - a bad relay cannot stop weight setting
+                log.warning("generalist keep-alive: former champion metadata unavailable")
+            try:
+                former = _ka_feed.approved_former(snap, now, former, self._spec_award_ok(snap))
+            except Exception:  # noqa: BLE001 - critic2 S1b: fall back to the dated round-1 pins only, never raise
+                log.warning("generalist keep-alive: former champion approval unavailable; round-1 pins only")
+                try:
+                    former = _ka_feed.approved_former(snap, now, [], None)
+                except Exception:  # noqa: BLE001
+                    former = []
+            try:
+                result = self._ka_feed_reader.read(os.environ["REAX_KA_FEED_PATH"], now)
+                feed_uids = _ka_feed.entry_set(result.rows if result.ok else (), snap, now, former)
+            except Exception:  # noqa: BLE001 - feed failure must never stop weight setting
+                log.warning("generalist keep-alive feed: unavailable; former champions only")
+                feed_uids = former[:_ka_feed.MAX_ENTRIES]
+            feed_uids = list(dict.fromkeys(feed_uids + ov_wait))[:_ka_feed.MAX_ENTRIES]
+            # Keep the existing observational record truthful; these are unscored.
+            alive = {**alive, "generalist": [(u, 0.0) for u in feed_uids]}
+            prov = {t: v for t, v in prov.items() if t != "generalist"}
+            protected = {t: v for t, v in (protected or {}).items() if t != "generalist"}
+        lastgood_path = getattr(self, "generalist_lastgood_path", "")
+        state_ok = getattr(self.specialist, "generalist_state_usable", None)
+        lastgood = None
+        ka_used = {}
+        relay_saved_at = getattr(self.specialist, "generalist_state_saved_at", None)
+        lastgood_saved_at = min(now.timestamp(), relay_saved_at) if relay_saved_at is not None else now.timestamp()
+        if (lastgood_path and state_ok is False and "generalist" in ids and not _ka_feed.active(now)):
+            lastgood = _ka_lastgood.load(lastgood_path, now.timestamp(), snap, self._spec_award_ok(snap))
+        alloc_path = _owner_alloc.path_for(getattr(self.award_gate, "path", "") or "")
+        if _csplit.need_active(now) and snap.owner_uid is not None:
+            self._owner_alloc_plan = _owner_alloc.Plan(alloc_path, snap.block, snap.neurons, snap.owner_uid)
+        allocation = self._owner_alloc_plan.shares if self._owner_alloc_plan else {}
+        paused = list(pause_starts)
+        try:
+            used = (snap.block, {t: [(u, s) for u, s in alive[t]] for t in sorted(alive)},
+                    {t: sorted(protected[t]) for t in sorted(protected or {}) if protected[t]})
+        except Exception:  # noqa: BLE001 - the record is observational; it must never change the vector
+            used = None
+        if (not _csplit.need_active(now) and champion is None and not cochamps and not scores
+                and not alive and not prov and not waiting and not legacy and lastgood is None):
+            if lastgood_path and state_ok is True and "generalist" in ids and not _ka_feed.active(now):
+                _ka_lastgood.save(lastgood_path, lastgood_saved_at, {}, snap, self._spec_award_ok(snap))
+            self._keepalive_used = used
             return dict(base)  # nothing to pay: exactly the 1.1 weights
-        return combine_weights(base, champion, frac, scores, self.profile, owner_uid=snap.owner_uid,
-                               burn_fraction=burn_fraction, award_ok=self._spec_award_ok(snap), keepalive=alive,
-                               provisional=prov, engine_waiting=waiting, keep_share=self.keep_share, now=now.timestamp(),
-                               engine_cochampions=cochamps or None, legacy_keepalive=legacy or None,
-                               keepalive_protected=protected or None)
+        def mix(owner_allocation):
+            return combine_weights(base, champion, frac, scores, self.profile, owner_uid=snap.owner_uid,
+                                   burn_fraction=burn_fraction, award_ok=self._spec_award_ok(snap), keepalive=alive,
+                                   provisional=prov, engine_waiting=waiting, keep_share=self.keep_share,
+                                   now=now.timestamp(), engine_cochampions=cochamps or None,
+                                   legacy_keepalive=legacy or None, keepalive_protected=protected or None,
+                                   paused=paused or None, inference=share, pause_starts=pause_starts,
+                                   engine_runout=engine_runout, owner_allocation=owner_allocation,
+                                   generalist_feed_uids=feed_uids, generalist_lastgood=lastgood,
+                                   generalist_ka_used=ka_used,
+                                   award_approved_at=self._spec_award_time(snap), engine_approved_at=engine_approved_at)
+        plain = mix(None)  # exactly the post8.8 vector
+        if lastgood_path and state_ok is True and "generalist" in ids and not _ka_feed.active(now):
+            _ka_lastgood.save(lastgood_path, lastgood_saved_at, ka_used, snap, self._spec_award_ok(snap))
+        if lastgood is not None:
+            used = (snap.block, {**(used[1] if used else {}),
+                                "generalist": [(u, 0.0) for kind in ("keepalive", "provisional")
+                                               for u in ka_used.get(kind, ())]}, used[2] if used else {})
+        self._keepalive_used = used
+        if not allocation:
+            return plain
+        try:
+            if allocation.burn:
+                burn_plain = mix(allocation.inference)
+                # Log full last: the legacy compute receipt parser keeps the last applied share.
+                full = mix(allocation)
+                self._owner_alloc_plan.attach(full, plain, burn_plain)
+            else:
+                full = mix(allocation)
+                self._owner_alloc_plan.attach(full, plain)
+        except Exception as exc:  # noqa: BLE001 - any allocation error: exactly the post8.8 vector, nothing counted
+            log.error("owner allocation: %s at block %s; weights without allocation", type(exc).__name__, snap.block)
+            self._owner_alloc_plan = None
+            return plain
+        return full
+
+    def allocation_plan(self):
+        """The owner-allocation plan of the latest ``weights`` call (owner_alloc.Plan) or None."""
+        return getattr(self, "_owner_alloc_plan", None)
+
+    def keepalive_used(self):
+        """``(block, keepalive, protected)`` exactly as the latest ``weights`` call passed them to ``combine_weights``
+        (``keepalive``: per track the compute_keepalive entries ``[(uid, score), ...]``), or None when that call
+        returned before computing them or raised. Read-only: logging it changes no selection or payout."""
+        return getattr(self, "_keepalive_used", None)
+
+    @staticmethod
+    def _crowned_time(st: TrackState, digest: str, hotkey: str) -> Optional[float]:
+        """Use the matching crowning's recorded UTC slot; legacy block-only history has no exact UTC time."""
+        for event in reversed(st.history):
+            if event.get("event") == "crowned" and (event.get("digest"), event.get("hotkey")) == (digest, hotkey):
+                at = _need._time(event.get("slot_utc"))
+                if at is not None:
+                    return at.timestamp()
+                break
+        # Legacy v1 crownings record blocks only. Use the same release anchor and 12 s
+        # clock as block_at_utc, so uid 62 follows the rule even without a v2 crowning.
+        ch = st.champion
+        block = next((e.get("block") for e in reversed(st.history)
+                      if e.get("event") == "crowned" and (e.get("digest"), e.get("hotkey")) == (digest, hotkey)),
+                     ch.crowned_block if ch is not None and (ch.digest, ch.hotkey) == (digest, hotkey) else None)
+        if block is None and ch is not None:
+            co = co_champion_set(ch)
+            if co is not None and (digest, hotkey) in co[1]:
+                block = min(ch.crowned_block, _csplit.ENGINE_CO_CHAMPION_CROWNED.get(co[0], ch.crowned_block))
+        anchor = _csplit.ENGINE_TRACK_START_UTC
+        anchor_block = _csplit.ENGINE_TRACK_START_BLOCK
+        if isinstance(block, int) and anchor is not None and anchor_block is not None:
+            return anchor.timestamp() + (block - anchor_block) * 12.0
+        return None
 
     def _params(self, track: str) -> TrackParams:
         return self.tracks[track] if track in self.tracks else TRACKS[track]  # the bridge track is not one of ours
@@ -1001,22 +1172,14 @@ class EngineCompetition:
         return out
 
     def _bridge_marker(self) -> str:
-        return os.path.join(os.path.dirname(os.path.abspath(self.state_path)), BRIDGE_ENDED_FILE)
+        return os.path.join(self.v1_marker_dir or os.path.dirname(os.path.abspath(self.state_path)), BRIDGE_ENDED_FILE)
 
     def _marker_writable(self) -> bool:
         """A real create+write+remove in the marker directory (os.access would miss read-only mounts, quotas). The bridge
         pays only while the one-way ended marker could be persisted; else a restart with lost history would pay again."""
         d = os.path.dirname(self._bridge_marker())
         try:
-            os.makedirs(d, exist_ok=True)
-            fd, tmp = tempfile.mkstemp(prefix=".bridge-probe-", dir=d)
-            try:
-                with os.fdopen(fd, "w") as fh:
-                    fh.write("probe")
-                    fh.flush()
-                    os.fsync(fh.fileno())
-            finally:
-                os.unlink(tmp)
+            probe_writable(d)
             return True
         except Exception as exc:  # noqa: BLE001
             if not self._bridge_unwritable_logged:
@@ -1215,3 +1378,18 @@ class EngineCompetition:
                 return False
             return gate.approved(track_id, n.hotkey, spec_submission_id(c.repo, c.revision))
         return ok
+
+    def _spec_award_time(self, snap: Snapshot) -> Optional[Callable[[str, int], Optional[float]]]:
+        """Use precisely the current commitment identity used by _spec_award_ok."""
+        reader = getattr(self.award_gate, "approved_at", None)
+        if reader is None:
+            return None
+        by_uid = {n.uid: n for n in snap.neurons}
+
+        def approved_at(track_id: str, uid: int) -> Optional[float]:
+            n = by_uid.get(uid)
+            c = parse_spec_commitment(n.commitment) if n is not None else None
+            if c is None or c.track_id != track_id:
+                return None
+            return reader(track_id, n.hotkey, spec_submission_id(c.repo, c.revision))
+        return approved_at

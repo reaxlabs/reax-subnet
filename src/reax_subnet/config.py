@@ -352,12 +352,20 @@ class CommonConfig:
     # for a pool from its switch time on (REAX_<MODEL>_NEXT_RUNTIME_URL). A separate URL, so the previous runtime can
     # never answer for the new manifest.
     next_runtime_urls: tuple[tuple[str, str], ...] = ()
+    # Decisions in flight to a pool's NEXT reference runtime (REAX_<MODEL>_NEXT_RUNTIME_INFLIGHT; default
+    # runtime_inflight). 1 keeps a reference that packs concurrent requests into one batch (ref-mammoth) on the
+    # one-item path its recorded answers were made with (rxnode-03 rehearsal 29 Oct: concurrency 1 bit-identical,
+    # concurrency 4 median distance 0.07).
+    next_runtime_inflight: tuple[tuple[str, int], ...] = ()
 
     def runtime_url(self, model: str) -> str:
         return dict(self.runtime_urls).get(model, "")
 
     def next_runtime_url(self, model: str) -> str:
         return dict(self.next_runtime_urls).get(model, "")
+
+    def next_inflight(self, model: str) -> int:
+        return dict(self.next_runtime_inflight).get(model, self.runtime_inflight)
 
     def endpoints(self, model: str) -> tuple[tuple[str, str], ...]:
         """All runtime sidecars of ``model`` as (url, token file); falls back to the single ``runtime_url``."""
@@ -655,6 +663,9 @@ def load_common(env: Mapping[str, str] = os.environ) -> CommonConfig:
         runtime_endpoints=endpoints,
         runtime_inflight=_int(env, "REAX_RUNTIME_INFLIGHT", 16, 1, 1024),
         next_runtime_urls=next_urls,
+        next_runtime_inflight=tuple(
+            (m, _int(env, f"REAX_{m.upper().replace('-', '_')}_NEXT_RUNTIME_INFLIGHT", 0, 1, 1024))
+            for m, _u in next_urls if _env(env, f"REAX_{m.upper().replace('-', '_')}_NEXT_RUNTIME_INFLIGHT")),
     )
 
 

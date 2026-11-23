@@ -51,10 +51,15 @@ def test_default_release_constant_lists_the_three_state_keys():
         "reax-knockout/sn92-gen-a1@d57f18b92547b9c669bf93fa74ee64443ddb45d8"}
     from conftest import RELEASE_CROWN_SLOTS_UTC
     # rc11.post3 (#24089): every Monday and Thursday 14:30Z from Mon 26 Oct 2026, generated through 31 Mar 2027
-    assert RELEASE_CROWN_SLOTS_UTC[:4] == tuple(datetime(2026, m, d, 14, 30, tzinfo=timezone.utc)
-                                                for m, d in ((10, 26), (10, 29), (11, 2), (11, 5)))
-    assert all(t.weekday() in (0, 3) and (t.hour, t.minute) == (14, 30) for t in RELEASE_CROWN_SLOTS_UTC)
-    assert all((b - a).days in (3, 4) for a, b in zip(RELEASE_CROWN_SLOTS_UTC, RELEASE_CROWN_SLOTS_UTC[1:]))
+    assert RELEASE_CROWN_SLOTS_UTC[:5] == tuple(datetime(2026, m, d, h, mi, tzinfo=timezone.utc)
+                                                for m, d, h, mi in ((10, 26, 14, 30), (10, 29, 14, 30), (10, 30, 16, 30),
+                                                                    (11, 2, 14, 30), (11, 5, 14, 30)))
+    # post4.5.2 / post8.4 (#31857): plus the one-time Fri 30 Oct 16:30Z generalist slot (test_fri_extra_slot.py)
+    assert set(RELEASE_CROWN_SLOTS_UTC) - set(CS.EXTRA_CROWN_SLOTS_UTC) == set(CS._crown_slots(
+        datetime(2026, 10, 26, 14, 30, tzinfo=timezone.utc), datetime(2027, 3, 31, 23, 59, tzinfo=timezone.utc)))
+    regular = [t for t in RELEASE_CROWN_SLOTS_UTC if t not in CS.EXTRA_CROWN_SLOTS_UTC]
+    assert all(t.weekday() in (0, 3) and (t.hour, t.minute) == (14, 30) for t in regular)
+    assert all((b - a).days in (3, 4) for a, b in zip(regular, regular[1:]))
     assert RELEASE_CROWN_SLOTS_UTC[-1] == datetime(2027, 3, 29, 14, 30, tzinfo=timezone.utc)
 
 

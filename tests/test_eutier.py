@@ -63,9 +63,15 @@ def _market(d, alpha_tao=0.03, eur=(240.0, 230.0), share=1700.0, at=None):
                        inference_share_alpha=share)
 
 
-def _fill(ledger, hotkey, d, hours, ok=True, failed=False, verified=True, start=0):
+def _record(ledger, now, outcomes, verified, gpus=1):
+    for _ in range(eutier.MIN_HOUR_ROUNDS):
+      ledger.record(now, outcomes, verified, capacities={h: 80.0 * gpus for h in outcomes},
+                  declared_gpus={h: gpus for h in outcomes})
+
+
+def _fill(ledger, hotkey, d, hours, ok=True, failed=False, verified=True, start=0, gpus=1):
     for h in range(start, start + hours):
-        ledger.record(eutier.day_start(d) + timedelta(hours=h, minutes=10), {hotkey: (ok, failed)}, {hotkey: verified})
+        _record(ledger, eutier.day_start(d) + timedelta(hours=h, minutes=10), {hotkey: (ok, failed)}, {hotkey: verified}, gpus=gpus)
 
 
 # ----------------------------------------------------------------- registry
@@ -79,7 +85,7 @@ def test_shipped_registry_is_valid_and_lists_nobody():
 @pytest.mark.parametrize("mutate", [
     lambda d: d.update(version=2),
     lambda d: d.update(extra=1),
-    lambda d: d["eu_contract_tier"].update(cap_pct_of_inference_share=6.0),  # above the decided 5 % hard cap
+    lambda d: d["eu_contract_tier"].update(cap_pct_of_inference_share=50.01),  # bound catches an excessive carve-out
     lambda d: d["eu_contract_tier"]["operators"].append(_op("b", [HK[0]], slots=1)),  # HK[0] also in scheme_a
     lambda d: d["scheme_a"]["operators"].append(_op("a", [HK[5]], cap_units=1)),  # operator id twice
     lambda d: d["scheme_a"]["operators"][0].update(hotkeys=["not-a-hotkey"]),
@@ -223,7 +229,7 @@ def _settle(ledger, reg, market, d=DAY):
 def test_slot_cap_and_gpu_hours(tmp_path):
     reg = parse_registry(_reg(contract=[_op("tng", [{"hotkey": HK[0], "gpus": 2}, HK[1]], slots=2)]))
     led = _ledger(tmp_path)
-    _fill(led, HK[0], DAY, 24)
+    _fill(led, HK[0], DAY, 24, gpus=2)
     _fill(led, HK[1], DAY, 24)
     r = _settle(led, reg, _Market({DAY: _market(DAY)}))
     row = r["operators"][0]
@@ -236,12 +242,12 @@ def test_failed_correctness_voids_the_hour_and_unverified_or_unanswered_hours_do
     reg = parse_registry(_reg(contract=[_op("tng", [HK[0]], slots=8)]))
     led = _ledger(tmp_path)
     _fill(led, HK[0], DAY, 10)                                   # 10 good hours
-    led.record(T0 + timedelta(hours=10, minutes=1), {HK[0]: (True, False)}, {HK[0]: True})
-    led.record(T0 + timedelta(hours=10, minutes=30), {HK[0]: (True, True)}, {HK[0]: True})  # a strike voids hour 10
+    _record(led, T0 + timedelta(hours=10, minutes=1), {HK[0]: (True, False)}, {HK[0]: True})
+    _record(led, T0 + timedelta(hours=10, minutes=30), {HK[0]: (True, True)}, {HK[0]: True})  # a strike voids hour 10
     _fill(led, HK[0], DAY, 2, verified=False, start=11)          # EU verification failed: not paid
     _fill(led, HK[0], DAY, 2, ok=False, start=13)                # no answer: not paid
-    led.record(T0 + timedelta(hours=15, minutes=1), {HK[0]: (True, False)}, {HK[0]: True})
-    led.record(T0 + timedelta(hours=15, minutes=2), {HK[0]: (True, False)}, {HK[0]: False})  # one failed check voids
+    _record(led, T0 + timedelta(hours=15, minutes=1), {HK[0]: (True, False)}, {HK[0]: True})
+    _record(led, T0 + timedelta(hours=15, minutes=2), {HK[0]: (True, False)}, {HK[0]: False})  # one failed check voids
     assert led.passed_hours(HK[0], DAY) == 10
     assert _settle(led, reg, _Market({DAY: _market(DAY)}))["operators"][0]["H_o"] == 10
 
@@ -266,7 +272,7 @@ def test_hour_needs_90_percent_of_queried_rounds_answered(tmp_path):
 
     def rounds(h, answered, queried):
         for i in range(queried):
-            led.record(T0 + timedelta(hours=h, minutes=i), {HK[0]: (i < answered, False)}, {HK[0]: True})
+            _record(led, T0 + timedelta(hours=h, minutes=i), {HK[0]: (i < answered, False)}, {HK[0]: True})
 
     rounds(0, 9, 10)   # 90 % -> passes
     rounds(1, 8, 10)   # 80 % -> does not
@@ -280,7 +286,7 @@ def test_old_ledger_state_without_counts_still_loads(tmp_path):
     (tmp_path / "ledger.json").write_text(json.dumps({"version": 1, "last_price": None, "settled": {}, "hours": {
         HK[0]: {eutier._hour_key(T0): {"a": True, "f": False, "v": True},
                 eutier._hour_key(T0 + timedelta(hours=1)): {"a": False, "f": False, "v": True}}}}))
-    assert _ledger(tmp_path).passed_hours(HK[0], DAY) == 1
+    assert _ledger(tmp_path).passed_hours(HK[0], DAY) == 0  # missing quality measurements fail closed
 
 
 def test_suspension_carries_over_midnight(tmp_path):
@@ -298,7 +304,7 @@ def test_suspension_survives_a_restart_late_in_the_next_day(tmp_path):
     _fill(led, HK[0], DAY - timedelta(days=2), 3, failed=True, start=1)  # suspended from D-2 01:00
     _fill(led, HK[0], DAY, 10)                                          # 00 lifts (unpaid), 01-09 paid
     late = eutier.day_start(DAY) + timedelta(days=1, hours=22)
-    led.record(late, {HK[0]: (True, False)}, {HK[0]: True})            # prunes with KEEP_HOURS
+    _record(led, late, {HK[0]: (True, False)}, {HK[0]: True})            # prunes with KEEP_HOURS
     led.save()
     led2 = _ledger(tmp_path)                                            # restart
     r = led2.settle(reg, _Market({DAY: _market(DAY)}), late + timedelta(minutes=30))
@@ -573,9 +579,9 @@ def test_round_outcomes_feed_the_ledger(tmp_path, make_wallet, fake_chain_cls, m
     hours = val.eu.ledger.hours
     assert set(hours) == {HK[0], HK[1], HK[2]}  # only tier hotkeys; HK[2] did not take part (not answered)
     (b0,), (b1,), (b2,) = (list(hours[h].values()) for h in HK[:3])
-    assert b0 == {"q": 1, "k": 1, "f": False, "v": True}
-    assert b1 == {"q": 1, "k": 0, "f": True, "v": True}  # the capacity probe's strike voids the hour
-    assert b2 == {"q": 1, "k": 0, "f": False, "v": False}
+    assert b0["q"] == 1 and b0["k"] == 1 and b0["w"] == 0 and b0["v"] and not b0["f"]
+    assert b1["q"] == 1 and b1["k"] == 0 and b1["f"] and b1["v"]  # the capacity probe's strike voids the hour
+    assert b2["q"] == 1 and b2["k"] == 0 and not b2["f"] and b2["v"]
     assert (tmp_path / "eu-tier-state.json").exists()
     # A broken registry turns recording off without raising.
     Path(val.eu.registry_path).write_text("{")
@@ -615,3 +621,304 @@ def test_quote_tool_writes_what_the_validator_reads(tmp_path, capsys):
                       "coingecko=233.7", "--tao-eur", "kraken=233.9", "--inference-share-alpha", "1681", "--at", at]) == 0
     m = FileMarket(str(f)).day(DAY)
     assert fresh_price(m, DAY) == pytest.approx(0.031057 * 233.8) and m.inference_share_alpha == 1681.0
+
+
+def test_cap_bound_allows_a_later_registry_increase_without_enabling_it():
+    assert parse_registry(_reg(cap_pct_of_inference_share=50.0)).params.cap_pct == 50.0
+    assert eutier.load_registry(eutier.REGISTRY_FILE).params.cap_pct == 5.0
+
+
+def _quality(led, t, *, capacity=25.0, gpus=1, wrong=False, answered=True, strike=False, rounds=10):
+    for i in range(rounds):
+      led.record(t, {HK[0]: (answered, strike)}, {HK[0]: True},
+               capacities={} if capacity is None or i else {HK[0]: capacity},
+               declared_gpus={HK[0]: gpus}, wrong={HK[0]: wrong})
+
+
+@pytest.mark.parametrize('capacity,gpus,expected', [
+    (25.0, 1, 1), (24.99, 1, 0), (49.99, 2, 0), (50.0, 2, 1), (None, 1, 0),
+    (float('nan'), 1, 0), (float('inf'), 1, 0), (True, 1, 0),
+])
+def test_quality_hour_boundaries(tmp_path, capacity, gpus, expected):
+    led = _ledger(tmp_path)
+    _quality(led, T0, capacity=capacity, gpus=gpus)
+    assert led.passed_hours(HK[0], DAY) == expected
+    led.save()
+    assert _ledger(tmp_path).passed_hours(HK[0], DAY) == expected
+
+
+def test_capacity_carry_is_bounded_survives_restart_and_is_tied_to_declared_gpus(tmp_path):
+    led = _ledger(tmp_path)
+    _quality(led, T0)
+    led.save()
+    led = _ledger(tmp_path)
+    _quality(led, T0 + timedelta(hours=1), capacity=None)
+    _quality(led, T0 + timedelta(hours=3), capacity=None)  # boundary inclusive
+    _quality(led, T0 + timedelta(hours=4), capacity=None)  # expired
+    _quality(led, T0 + timedelta(hours=2), capacity=None, gpus=2)  # changed declaration
+    assert led.passed_hours(HK[0], DAY) == 3
+
+
+def test_a_late_first_probe_qualifies_at_last_counted_round(tmp_path):
+    led = _ledger(tmp_path)
+    _quality(led, T0, capacity=None)
+    led.save()
+    led = _ledger(tmp_path)
+    _quality(led, T0 + timedelta(minutes=10))
+    assert led.passed_hours(HK[0], DAY) == 1
+    led.save()
+    assert _ledger(tmp_path).passed_hours(HK[0], DAY) == 1
+
+
+@pytest.mark.parametrize('wrong,total,expected', [(1, 1, 0), (1, 9, 0), (1, 10, 1), (2, 20, 1), (3, 20, 0), (2, 19, 0)])
+def test_clean_round_share_boundary_includes_wrong_rounds(tmp_path, wrong, total, expected):
+    led = _ledger(tmp_path)
+    for i in range(total):
+        _quality(led, T0 + timedelta(minutes=i), wrong=i < wrong, rounds=1)
+    assert led.passed_hours(HK[0], DAY) == expected
+
+
+def test_three_abnormal_hours_suspend_but_three_low_capacity_hours_do_not(tmp_path):
+    for abnormal in (False, True):
+        led = _ledger(tmp_path / str(abnormal))
+        for h in range(3):
+            for i in range(20):
+                _quality(led, T0 + timedelta(hours=h, minutes=i), capacity=80 if abnormal else 20,
+                         wrong=abnormal and i < 3)
+        _quality(led, T0 + timedelta(hours=3))
+        _quality(led, T0 + timedelta(hours=4))
+        assert led.passed_hours(HK[0], DAY) == (1 if abnormal else 2)
+
+
+def test_old_counted_bucket_and_old_settlement_cannot_start_quality_pay(tmp_path):
+    reg = parse_registry(_reg(contract=[_op('tng', [HK[0]], slots=1)]))
+    led = _ledger(tmp_path)
+    _fill(led, HK[0], DAY, 1)
+    r = _settle(led, reg, _Market({DAY: _market(DAY)}))
+    del r['quality_version']
+    led.hours[HK[0]][eutier._hour_key(T0)] = {'q': 10, 'k': 10, 'f': False, 'v': True}
+    led.save()
+    led = _ledger(tmp_path)
+    assert led.passed_hours(HK[0], DAY) == 0
+    assert led.pay_fractions(reg, _Market({DAY: _market(DAY)}), T0 + timedelta(days=1)) == ({}, set())
+
+
+def test_contract_recording_needs_no_verification_row_but_scheme_a_still_does(tmp_path):
+    reg = _reg(contract=[_op('tng', [HK[0]], slots=1)], scheme_a=[_op('other', [HK[1]], cap_units=10)])
+    tier = eutier.EUTier(_write_registry(tmp_path, reg), eutier.NoVerification(), eutier.NoMarket(),
+                        str(tmp_path / 'ledger.json'), str(tmp_path / 'receipts'))
+    for _ in range(10):
+        tier.record_round(T0, {HK[0]: (True, False)}, capacities={HK[0]: 25})
+    assert tier.ledger.passed_hours(HK[0], DAY) == 1
+    assert tier.slot_multipliers(T0, {'s1-pro': {1: 1.0}}, {1: HK[1]}) == {}
+
+
+@pytest.mark.parametrize('fraction,gets_topup', [(.0001, True), (.05, False)])
+def test_contract_pay_does_not_explicitly_exclude_a_waiting_keepalive_override(tmp_path, fraction, gets_topup):
+    # An actual ka-override waiting row is loaded by EngineCompetition after the EU carve-out.
+    # This regression records the existing gap; the requested slice does not change keep-alive code.
+    from test_ka_override import AFTER, NEW, _row, _snap_with_new, _system_with_file
+    from test_legacyka import SERVING
+    from reax_subnet import competition_split as cs
+    base = carve_out({u: w / sum(SERVING.values()) for u, w in SERVING.items()}, {NEW: fraction}, 0)
+    with_override, adapter = _system_with_file(tmp_path / 'yes', [AFTER], [_row('waiting')])
+    without_override, _ = _system_with_file(tmp_path / 'no', [AFTER], None)
+    out = with_override.weights(base, _snap_with_new(), {0})
+    plain = without_override.weights(base, _snap_with_new(), {0})
+    assert cs.WAITING_KA_HOTFIX
+    assert (out.get(NEW, 0) > plain.get(NEW, 0) + 1e-12) == gets_topup
+
+
+def test_validator_passes_capacity_and_classifies_zero_score_answers(tmp_path, make_wallet,
+                                                                               fake_chain_cls, monkeypatch):
+    from reax_subnet import s1validator
+    from reax_subnet.config import load_validator
+    from reax_subnet.elements import slot_key
+    from reax_subnet.s1backends import S1HashBackend
+    from reax_subnet.state import MinerState
+    monkeypatch.setenv('REAX_EU_REGISTRY_FILE', _write_registry(tmp_path, _reg(contract=[
+        _op('tng', [{'hotkey': HK[0], 'gpus': 2}], slots=2)])))
+    env = {'REAX_NETUID': '9', 'REAX_NETWORK': 'ws://127.0.0.1:9951', 'REAX_ALLOW_DEV_MODELS': '1', 'REAX_STATE_PATH': str(tmp_path / 'state.json')}
+    val = s1validator.S1Validator(load_validator(env), make_wallet('//Validator'), fake_chain_cls(neurons=[]),
+                                {m: S1HashBackend(m) for m in s1validator.POOL_PARAMS})
+    slot = slot_key(2, 's1-pro')
+    val.state.miners = {slot: MinerState(hotkey=HK[0], ema=.96, capacity=100)}
+    val._eu_record({'scores': {slot: {'model': 's1-pro', 'score': 0.0, 'strike': False, 'error': None}},
+                    'capacity': {slot: {'model': 's1-pro', 'hotkey': HK[0], 'capacity': 60.0, 'strike': False}}})
+    b, = val.eu.ledger.hours[HK[0]].values()
+    assert b['c'] == 30.0 and b['q'] == b['w'] == 1 and b['k'] == 0
+    assert b['v'] and not b['f']
+    # State's old capacity is not substituted for a fresh report; carrying uses the ledger's timestamp.
+    assert val.eu.ledger.measurements[HK[0]][-1]['capacity'] == 60.0
+    # A hotkey serving only s1-fast has clean rounds but cannot qualify contract capacity.
+    val.eu.ledger.hours.clear()
+    val.eu.ledger.measurements.clear()
+    fast = slot_key(2, 's1-fast')
+    val.state.miners[fast] = MinerState(hotkey=HK[0], capacity=200)
+    for _ in range(eutier.MIN_HOUR_ROUNDS):
+        val._eu_record({'scores': {fast: {'model': 's1-fast', 'score': 1.0}},
+                        'capacity': {fast: {'model': 's1-fast', 'hotkey': HK[0], 'capacity': 200}}})
+    b, = val.eu.ledger.hours[HK[0]].values()
+    assert b['q'] == b['k'] == eutier.MIN_HOUR_ROUNDS and b['c'] is None and not b['f']
+    assert val.eu.ledger.passed_hours(HK[0], datetime.now(timezone.utc).date()) == 0
+
+
+
+def test_increasing_the_registry_gpu_count_cannot_multiply_previously_qualified_hours(tmp_path):
+    led = _ledger(tmp_path)
+    _quality(led, T0, capacity=40, gpus=1)
+    reg = parse_registry(_reg(contract=[_op('tng', [{'hotkey': HK[0], 'gpus': 2}], slots=2)]))
+    assert _settle(led, reg, _Market({DAY: _market(DAY)}))['operators'][0]['H_o'] == 0
+
+
+def test_eu_hook_exception_cannot_stop_weight_computation(tmp_path, make_wallet, monkeypatch):
+    def broken(*args, **kwargs):
+        raise OSError('simulated ledger failure')
+    monkeypatch.setattr(eutier.EUTier, 'contract_pay', broken)
+    env = {}
+    def tweak(neurons, miners):
+        hks = _hotkeys_of(neurons, miners, 's1-fast')
+        env['REAX_EU_REGISTRY_FILE'] = _write_registry(tmp_path, _reg(contract=[_op('tng', hks[:1], slots=1)]))
+    assert _weights(tmp_path, make_wallet, monkeypatch, env, tweak) == GOLDEN
+
+
+def test_best_of_last_two_fresh_probes_survives_restart_and_sustained_drop(tmp_path):
+    led = _ledger(tmp_path)
+    _quality(led, T0, capacity=40)
+    _quality(led, T0 + timedelta(hours=1), capacity=20)  # one overlapping call is tolerated
+    led.save()
+    led = _ledger(tmp_path)
+    _quality(led, T0 + timedelta(hours=2), capacity=None)
+    _quality(led, T0 + timedelta(hours=3), capacity=20)  # two low probes replace the good one
+    assert led.passed_hours(HK[0], DAY) == 3
+    assert len(led.measurements[HK[0]]) == 2
+    assert led.hours[HK[0]][eutier._hour_key(T0 + timedelta(hours=3))]['c'] == 20
+
+
+def test_best_probe_expires_independently_and_legacy_probe_loads(tmp_path):
+    led = _ledger(tmp_path)
+    led.measurements[HK[0]] = {'at': T0.timestamp(), 'capacity': 40, 'gpus': 1}
+    _quality(led, T0 + timedelta(hours=2), capacity=20)
+    _quality(led, T0 + timedelta(hours=3), capacity=None)
+    _quality(led, T0 + timedelta(hours=3, seconds=1), capacity=None)
+    assert led.hours[HK[0]][eutier._hour_key(T0 + timedelta(hours=2))]['c'] == 40
+    assert led.hours[HK[0]][eutier._hour_key(T0 + timedelta(hours=3))]['c'] == 20
+
+
+@pytest.mark.parametrize('total,expected', [(1, 0), (9, 0), (10, 1), (17, 1), (18, 1)])
+def test_minimum_counted_rounds(tmp_path, total, expected):
+    led = _ledger(tmp_path)
+    _quality(led, T0, rounds=total)
+    assert led.passed_hours(HK[0], DAY) == expected
+
+
+def test_validator_reference_failure_does_not_count_but_absent_contract_hotkeys_do(tmp_path, make_wallet,
+                                                                                 fake_chain_cls, monkeypatch):
+    from reax_subnet import s1validator
+    from reax_subnet.config import load_validator
+    from reax_subnet.elements import slot_key
+    from reax_subnet.s1backends import S1HashBackend
+    from reax_subnet.state import MinerState
+    monkeypatch.setenv('REAX_EU_REGISTRY_FILE', _write_registry(tmp_path, _reg(contract=[
+        _op('tng', [HK[0], HK[1], HK[2]], slots=3)])))
+    env = {'REAX_NETUID': '9', 'REAX_NETWORK': 'ws://127.0.0.1:9951', 'REAX_ALLOW_DEV_MODELS': '1',
+           'REAX_STATE_PATH': str(tmp_path / 'state.json')}
+    val = s1validator.S1Validator(load_validator(env), make_wallet('//Validator'), fake_chain_cls(neurons=[]),
+                                {m: S1HashBackend(m) for m in s1validator.POOL_PARAMS})
+    pro, fast = slot_key(2, 's1-pro'), slot_key(2, 's1-fast')
+    val.state.miners = {pro: MinerState(hotkey=HK[0]), fast: MinerState(hotkey=HK[0]),
+                        slot_key(3, 's1-pro'): MinerState(hotkey=HK[1])}
+    val._eu_record({'scores': {pro: {'model': 's1-pro', 'score': None, 'error': 'reference unavailable'}}})
+    assert HK[0] not in val.eu.ledger.hours
+    for hk in HK[1:3]:  # registered but not queried, and unregistered: both fail closed
+        b, = val.eu.ledger.hours[hk].values()
+        assert b['q'] == 1 and b['k'] == 0
+    val._eu_record({'scores': {pro: {'model': 's1-pro', 'score': None},
+                              fast: {'model': 's1-fast', 'score': 1.0, 'error': None}}})
+    b, = val.eu.ledger.hours[HK[0]].values()
+    assert b['q'] == b['k'] == 1  # actual outcome wins over an uninformed role
+    val._eu_record({'scores': {pro: {'model': 's1-pro', 'score': .964}}})
+    assert b['q'] == 2 and b['k'] == 2 and b['w'] == 0  # positive latency-reduced score is clean
+    val._eu_record({'scores': {pro: {'model': 's1-pro', 'score': None}},
+                    'capacity': {pro: {'hotkey': HK[0], 'strike': True}}})
+    assert b['q'] == 3 and b['f']  # a real capacity strike still counts
+    val.eu.ledger.measurements.clear()
+    val._eu_record({'scores': {fast: {'model': 's1-fast', 'score': 1.0}},
+                    'capacity': {fast: {'model': 's1-fast', 'hotkey': HK[0], 'capacity': 200}}})
+    assert b['c'] is None  # fast pool cannot qualify an RTX PRO 6000 contract
+
+
+
+def test_previous_ema_bucket_does_not_reuse_answered_count_as_clean_count(tmp_path):
+    led = _ledger(tmp_path)
+    led.hours[HK[0]] = {eutier._hour_key(T0): {'q': 10, 'k': 10, 'w': 1, 'f': False, 'v': True,
+                                             'c': 40, 'g': 1, 'e': 9.8, 'en': 10}}
+    led.save()
+    led = _ledger(tmp_path)
+    b, = led.hours[HK[0]].values()
+    assert b['k'] == 0 and 'e' not in b and 'en' not in b
+    assert led.passed_hours(HK[0], DAY) == 0
+
+
+def test_contract_fraction_through_real_engine_need_weights_with_slot_factor(monkeypatch, tmp_path):
+    from reax_subnet import competition_split as cs, miner_slot
+    # Serving vector after the same EU carve_out used by S1Validator.
+    fraction = .04
+    base = {1: .4, 2: .6}
+    carved = carve_out(base, {7: fraction}, 0)
+    now = datetime(2026, 11, 4, tzinfo=timezone.utc).timestamp()
+    monkeypatch.setattr(cs, "NEED_RULE", True)
+    assert cs.need_active(datetime.fromtimestamp(now, timezone.utc))
+    from reax_subnet.engvalidator import EngineCompetition
+    from reax_subnet.chain import Neuron, Snapshot
+    from types import SimpleNamespace
+    gate = SimpleNamespace(path=str(tmp_path / 'approvals.json'))
+    (tmp_path / 'need.json').write_text(json.dumps({'inference': [
+        {'from_utc': '2026-11-03T14:30:00+00:00', 'share': .30, 'reason': 'fixture'}]}))
+    engine = EngineCompetition(object(), {}, str(tmp_path / 'engine.json'), tracks={},
+                               utcnow=lambda: datetime.fromtimestamp(now, timezone.utc), award_gate=gate)
+    snap = Snapshot(1, tuple(Neuron(u, 'owner' if u == 0 else str(u), 'cold', False, 0., None, None)
+                             for u in (0, 1, 2, 7)), 'owner')
+    out = engine.weights(carved, snap, {0})
+    plain = engine.weights(base, snap, {0})
+    factor = 1.2424  # on-chain miner-slot compensation applies after composition
+    path = tmp_path / miner_slot.FILE_NAME
+    path.write_text(json.dumps({'factor': factor, 'from_utc': '2026-10-30T23:00:00+00:00', 'reason': 'test'}))
+    scaled = miner_slot.apply(out, 0, str(path), datetime.fromtimestamp(now, timezone.utc), 1)
+    assert 0 < scaled[7] <= fraction * .30 * factor + 1e-12
+    assert scaled[7] == pytest.approx(out[7] * factor)
+    for uid in (1, 2):
+        assert out[uid] == pytest.approx(plain[uid] * (1 - fraction))
+    assert sum(out.values()) == pytest.approx(1)
+
+
+def test_old_unscoped_capacity_cannot_qualify_s1_pro_after_restart(tmp_path):
+    led = _ledger(tmp_path)
+    _quality(led, T0)
+    led.save()
+    path = tmp_path / 'ledger.json'
+    doc = json.loads(path.read_text())
+    del doc['capacity_pool']
+    path.write_text(json.dumps(doc))
+    led = _ledger(tmp_path)
+    assert led.measurements == {}
+    _quality(led, T0 + timedelta(hours=1), capacity=None)
+    assert led.hours[HK[0]][eutier._hour_key(T0 + timedelta(hours=1))]['c'] is None
+
+
+def test_gpu_declaration_change_within_hour_fails_even_if_capacity_recovers(tmp_path):
+    led = _ledger(tmp_path)
+    _quality(led, T0, gpus=1, capacity=40)
+    _quality(led, T0 + timedelta(minutes=10), gpus=2, capacity=80)
+    assert led.passed_hours(HK[0], DAY, declared_gpus=2) == 0
+
+
+def test_fresh_probe_required_at_last_counted_round(tmp_path):
+    led = _ledger(tmp_path)
+    _quality(led, T0, capacity=40)
+    _quality(led, T0 + timedelta(hours=3), capacity=None)
+    assert led.passed_hours(HK[0], DAY) == 2
+    _quality(led, T0 + timedelta(hours=3, seconds=1), capacity=None, rounds=1)
+    assert led.passed_hours(HK[0], DAY) == 1
+    led.save()
+    assert _ledger(tmp_path).passed_hours(HK[0], DAY) == 1
