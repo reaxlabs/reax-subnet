@@ -58,7 +58,11 @@ def ref():
     return dict(r, items=r["items"][:96])
 
 
+STRICT = at.Thresholds(bar="strict")
+
+
 async def _run(ref, backend, ladder=(1, 2, 4, 8), **kw):
+    kw.setdefault("th", STRICT)
     return await at.run("s1-fast", "http://unused", "t" * 32, ladder=ladder, duration_s=0.0, reference=ref,
                         backend=backend, **kw)
 
@@ -148,7 +152,7 @@ async def test_report_is_json_with_identity_fields(ref):
               "thresholds", "levels"):
         assert k in doc
     assert doc["engine_image_digest"] == "sha256:abc" and doc["gpu_name"] == "RTX PRO 6000"
-    assert set(doc["levels"][0]["criteria"]) == {"complete", "top1", "max_dp", "mean_distance", "no_strikes", "full_pass"}
+    assert set(doc["levels"][0]["criteria"]) == {"complete", "top1", "max_dp", "p99_dp", "mean_distance", "no_strikes", "full_pass"}
 
 
 @pytest.mark.parametrize("noise,expect", [(0.0, True), (0.6, False)])
@@ -157,7 +161,7 @@ async def test_against_http_fake_runtime(noise, expect):
     ref = dict(full, items=full["items"][:40])
     runner, url = await _fake_runtime(full, noise)
     try:
-        rep = await at.run("s1-fast", url, "t" * 32, ladder=(1, 4), duration_s=0.0, reference=ref)
+        rep = await at.run("s1-fast", url, "t" * 32, ladder=(1, 4), duration_s=0.0, reference=ref, th=STRICT)
     finally:
         await runner.cleanup()
     assert rep["pass"] is expect
@@ -176,3 +180,56 @@ def test_print_report_runs(ref, capsys):
     at.print_report(rep)
     out = capsys.readouterr().out
     assert "ADMITTED concurrency: 2" in out and "PASS" in out
+
+
+# --- named bars (eu-v1 since 23 Nov 2026, calibration board #79492) ---
+
+def test_bars_and_overrides():
+    eu, st = at.Thresholds(), at.Thresholds(bar="strict")
+    assert eu.bar == "eu-v1" and (eu.max_dp, eu.min_top1, eu.max_p99_dp) == (0.20, 0.98, 0.10)
+    assert eu.require_no_round_strikes is False and eu.max_over_tau_share == 0.02
+    assert st.bar == "strict" and (st.max_dp, st.min_top1, st.max_p99_dp) == (0.02, 1.0, None)
+    assert st.require_no_round_strikes is True and st.max_over_tau_share == 0.0
+    assert at.Thresholds(max_dp=0.05).max_dp == 0.05 and at.Thresholds(bar="strict", min_top1=0.99).min_top1 == 0.99
+    assert at.Thresholds(**eu.as_dict()).as_dict() == eu.as_dict()
+    with pytest.raises(ValueError):
+        at.Thresholds(bar="loose")
+
+
+async def test_eu_bar_admits_batching_drift_that_strict_rejects(ref):
+    drift = lambda n: 0.0 if n < 10 else 0.1  # moderate logit drift once requests are batched
+    strict = await _run(ref, FakeBackend(ref, drift), ladder=(1, 2, 4))
+    eu = await _run(ref, FakeBackend(ref, drift), ladder=(1, 2, 4), th=at.Thresholds())
+    assert strict["admitted_c"] == 1
+    assert eu["admitted_c"] == 4 and eu["thresholds"]["bar"] == "eu-v1"
+    assert all(0.02 < lv["max_dp"] <= 0.20 for lv in eu["levels"] if lv["c"] >= 2)
+
+
+async def test_eu_bar_still_rejects_a_substitute(ref):
+    rep = await _run(ref, FakeBackend(ref, lambda n: 6.0), ladder=(1,), th=at.Thresholds())
+    lv = rep["levels"][0]
+    assert lv["criteria"]["top1"] is False and rep["admitted_c"] == 0
+
+
+async def test_combine_rejudges_old_strict_reports_with_a_new_bar(ref):
+    drift = lambda n: 0.0 if n < 10 else 0.1
+    a = await _run(ref, FakeBackend(ref, drift), ladder=(1, 2, 4))
+    b = await _run(ref, FakeBackend(ref, drift), ladder=(1, 2, 4))
+    for r in (a, b):  # simulate reports written before the named bars existed
+        for k in ("bar", "max_p99_dp", "max_over_tau_share", "require_no_round_strikes"):
+            r["thresholds"].pop(k)
+    old = at.combine(json.loads(json.dumps([a, b])))
+    new = at.combine(json.loads(json.dumps([a, b])), at.Thresholds(bar="eu-v1"))
+    assert old["thresholds"]["bar"] == "strict" and old["admitted_c"] == 1
+    assert new["thresholds"]["bar"] == "eu-v1" and new["admitted_c"] == 4
+
+
+def test_cli_combine_with_bar(tmp_path, capsys, ref):
+    import asyncio
+    drift = lambda n: 0.0 if n < 10 else 0.1
+    rep = asyncio.run(_run(ref, FakeBackend(ref, drift), ladder=(1, 2)))
+    f = tmp_path / "r.json"
+    f.write_text(json.dumps(rep))
+    assert at.main(["combine", str(f), "--bar", "eu-v1", "--json"]) in (0, 1)
+    out = json.loads(capsys.readouterr().out)
+    assert out["admitted_c"] == 2 and out["thresholds"]["bar"] == "eu-v1"

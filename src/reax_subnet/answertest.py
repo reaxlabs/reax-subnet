@@ -37,16 +37,41 @@ LADDER = (1, 2, 4, 8, 12, 16, 24, 32)
 
 
 class Thresholds:
-    """Admission criteria. Defaults = the bar of our own production nodes (node gate on 500 golden items) plus the
-    validator strike lines; see docs/ANSWER-TEST.md section 4 for the reasoning."""
+    """Admission criteria. Two named bars (docs/ANSWER-TEST.md section 3):
 
-    def __init__(self, max_dp: float = 0.02, min_top1: float = 1.0, tie_margin: float = 0.02,
-                 max_mean_distance: float = 0.10, contract_round_pass: float = 0.90,
-                 contract_dps: float = 25.0, max_failed: int = 0) -> None:
-        self.max_dp = max_dp  # largest |p_i - q_i| of any option probability
-        self.min_top1 = min_top1  # top-1 agreement on items whose reference top-2 margin exceeds tie_margin
-        self.tie_margin = tie_margin  # below this margin a flip is inside the dp budget: not counted
-        self.max_mean_distance = max_mean_distance  # mean logit distance (engine gate; pool gate is tau_mean 0.20)
+    * ``strict``: the bar of our own production nodes (node gate on 500 golden items) plus the validator strike lines.
+    * ``eu-v1`` (default since 23 Nov 2026): answer quality instead of bit-identity, set from the calibration run of
+      23 Nov 2026 (board #79492): honest concurrent batching of our production engine and of the UID 240 engine gave
+      top-1 0.983-1.0 and max_dp 0.086-0.135 at c=2..16, while substitute models score ~86 % top-1 in our template
+      parity runs. The bar admits the first and rejects the second with a wide margin.
+    """
+
+    BARS: dict[str, dict[str, Any]] = {
+        "strict": dict(max_dp=0.02, min_top1=1.0, max_p99_dp=None, max_mean_distance=0.10,
+                       max_over_tau_share=0.0, require_no_round_strikes=True),
+        "eu-v1": dict(max_dp=0.20, min_top1=0.98, max_p99_dp=0.10, max_mean_distance=0.20,
+                      max_over_tau_share=0.02, require_no_round_strikes=False),
+    }
+    DEFAULT_BAR = "eu-v1"
+
+    def __init__(self, max_dp: Optional[float] = None, min_top1: Optional[float] = None, tie_margin: float = 0.02,
+                 max_mean_distance: Optional[float] = None, contract_round_pass: float = 0.90,
+                 contract_dps: float = 25.0, max_failed: int = 0, max_p99_dp: Optional[float] = -1.0,
+                 max_over_tau_share: Optional[float] = None, require_no_round_strikes: Optional[bool] = None,
+                 bar: str = "") -> None:
+        bar = bar or self.DEFAULT_BAR
+        if bar not in self.BARS:
+            raise ValueError(f"unknown bar {bar!r}; known: {', '.join(self.BARS)}")
+        b = self.BARS[bar]
+        self.bar = bar
+        self.max_dp = b["max_dp"] if max_dp is None else max_dp  # largest |p_i - q_i| of any option probability
+        self.min_top1 = b["min_top1"] if min_top1 is None else min_top1  # top-1 agreement on non-tie items
+        self.tie_margin = tie_margin  # below this reference top-2 margin a flip is not counted (reported)
+        self.max_p99_dp = b["max_p99_dp"] if max_p99_dp == -1.0 else max_p99_dp  # None = not checked
+        self.max_mean_distance = b["max_mean_distance"] if max_mean_distance is None else max_mean_distance
+        self.max_over_tau_share = b["max_over_tau_share"] if max_over_tau_share is None else max_over_tau_share
+        self.require_no_round_strikes = (b["require_no_round_strikes"] if require_no_round_strikes is None
+                                         else require_no_round_strikes)
         self.contract_round_pass = contract_round_pass  # contract 4.2: >= 90 % rounds (informational)
         self.contract_dps = contract_dps  # contract: >= 25 decisions/s (informational)
         self.max_failed = max_failed
@@ -79,13 +104,15 @@ def _keyed(decision: Any, answer: Any) -> list[float]:
 def judge(m: dict[str, Any], th: Thresholds) -> dict[str, bool]:
     """Pass/fail per admission criterion for one concurrency's metrics ``m``."""
     answered = m["answered"] > 0
+    rounds_ok = (not th.require_no_round_strikes) or (m["round_strikes"] == 0.0
+                                                      and m["validator_stream"]["strikes"] == 0)
     return {
         "complete": m["failed"] <= th.max_failed and answered,
         "top1": answered and m["top1_agreement"] >= th.min_top1,
         "max_dp": answered and m["max_dp"] <= th.max_dp,
+        "p99_dp": answered and (th.max_p99_dp is None or m["p99_dp"] <= th.max_p99_dp),
         "mean_distance": answered and m["distance_mean"] <= th.max_mean_distance,
-        "no_strikes": answered and m["items_over_tau_item"] == 0 and m["round_strikes"] == 0.0
-                      and m["validator_stream"]["strikes"] == 0,
+        "no_strikes": answered and m["items_over_tau_item"] <= th.max_over_tau_share * m["answered"] and rounds_ok,
         "full_pass": m["items_covered"] >= m["items"],
     }
 
@@ -186,7 +213,7 @@ async def run_level(backend: Any, decisions: Sequence[Any], reference_items: Seq
                              "scored": sum(1 for r in vrounds if r.score > 0),
                              "strikes": sum(1 for r in vrounds if r.strike)}
     crit = judge(m, th) if answered else {k: False for k in
-                                         ("complete", "top1", "max_dp", "mean_distance", "no_strikes", "full_pass")}
+                                         ("complete", "top1", "max_dp", "p99_dp", "mean_distance", "no_strikes", "full_pass")}
     m["criteria"] = crit
     m["pass"] = all(crit.values())
     m["contract"] = {  # informational: pay needs >= 90 % positive rounds and >= 25 decisions/s (EU-TIER.md)
@@ -317,7 +344,13 @@ def combine(reports: Sequence[dict[str, Any]], th: Optional[Thresholds] = None) 
     for r in reports:
         if r.get("schema") != SCHEMA or (r["model"], r["manifest_id"]) != (first["model"], first["manifest_id"]):
             raise ValueError("reports must be reax-answertest/1 reports of the same model and manifest")
-    th = th or Thresholds(**first["thresholds"])
+    stored = dict(first["thresholds"])
+    stored.setdefault("bar", "strict")  # reports written before the named bars used the strict bar
+    th = th or Thresholds(**stored)
+    for r in reports:  # re-judge every level with the bar in force (lets old reports be read against a new bar)
+        for lv in r["levels"]:
+            lv["criteria"] = judge(lv, th)
+            lv["pass"] = all(lv["criteria"].values())
     out = build_report(first["model"], first["manifest_id"], [r["levels"] for r in reports], th,
                        engine=first.get("engine", ""), image_digest=first.get("engine_image_digest", ""),
                        gpu_name=first.get("gpu_name", ""), driver=first.get("driver", ""),
@@ -363,6 +396,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     cmb = sub.add_parser("combine", help="combine reports of separate cold starts into one worst-case report")
     cmb.add_argument("reports", nargs="+")
     cmb.add_argument("--json", action="store_true")
+    cmb.add_argument("--bar", choices=sorted(Thresholds.BARS), default="",
+                     help="re-judge the runs with this bar (default: the bar stored in the first report)")
     ap.add_argument("--model", default=os.environ.get("REAX_MODEL", "s1-fast"),
                     choices=("s1-fast", "s1-pro", "s1-lite", "s1-cpu"))
     ap.add_argument("--url", help="runtime sidecar URL (default: REAX_<MODEL>_RUNTIME_URL)")
@@ -380,8 +415,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--image-digest", default="", help="engine image digest for the report")
     ap.add_argument("--gpu-name", default="", help="GPU name for the report; 'auto' asks nvidia-smi on this machine")
     ap.add_argument("--driver", default="", help="NVIDIA driver version for the report")
-    ap.add_argument("--max-dp", type=float, default=Thresholds().max_dp)
-    ap.add_argument("--min-top1", type=float, default=Thresholds().min_top1)
+    ap.add_argument("--bar", choices=sorted(Thresholds.BARS), default=Thresholds.DEFAULT_BAR,
+                    help="admission bar: eu-v1 (answer quality, default) or strict (bit-identity-like, our node gate)")
+    ap.add_argument("--max-dp", type=float, default=None, help="override the bar's max_dp")
+    ap.add_argument("--min-top1", type=float, default=None, help="override the bar's top-1 minimum")
     ap.add_argument("--out", help="also write the JSON report to this file")
     ap.add_argument("--json", action="store_true", help="print one JSON object")
     ap.add_argument("--at", type=_at, default=None, help="check as of this UTC time (pool manifest switches, as reax-selfcheck)")
@@ -392,7 +429,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             for path in args.reports:
                 with open(path, encoding="utf-8") as fh:
                     docs.append(json.load(fh))
-            report = combine(docs)
+            report = combine(docs, Thresholds(bar=args.bar) if args.bar else None)
         else:
             if args.at is not None:
                 _view_switches_at(args.at)
@@ -418,7 +455,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 restart_cmd=args.restart_cmd, limit=args.limit or None, reference=reference, engine=args.engine,
                 image_digest=args.image_digest, gpu_name=_gpu_name() if args.gpu_name == "auto" else args.gpu_name,
                 driver=args.driver, stop_after_fails=args.stop_after_fails,
-                th=Thresholds(max_dp=args.max_dp, min_top1=args.min_top1),
+                th=Thresholds(max_dp=args.max_dp, min_top1=args.min_top1, bar=args.bar),
                 progress=None if args.json else (lambda cs, lv: print(
                     f"  cold start {cs + 1}, c={lv['c']}: {'PASS' if lv['pass'] else 'FAIL'}", file=sys.stderr))))
     except (OSError, ValueError, ConnectionError, subprocess.SubprocessError) as exc:

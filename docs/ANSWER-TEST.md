@@ -49,6 +49,32 @@ Metrics per `c` (all in `levels[]` of the JSON report):
 
 ## 3. Admission rule (exact thresholds)
 
+### 3.0 Bar in force: `eu-v1` (23 Nov 2026)
+
+The calibration run of 23 Nov 2026 (board #79492, Verda CC box, s1-pro golden 3f3558e5, 640 items) showed that the strict
+bar below admits our own production engine only at one request in flight, below the 25 decisions/s pay floor, and does not
+admit the UID 240 engine at all. The drift comes from concurrent batching, not from a different model: top-1 agreement stayed
+at 0.983-1.0 and max_dp at 0.086-0.135 for c = 2..16 (up to 54 decisions/s), while substitute models score about 86 % top-1
+in our template parity runs. The EU bar therefore measures answer quality, not bit-identity:
+
+| criterion | `eu-v1` | `strict` (below) |
+|---|---|---|
+| top-1 agreement on non-tie items (reference top-2 margin >= 0.02) | >= 0.98 | 1.0 |
+| max_dp (largest option-probability difference on any item) | <= 0.20 | <= 0.02 |
+| p99_dp | <= 0.10 | not checked |
+| mean logit distance | <= 0.20 (the validator pool gate tau_mean) | <= 0.10 |
+| answers over the strike line tau_item | <= 2 % | 0 |
+| simulated validator-round strikes | reported, not a criterion | 0 |
+| failed requests, coverage, two cold starts | as below | as below |
+
+`reax-answertest` uses `eu-v1` by default (`--bar strict` for the old bar). `reax-answertest combine <reports> --bar eu-v1`
+re-judges existing reports against a bar, so earlier runs need no GPU to be re-read. The bar is reviewed after the first
+operator runs (TNG) and one quantised-substitute control run (FP8 build of the same model must be reported; if it passes
+`eu-v1` its answers are as good as the reference by this measure, which is acceptable for contract operators, who are
+also bound by the contract's model and data clauses). P2P pots keep the strict check (validator, unchanged).
+
+### 3.1 The strict bar (our node gate)
+
 A concurrency level PASSES only if ALL hold (`Thresholds` in answertest.py, CLI `--max-dp`, `--min-top1`):
 
 | criterion | threshold | why this value |
