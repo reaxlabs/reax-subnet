@@ -82,9 +82,16 @@ Composite (weights PV-HF 0.4, PV-HLE 0.2, PV-W2C 0.2, PV-ONET 0.2): 61.23 ± 0.8
 
 The Decision Index maintainers do not redistribute their suite: some sources forbid republishing, and others are
 non-commercial or share-alike. So we do not ship it either. Rebuild it once with their kit
-(<https://github.com/apolinario/decision-index>, "The suite"). That takes about 7 GB of downloads and needs the HLE terms accepted:
+(<https://github.com/apolinario/decision-index>, "The suite"). That takes about 7 GB of downloads and needs the HLE terms accepted.
+
+**Rebuild at the frozen state.** A rebuild at Decision Index `main` is not byte-identical to the frozen suite rows that
+our hashes pin. Upstream commit `2d7791c` (13 Oct) changed the SGD builder after the freeze (open upstream issue
+[apolinario/decision-index#274](https://github.com/apolinario/decision-index/issues/274)). The rebuild then marks
+release v1 as not byte-identical and skips the later steps. Revert that commit locally before you rebuild, and check
+that every `byte_identical` flag is true:
 
 ```bash
+git -C decision-index revert --no-edit 2d7791c   # local only; see upstream issue #274
 python -m decision_index suite rebuild --work work
 python3 -m reax_yardstick run ... --di-suite \
     work/artifacts/benchmark-suite/release-v2-rebuilt/selected-rows.jsonl.gz \
