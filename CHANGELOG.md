@@ -1,3 +1,29 @@
+## 1.2.0rc11.post8.18 (release candidate, 23 Nov 2026)
+
+- Weights version 1274; distribution version 1.2.0rc11.post8+hotfix.18.
+- Round-2 intake-wait keep-alive (v2.1b): the validator remembers the first on-chain commitment of
+  each repo@revision in intake-wait-first.json in its state directory. A restart, a deploy, a
+  same-text recommit or a change to another part of a commitment no longer hands first place to a
+  copy, and a first holder that has left still blocks pure copies. First place is seeded from the
+  on-chain commitment block. Entries are pruned 30 days after their time unless a live commitment
+  still names that repo@revision. The file has an entry cap and an overflow guard. Nothing changes
+  while the flag is off or the intake feed is armed.
+
+## 1.2.0rc11.post8.17 (release candidate, 23 Nov 2026)
+
+- Weights version 1273; distribution version 1.2.0rc11.post8+hotfix.17.
+- Round-2 entries waiting for the intake keep their keep-alive (GR2_INTAKE_WAIT_KA). A Generalist
+  commitment made on chain at or after 2026-11-20 16:40 UTC that is still undecided keeps the
+  provisional keep-alive for 10 days from its own commitment, instead of 24 hours (unverified) or
+  6 hours (unseen grace), if its repo@revision passes an anonymous public check on Hugging Face
+  (public repo, the committed revision exists, at least one .safetensors file). A repo that is
+  missing, gated, private or has no safetensors gets no window; a hub error keeps the window.
+- Only the first live commitment of a repo@revision gets the window (earliest on-chain time, tie:
+  lower uid). Later copies keep the old windows. A recommit of the same revision does not start a
+  new window.
+- Lookups run on two background threads; a weight-set round waits at most 1 second for them.
+  The intake feed, once armed, takes precedence and is unchanged.
+
 ## 1.2.0rc11.post8.16 (release candidate, 19 Nov 2026)
 
 - Weights version 1272; distribution version 1.2.0rc11.post8+hotfix.16.

@@ -134,8 +134,10 @@ class SpecialistAdapter:
         return self._last_cycle is None or self._clock() - self._last_cycle >= self.interval_s
 
     def refresh(self, snap: Snapshot) -> None:
-        """Re-read the leaders from the evaluator's saved state (no GPU, no network): after a restart the tracks pay
-        again at once instead of after the first full cycle."""
+        """Re-read the leaders from the evaluator's saved state (no GPU): after a restart the tracks pay again at once instead
+        of after the first full cycle. Not network-free: with GR2_INTAKE_WAIT_KA the keep-alive read may start anonymous hub
+        lookups (ka_intake_wait) and wait for those it started for at most GR2_INTAKE_WAIT_ROUND_BUDGET_S in total; lookups
+        still in flight from an earlier round are never waited for."""
         refresh = getattr(self.evaluator, "leaders", None)
         cfg = getattr(self.evaluator, "cfg", None)
         if refresh is None or cfg is None:

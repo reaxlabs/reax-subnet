@@ -27,6 +27,8 @@ from datetime import datetime, timezone
 from typing import Any, AsyncContextManager, Awaitable, Callable, Collection, Mapping, Sequence
 
 from .. import competition_split as split
+from .. import ka_feed as _ka_feed
+from .. import ka_intake_wait as IW
 from ..chain import Snapshot
 from ..competition_split import (CHAIN_IMMUNITY_BLOCKS, KEEPALIVE_BASE_FLOOR, KEEPALIVE_BIG_MARGIN, KEEPALIVE_BIG_PARAMS,
                                  KEEPALIVE_LEGACY_FLOOR, KEEPALIVE_MAX_ENTRIES, KEEPALIVE_NONPROC_FLOOR, PROVISIONAL_KA,
@@ -1071,6 +1073,22 @@ def _windows(times: Sequence[float], gap: float) -> list[float]:
     return out
 
 
+_IW_TIMES: dict[str, dict[str, float]] = {}   # GR2_INTAKE_WAIT_KA, this process only: hotkey -> {repo@revision: earliest on-chain time seen}
+
+
+def _iw_window_start(hotkey: str, rev_key: str, at: float, now: float) -> float:
+    """Start of the intake-wait window of ``hotkey``'s current commitment ``rev_key`` made on chain at ``at``. A recommit of the
+    same repo@revision keeps the earliest time seen (never a fresh window); a new repo@revision starts a window only if the
+    previous window of the hotkey started ``KA_REWINDOW_HOURS`` before it (``_windows``, as the other hotkey windows), else it
+    shares that window. Remembered per process: a validator restart forgets it (the window then runs from the commitment seen)."""
+    times = _IW_TIMES.setdefault(hotkey, {})
+    t = times[rev_key] = min(at, times.get(rev_key, at))
+    old = now - 2 * split.GR2_INTAKE_WAIT_KA_DAYS * 86400.0       # forget commitments whose windows are long over (they cannot move a newer start)
+    for k in [k for k, v in times.items() if v < old and k != rev_key]:
+        del times[k]
+    return [x for x in _windows(list(times.values()), split.KA_REWINDOW_HOURS * 3600.0) if x <= t][-1]
+
+
 def _onchain_ts(n: Any, block: int, now: float) -> float | None:
     """When the neuron's current commitment was made on chain (its commitment block, one block = ``BLOCK_SECONDS``); None
     when the block is unknown or lies in the future (``_commitment_ts`` would say ``now``, which never expires)."""
@@ -1105,7 +1123,8 @@ def _fakes_by_coldkey(state: ST.SpecState, now: float) -> dict[str, int]:
     return out
 
 
-def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot, now: float) -> dict[str, list[int]]:
+def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot, now: float,
+                       iw_path: str | None = None) -> dict[str, list[int]]:
     """Waiting-state hotfix G1 (Florian 26 Oct 2026: keep-alive GUARANTEED for a committed entry until its evaluation is
     through): the provisional keep-alive, per track, from the live chain commitments themselves, so it starts with the
     first weight set after the commitment, also before the evaluator has seen the entry and also when our first fetch
@@ -1125,7 +1144,15 @@ def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: 
       (over the first sightings of all its entries and this commitment), so recommitting dummies cannot chain windows.
     A commitment block that is unknown or in the future: the entry's first sighting, else nothing (fail closed). At most
     MAX_OPEN_PER_COLDKEY_TRACK per coldkey and track with KA_PROV_TWO_PER_COLDKEY (otherwise one), most exposed
-    first with KA_EXPOSED_FIRST, otherwise verified / our-wait first, then commitment block and uid. At most ``PROVISIONAL_KA_UNVERIFIED_MAX`` unverified entries per track; pay and caps as before (``combine_weights``). Pure."""
+    first with KA_EXPOSED_FIRST, otherwise verified / our-wait first, then commitment block and uid. At most ``PROVISIONAL_KA_UNVERIFIED_MAX`` unverified entries per track; pay and caps as before (``combine_weights``).
+    With GR2_INTAKE_WAIT_KA (not while ``ka_feed.active``): an undecided generalist commitment made on chain at or after
+    GR2_INTAKE_WAIT_KA_START_UTC gets [its own window start, + GR2_INTAKE_WAIT_KA_DAYS) in place of the windows above (never
+    shorter than they were), if its repo@revision does not FAIL the anonymous public check (``ka_intake_wait``; a hub error keeps
+    the window) and it is the first commitment of that repo@revision (earliest on-chain time, also as remembered in ``iw_path``
+    for up to ``IW.FIRST_KEEP_DAYS`` after its holder left, tie: lower uid; later copies keep the windows above); the window
+    start follows ``_iw_window_start`` (no chaining by recommits). A passed entry does not count against
+    ``PROVISIONAL_KA_UNVERIFIED_MAX``, an unchecked one does. Pure but for the hub lookups, the process-local window memory and
+    the first-commitment file ``iw_path`` (None: memory only)."""
     out: dict[str, list[int]] = {t: [] for t in track_ids}
     live = {n.hotkey: n for n in snapshot.neurons}
     seen: dict[str, list[float]] = {}
@@ -1136,6 +1163,46 @@ def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: 
                 seen.setdefault(s.hotkey, []).append(float(v))
     gap = split.KA_REWINDOW_HOURS * 3600.0
     fakes = _fakes_by_coldkey(state, now) if split.KA_ABUSE_CLAUSE else {}
+    iw_round = None     # GR2_INTAKE_WAIT_KA: legacy path only; the intake feed, when active, owns the generalist keep-alive
+    if split.GR2_INTAKE_WAIT_KA:
+        try:
+            iw_round = None if _ka_feed.active(now) else IW.Round(now)
+        except ValueError:      # no finite time: fail closed, the old windows
+            iw_round = None
+    iw_first: dict[str, tuple[float, int, str]] = {}
+    if iw_round is not None:
+        # critic S1 (v2): first commitment wins per repo@revision. Among live hotkeys whose commitment names the same
+        # repo@revision (any track, repo compared case-insensitively) only the earliest on-chain commitment (the earliest time
+        # remembered for that hotkey and repo@revision, tie: lower uid) can get the intake-wait window or the PASS exemption;
+        # later copies keep the old windows. Unknown or future commitment blocks take no part (they never get the window).
+        # v2.1 (critic S-A, S-B): the earliest holder is also persisted (``IW.first_seen``, file next to the validator state), so
+        # a restart, a recommit or an element update does not hand first place to a copy, and a holder that left still blocks it.
+        firsts = IW.first_seen(iw_path)
+        keep = now - IW.FIRST_KEEP_DAYS * 86400.0
+        for trk in state.tracks.values():     # seed: the evaluator's chain evidence (same block clock as live; covers a fresh start)
+            for sub in trk.submissions.values():
+                cb = sub.chain_commit_block
+                if (isinstance(cb, int) and not isinstance(cb, bool) and 0 < cb <= snapshot.block and type(sub.uid) is int
+                        and isinstance(sub.hotkey, str) and isinstance(sub.repo, str) and isinstance(sub.revision, str)):
+                    t, k = now - (snapshot.block - cb) * BLOCK_SECONDS, f"{sub.repo.casefold()}@{sub.revision}"
+                    if t >= keep:
+                        iw_first[k] = min(iw_first.get(k, firsts.get(k, (t, sub.uid, sub.hotkey))), (t, sub.uid, sub.hotkey))
+        live_keys: set[str] = set()
+        for hk, n in live.items():
+            c = parse_commitment(n.commitment)
+            t = _onchain_ts(n, snapshot.block, now) if c is not None else None
+            if t is not None:
+                k = f"{c.repo.casefold()}@{c.revision}"
+                live_keys.add(k)
+                t = min(t, _IW_TIMES.get(hk, {}).get(k, t))
+                iw_first[k] = min(iw_first.get(k, firsts.get(k, (t, n.uid, hk))), (t, n.uid, hk))
+        changed = False
+        for k, v in iw_first.items():
+            if firsts.get(k) != v:
+                firsts[k], changed = v, True
+        IW.save_first_seen(iw_path, now, live_keys, changed)
+    iw_start = split.GR2_INTAKE_WAIT_KA_START_UTC.timestamp()
+    iw_hours = split.GR2_INTAKE_WAIT_KA_DAYS * 24.0
     for track_id in track_ids:
         ts = state.tracks.get(track_id)
         subs = ts.submissions if ts is not None else {}
@@ -1171,7 +1238,19 @@ def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: 
                 n_fakes = fakes.get(n.coldkey, 0)
                 if n_fakes >= split.KA_ABUSE_EXCLUDE_AFTER or (not ours and (n_fakes > 0 or (s is not None and _is_fake(s)))):
                     continue    # abuse clause: fakes lose the unverified window, repeat offenders the provisional keep-alive
-            if ours:
+            iw = None       # (window start, verdict, detail) when the Round-2 intake-wait window applies to this entry
+            if iw_round is not None and track_id == "generalist" and restart is None:
+                chain_at = _onchain_ts(n, snapshot.block, now)       # its own on-chain time only, never a first sighting
+                if chain_at is not None and chain_at >= iw_start and iw_first[f"{c.repo.casefold()}@{c.revision}"][2] != hk:
+                    log.debug("intake-wait: uid %d %s@%s is not the first commitment of that repo@revision; old windows",
+                              n.uid, c.repo, c.revision[:12])
+                elif chain_at is not None and chain_at >= iw_start:
+                    verdict, detail = (IW.PASS, "fetched and checked by the evaluator") if ours else iw_round.check(c.repo, c.revision)
+                    if verdict != IW.FAIL:      # FAIL (not public / no safetensors): the old windows below
+                        iw = (_iw_window_start(hk, f"{c.repo.casefold()}@{c.revision}", chain_at, now), verdict, detail)
+            if iw is not None:
+                since, hours = iw[0], iw_hours
+            elif ours:
                 since, hours = restart if restart is not None else at, split.PROVISIONAL_KA_OUR_WAIT_HOURS
             elif restart is not None:
                 since, hours = restart, split.PROVISIONAL_KA_UNVERIFIED_HOURS
@@ -1179,12 +1258,17 @@ def _committed_waiting(state: ST.SpecState, track_ids: Sequence[str], snapshot: 
                 own = [x for x in _windows(seen.get(hk, []) + [at], gap) if x <= at]
                 since, hours = (own[-1] if own else at), split.PROVISIONAL_KA_UNVERIFIED_HOURS
             unseen = s is None and split.KA_GAUNTLET_R2
-            if unseen and now - since > hours * 3600.0 and now - at <= split.PROVISIONAL_KA_UNSEEN_GRACE_HOURS * 3600.0:
+            if iw is None and unseen and now - since > hours * 3600.0 and now - at <= split.PROVISIONAL_KA_UNSEEN_GRACE_HOURS * 3600.0:
                 since, hours = at, split.PROVISIONAL_KA_UNSEEN_GRACE_HOURS     # F2: grace from its own commitment block
-            if since > now + KEEPALIVE_FUTURE_S or now - since > hours * 3600.0:
+            if since > now + KEEPALIVE_FUTURE_S or now - since > hours * 3600.0 or (iw is not None and now - since >= hours * 3600.0):
                 continue
+            if iw is not None:
+                log.info("intake-wait keep-alive: uid %d hotkey %s %s@%s window ends %s, public check %s (%s)", n.uid, hk[:8], c.repo,
+                         c.revision[:12], datetime.fromtimestamp(since + hours * 3600.0, timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), iw[1], iw[2])
             cb = n.commitment_block if isinstance(n.commitment_block, int) and n.commitment_block > 0 else sys.maxsize
-            cands.append((0 if ours else 1, cb, n.uid, hk, unseen, n))
+            # intake-wait: a passed entry does not count against PROVISIONAL_KA_UNVERIFIED_MAX (as an unseen commitment does not), one
+            # whose check is unanswered (hub error / budget) does, seen or not, so no hub fault can lift the cap
+            cands.append((0 if ours else 1, cb, n.uid, hk, unseen if iw is None else iw[1] == IW.PASS, n))
         taken: dict[str, int] = {}
         per_coldkey = C.MAX_OPEN_PER_COLDKEY_TRACK if split.KA_PROV_TWO_PER_COLDKEY else 1
         unverified = 0
@@ -1260,7 +1344,7 @@ def _our_wait(s: ST.Submission) -> bool:
 
 
 def compute_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot: Snapshot,
-                        now: float | None = None) -> dict[str, list[int]]:
+                        now: float | None = None, iw_path: str | None = None) -> dict[str, list[int]]:
     """Per track, the uids with a provisional keep-alive slot (``combine_weights`` pays them): see
     ``_provisional_ok`` for the conditions, at most ``PROVISIONAL_KA_MAX_HOURS`` after ``provisional_since_ts`` (not set
     or more than an hour in the future: nothing, fail closed), at most one per coldkey and track (earlier on-chain
@@ -1274,7 +1358,7 @@ def compute_provisional(state: ST.SpecState, track_ids: Sequence[str], snapshot:
     now = time.time() if now is None else now
     live = {n.hotkey: n for n in snapshot.neurons}
     if split.WAITING_KA_HOTFIX:
-        return _committed_waiting(state, track_ids, snapshot, now)
+        return _committed_waiting(state, track_ids, snapshot, now, iw_path)
     first = _first_provisional_ts(state)
     d4 = S.v5_active(now)
     for track_id in track_ids:
@@ -1545,7 +1629,8 @@ class SpecEvaluator:
         now = self.clock()
         if mark_provisional(self.state, ids, snapshot, now, self._d4_probed):
             ST.save(self.state, self.cfg.state_path)
-        return compute_provisional(self.state, ids, snapshot, now=now)
+        return compute_provisional(self.state, ids, snapshot, now=now,
+                                   iw_path=os.path.join(os.path.dirname(os.path.abspath(self.cfg.state_path)), IW.FIRST_FILE))
 
     # --------------------------------------------------------------- chain sync
 

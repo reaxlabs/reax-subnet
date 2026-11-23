@@ -177,7 +177,8 @@ class RemoteSpecEvaluator:
     worker's ``spec-state.json``. It cannot evaluate anything."""
 
     def __init__(self, state_path: str, tracks: Optional[Sequence[spec_config.TrackDef]] = None, *,
-                 max_age_s: float = REMOTE_MAX_AGE_S, clock: Callable[[], float] = time.time):
+                 max_age_s: float = REMOTE_MAX_AGE_S, clock: Callable[[], float] = time.time, iw_path: Optional[str] = None):
+        self.iw_path = iw_path      # intake-wait first-commitment file (validator-owned: the worker's state may be read-only)
         self.cfg = spec_config.SpecConfig(sealed_dir="", work_dir="", state_path=state_path,
                                           tracks=spec_config._from_schedule() if tracks is None else tuple(tracks))
         self.max_age_s, self.clock = max_age_s, clock
@@ -248,7 +249,7 @@ class RemoteSpecEvaluator:
         if self._state is None:
             return {t: [] for t in ids}
         try:
-            return compute_provisional(self._state, ids, snapshot, now=self.clock())
+            return compute_provisional(self._state, ids, snapshot, now=self.clock(), iw_path=self.iw_path)
         except Exception:  # noqa: BLE001 - a corrupt file pays nothing
             return {t: [] for t in ids}
 

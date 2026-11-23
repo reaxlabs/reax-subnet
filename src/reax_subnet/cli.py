@@ -431,7 +431,10 @@ def _remote_competition(cfg, e):
     start = COMPETITIONS_START_UTC if e.release_mode else None
     engine_start = release_engine_start() if e.release_mode else None
     tracks, reward = engine_params(e)
-    adapter = RemoteSpecAdapter(RemoteSpecEvaluator(os.path.join(cfg.competitions_state_dir, SPEC_STATE_FILE), tracks_def))
+    from .ka_intake_wait import FIRST_FILE as _IW_FIRST_FILE
+    adapter = RemoteSpecAdapter(RemoteSpecEvaluator(os.path.join(cfg.competitions_state_dir, SPEC_STATE_FILE), tracks_def,
+                                                    iw_path=os.path.join(os.path.dirname(os.path.abspath(cfg.state_path)),
+                                                                         _IW_FIRST_FILE)))
     composites = None
     if engine_composite_enabled(os.environ):  # engine competition v2: pay the worker's composite champion
         from .worker import composite_track_from_env

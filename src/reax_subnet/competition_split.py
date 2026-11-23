@@ -309,6 +309,30 @@ KA_EXPOSED_FIRST = True
 # Match the published two paid waiting entries per coldkey and track (MAX_OPEN_PER_COLDKEY_TRACK).
 # Needs WAITING_KA_HOTFIX; False restores the previous one-entry pick. Share and unverified caps stay unchanged.
 KA_PROV_TWO_PER_COLDKEY = True
+# Round-2 intake wait (lead decision 22 Nov 2026, board #76664 / #76679; needs WAITING_KA_HOTFIX): the published promise is
+# keep-alive for an entry that waits for OUR Round-2 intake, at least GR2_INTAKE_WAIT_KA_DAYS from its own commitment. The
+# legacy path (spec.evaluator._committed_waiting, used while the intake feed is not armed) cannot see the intake and the
+# Generalist evaluator is paused, so such a commitment was UNVERIFIED and lost its keep-alive after 24 h. With this switch a
+# Generalist commitment made at or after GR2_INTAKE_WAIT_KA_START_UTC that is still undecided gets [commitment, commitment +
+# GR2_INTAKE_WAIT_KA_DAYS) instead, provided its repo@revision passes a cheap anonymous public check on the hub (a failed check
+# falls back to the old windows; a hub error keeps the window). Recommits do not chain (same repo@revision: never; a new one:
+# only if the hotkey's previous window started KA_REWINDOW_HOURS earlier). Abuse clause, two per coldkey, share cap, unverified
+# cap (a PASSED entry is not counted, an unchecked one is) and the ordering rules are unchanged. Never used while the feed mode
+# (ka_feed.active) is on. False = exactly post8.16.
+GR2_INTAKE_WAIT_KA = True
+GR2_INTAKE_WAIT_KA_START_UTC = datetime(2026, 11, 20, 16, 40, tzinfo=timezone.utc)
+GR2_INTAKE_WAIT_KA_DAYS = 10
+# public check (ka_intake_wait.py): one anonymous hub request per (repo, revision), at most GR2_INTAKE_WAIT_LOOKUP_TIMEOUT_S
+# each, the verdict cached GR2_INTAKE_WAIT_CACHE_HOURS (a hub error only GR2_INTAKE_WAIT_RETRY_MINUTES); per weight-set round at
+# most GR2_INTAKE_WAIT_MAX_LOOKUPS new lookups and GR2_INTAKE_WAIT_ROUND_BUDGET_S seconds waiting in total (what is not
+# answered in time counts as a hub error for this round and is answered from the cache in a later one; a round never waits for
+# a lookup launched by an earlier round). Budget 1 s (v2, critic S2): fail-open keeps the window anyway, so an unanswered lookup
+# costs at most one round of being counted against PROVISIONAL_KA_UNVERIFIED_MAX, while the wait blocks the serving event loop.
+GR2_INTAKE_WAIT_CACHE_HOURS = 6.0
+GR2_INTAKE_WAIT_RETRY_MINUTES = 10.0
+GR2_INTAKE_WAIT_LOOKUP_TIMEOUT_S = 4.0
+GR2_INTAKE_WAIT_ROUND_BUDGET_S = 1.0
+GR2_INTAKE_WAIT_MAX_LOOKUPS = 24
 
 
 def exposure_key(registered_block, block: int) -> tuple[int, int]:
