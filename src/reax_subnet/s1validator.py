@@ -1574,6 +1574,14 @@ class S1Validator(Validator):
         hook = getattr(self.engine, "keepalive_used", None)
         return hook() if hook is not None else None
 
+    def podium_prefetcher(self):
+        hook = getattr(self.engine, "podium_prefetcher", None)
+        return hook() if hook is not None else None
+
+    def podium_record(self):
+        hook = getattr(self.engine, "podium_record", None)
+        return hook() if hook is not None else None
+
     def miner_slot_path(self) -> str:
         from . import miner_slot
 

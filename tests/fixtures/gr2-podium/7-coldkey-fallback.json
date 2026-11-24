@@ -1,0 +1,254 @@
+{
+  "burned_places": [
+    {
+      "reason": "no_former_champion",
+      "share": 0.05,
+      "slot": "former[1]"
+    }
+  ],
+  "competitions_json": {
+    "champion": {
+      "approved": false,
+      "hotkey": "5Hot011xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "model": "synthetic/top-1@r1",
+      "score": 66.96,
+      "since": "2026-12-02T16:16:29Z",
+      "uid": 11
+    },
+    "co_champions": [
+      {
+        "approved": false,
+        "hotkey": "5Hot011xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "model": "synthetic/top-1@r1",
+        "score": 66.96,
+        "since": "2026-12-02T16:16:29Z",
+        "uid": 11
+      }
+    ],
+    "former_champion_uids": [
+      1
+    ],
+    "leaderboard": [
+      {
+        "carried_from": null,
+        "champion_since": "2026-12-02T16:16:29Z",
+        "committed_block": 158667000,
+        "confirm_after": null,
+        "hotkey": "5Hot011xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "margin": 0.9,
+        "model": "synthetic/top-1@r1",
+        "note": null,
+        "rank": 1,
+        "repo": "synthetic/top-1",
+        "revision": "r1",
+        "score": 66.96,
+        "se": 0.45,
+        "status": "champion",
+        "uid": 11
+      }
+    ]
+  },
+  "decision": "crown",
+  "doc": "The round-2 crown as a ready-to-merge fragment of https://reax.co/data/miners/competitions.json (fast-launch #60693 point 3).",
+  "extra": {
+    "bar_list": {
+      "cleared_on_draw_1": true,
+      "details": [
+        {
+          "beaten": true,
+          "model": null,
+          "source": "draw"
+        }
+      ],
+      "did_not_beat": [],
+      "last_official_score_used": [],
+      "left_the_bar_list": [],
+      "models": [
+        "synthetic/gemma-start-A@r1"
+      ],
+      "scored_this_window": [
+        "synthetic/gemma-start-A@r1"
+      ]
+    },
+    "decision_hash_basis": "crown.json of this window",
+    "draw2": {
+      "confirmation_set": [
+        "E01-top-1",
+        "E02-top-2",
+        "E03-top-3"
+      ],
+      "confirmed": true,
+      "difference_vs_reference_draw_2": 4.98,
+      "draw_ids": [
+        "2026-12-03-d1-f1e02623",
+        "2026-12-03-d2-63ec403d"
+      ],
+      "no_harm_checked_on": "draw 1 only (RULES 6.2)",
+      "no_harm_cleared": true,
+      "reference": "synthetic/champ@r1",
+      "required_margin_draw_2": 0.88,
+      "score_draw_1": 66.94,
+      "score_draw_2": 66.97
+    },
+    "window": "2026-12-03"
+  },
+  "podium": {
+    "burned_places": [
+      {
+        "reason": "no_former_champion",
+        "share": 0.05,
+        "slot": "former[1]"
+      }
+    ],
+    "burned_total": 0.05,
+    "champion": {
+      "crowned_or_placed_at": "2026-12-02T16:16:29Z",
+      "effective_from": "2026-12-03T15:00:00Z",
+      "effective_until": null,
+      "entry_id": "E01-top-1",
+      "first_draw_score": 66.94,
+      "held": false,
+      "holder": "5Cold011xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "holder_ids": [
+        "5Cold011xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "holder_source": "coldkey",
+      "hotkey": "5Hot011xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "model": "synthetic/top-1@r1",
+      "private": false,
+      "repo": "synthetic/top-1",
+      "revealed_at": null,
+      "revision": "r1",
+      "se": 0.45,
+      "uid": 11,
+      "window": "2026-12-03"
+    },
+    "crown_decision": "crown",
+    "decided_at": "2026-12-02T16:16:29Z",
+    "former": [
+      {
+        "crowned_or_placed_at": "2026-11-25T16:00:00Z",
+        "effective_from": "2026-12-03T15:00:00Z",
+        "effective_until": null,
+        "ends_with_window": "2026-12-17",
+        "entry_id": "E-champ",
+        "first_draw_score": 64.1,
+        "held": false,
+        "holder": "5Cold001xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "holder_ids": [
+          "5Cold001xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ],
+        "holder_source": "coldkey",
+        "hotkey": "5Hot001xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "lost_in_window": "2026-12-03",
+        "lost_reason": "dethroned",
+        "model": "synthetic/champ@r1",
+        "params_b": 31,
+        "private": false,
+        "repo": "synthetic/champ",
+        "revealed_at": null,
+        "revision": "r1",
+        "se": 0.4,
+        "uid": 1,
+        "window": "2026-11-26",
+        "windows_since_loss": 0
+      },
+      null
+    ],
+    "paid_shares": {
+      "champion": 0.7,
+      "former[0]": 0.1,
+      "place2": 0.1,
+      "place3": 0.05
+    },
+    "paid_total": 0.95,
+    "pending_champion": null,
+    "place2": {
+      "crowned_or_placed_at": "2026-12-02T16:16:29Z",
+      "effective_from": "2026-12-03T15:00:00Z",
+      "effective_until": null,
+      "entry_id": "E02-top-2",
+      "first_draw_score": 66.53,
+      "held": false,
+      "holder": "5Cold012xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "holder_ids": [
+        "5Cold012xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "holder_source": "coldkey",
+      "hotkey": "5Hot012xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "model": "synthetic/top-2@r1",
+      "private": false,
+      "repo": "synthetic/top-2",
+      "revealed_at": null,
+      "revision": "r1",
+      "se": 0.43,
+      "uid": 12,
+      "window": "2026-12-03"
+    },
+    "place3": {
+      "crowned_or_placed_at": "2026-12-02T16:16:29Z",
+      "effective_from": "2026-12-03T15:00:00Z",
+      "effective_until": null,
+      "entry_id": "E03-top-3",
+      "first_draw_score": 65.74,
+      "held": false,
+      "holder": "5Cold013xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "holder_ids": [
+        "5Cold013xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "holder_source": "coldkey",
+      "hotkey": "5Hot013xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "model": "synthetic/top-3@r1",
+      "private": false,
+      "repo": "synthetic/top-3",
+      "revealed_at": null,
+      "revision": "r1",
+      "se": 0.43,
+      "uid": 13,
+      "window": "2026-12-03"
+    },
+    "publish_at": "2026-12-03T15:00:00Z",
+    "schema": "reax-round2-podium/1",
+    "shares": {
+      "champion": 0.7,
+      "former[0]": 0.1,
+      "former[1]": 0.05,
+      "place2": 0.1,
+      "place3": 0.05
+    },
+    "title_tenures": [
+      {
+        "effective_from": "2026-11-26T14:00:00Z",
+        "effective_until": "2026-12-03T15:00:00Z",
+        "entry_id": "E-champ",
+        "holder": "5Cold001xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "holder_ids": [
+          "5Cold001xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ],
+        "hotkey": "5Hot001xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "state": "ended",
+        "uid": 1
+      },
+      {
+        "effective_from": "2026-12-03T15:00:00Z",
+        "effective_until": null,
+        "entry_id": "E01-top-1",
+        "holder": "5Cold011xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "holder_ids": [
+          "5Cold011xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ],
+        "hotkey": "5Hot011xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "state": "current",
+        "uid": 11
+      }
+    ],
+    "void_crowned_entry": null,
+    "window": "2026-12-03"
+  },
+  "problems": [
+    "holder of podium.champion, podium.former[0], podium.place2, podium.place3 is the coldkey: the intake service exposes no holder id (RULES 2.9), so one place per holder cannot merge holders that share only a Hugging Face account"
+  ],
+  "schema": "reax-round2-award-fragment/1",
+  "track_id": "generalist",
+  "window": "2026-12-03"
+}

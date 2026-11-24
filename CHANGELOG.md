@@ -1,3 +1,12 @@
+## 1.2.0rc11.post8.19 (release candidate, 24 Nov 2026)
+
+- Weights version 1275; distribution version 1.2.0rc11.post8+hotfix.19.
+- Optional Round 2 Generalist podium payouts and set-bound records, enabled only by REAX_GR2_PODIUM=1.
+- Logging only: each weight computation logs one "generalist keep-alive unit" line with the mode
+  (feed or legacy), per-entry amount, the amount each entry gets, the room, the entry count, the
+  miner part and, per uid, its credit and top-up (or "generalist keep-alive unit: none"). Payouts
+  are unchanged.
+
 ## 1.2.0rc11.post8.18 (release candidate, 23 Nov 2026)
 
 - Weights version 1274; distribution version 1.2.0rc11.post8+hotfix.18.

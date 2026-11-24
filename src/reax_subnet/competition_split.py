@@ -202,6 +202,7 @@ PROFILES: dict[str, SplitProfile] = {
 
 # Keep the initial release-constant prelude executable without package context:
 # set_generalist_start.py and its validation tests execute that prelude in isolation.
+from . import gr2_podium as _gr2_podium
 from . import ka_feed as _ka_feed
 from .ka_feed import GR2_KA_FEED_START_UTC
 
@@ -1011,7 +1012,10 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                     owner_allocation: Optional[Mapping[int, float]] = None,
                     generalist_feed_uids: Optional[Sequence[int]] = None,
                     generalist_lastgood: Optional[Mapping[str, Sequence[int]]] = None,
-                    generalist_ka_used: Optional[dict[str, list[int]]] = None) -> dict[int, float]:
+                    generalist_ka_used: Optional[dict[str, list[int]]] = None,
+                    log_generalist_unit: bool = True,
+                    generalist_podium: Optional[Any] = None,
+                    generalist_podium_used: Optional[dict[str, Any]] = None) -> dict[int, float]:
     """Mix the competitions into the serving weights.
 
     Emission follows need (``need_active(now)``, docs/EMISSION-NEED.md): the serving uids get exactly
@@ -1083,6 +1087,17 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
     The caller rechecks a <=26 h lease, chain identity and award gate. No rank share is restored. Existing median,
     top-up and share caps still apply. ``generalist_ka_used`` optionally records the selected slots for persistence.
 
+    ``log_generalist_unit`` emits the observational unit once per computation.
+    The caller disables it on owner-allocation variants, whose KA inputs are identical.
+    ``generalist_podium`` (``gr2_podium.PodiumPlan``; None = the ordinary rank path, exactly the weights without it): the
+    Round 2 Generalist podium replaces the 75/17/8 rank shares of the generalist track. Keep-alive and provisional pay are
+    settled first; each payable slot then gets ``(pool - keep-alive) x window share`` (``gr2_podium.payout_after_keepalive``).
+    The plan's slots must also pass ``award_ok`` (and never the owner UID). An empty, held, private or unapproved slot burns
+    its own share: it is neither promoted nor redistributed. ``generalist_podium_used`` (an empty dict) is filled from
+    this very computation with ``window``, ``pool``, ``keepalive``, ``eligible`` (slots actually paid), ``podium`` (uid ->
+    weight) and ``burn``, all in weight units of the returned vector before the miner-slot factor (the miner part is
+    already applied); ``paused`` instead when the generalist track is paused (the ordinary paused path then runs).
+
     ``legacy_keepalive``: uids of the ended DF/RA tracks' leaders (``legacy_ka_uids``, ``LEGACY_KA_*``). Paid like the
     engine keep-alive (pure entrants only: no serving weight, not the owner, nothing else paid), at most
     ``LEGACY_KA_MAX_ENTRIES`` in the given order, each ``min(LEGACY_KA_FRACTION x per_entry, LEGACY_KA_MAX_SHARE / n)``
@@ -1105,6 +1120,8 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             floors = {**TRACK_ENTRY_FLOOR, "generalist": None}
     base_total = math.fsum(w for w in serving.values() if w > 0)
     if base_total <= 0:
+        if log_generalist_unit:
+            log.info("generalist keep-alive unit: none")
         return {}
     base = {uid: w / base_total for uid, w in serving.items() if w > 0}
     burn = burn_fraction if owner_uid is not None and owner_uid in base else 0.0
@@ -1312,8 +1329,10 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
         prov_all = {t: [u for u in ids if u not in taken and u not in own] for t, ids in prov_cand.items()}
     # which tracks hold a slot: only tracks with a payable entry (or ranks), so an entry that would be paid nothing never
     # pushes another track's entrants out of the profile's slots
-    slots = list(zip(sorted(set(tracks) | {t for t, v in alive.items() if v} | {t for t, v in prov_all.items() if v}),
-                     prof.tracks))  # (track id, slot share), as paid
+    slot_tracks = set(tracks) | {t for t, v in alive.items() if v} | {t for t, v in prov_all.items() if v}
+    if generalist_podium is not None:
+        slot_tracks.add("generalist")   # the podium pool exists even when the generalist track has no score or keep-alive entry
+    slots = list(zip(sorted(slot_tracks), prof.tracks))  # (track id, slot share), as paid
     slot_ids = {t for t, _ in slots}
     prov = {t: ids for t, ids in prov_all.items() if t in slot_ids and ids}
     if generalist_ka_used is not None:
@@ -1386,6 +1405,7 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                 paid[uid] = each_lk
             log.info("legacy keep-alive (ended DF/RA tracks) for uids %s, each %.5f of the miner part", legacy, each_lk)
     legacy_paid = math.fsum(paid[u] for u in (legacy if legacy_cand else ()) if u in paid)
+    generalist_unit_logged = False
     for track_id, slot_share in slots:  # a track without a slot pays nothing
         rank_share = slot_share
         if track_id in alive:
@@ -1399,6 +1419,16 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                 room = max(0.0, room - min(PROVISIONAL_KA_MAX_SHARE * slot_share,
                                            len(prov[track_id]) * PROVISIONAL_KA_FRACTION * per_entry))
             each = min(per_entry, room / n)
+            if track_id == "generalist" and log_generalist_unit:
+                # All amounts except miner_part are fractions of the miner part.
+                # Credit is the conservative `own` used for top-ups, not necessarily
+                # the final serving pay. No typical miner gives per_entry=inf.
+                log.info("generalist keep-alive unit: mode %s, per_entry %.6f, each %.6f, room %.6f, "
+                         "n %d, miner_part %.6f; uids [%s]",
+                         "feed" if feed_mode else "legacy", per_entry, each, room, n, miner_part,
+                         ", ".join(f"{u}:{own.get(u, 0.0):.6f}:{max(0.0, each - own.get(u, 0.0)):.6f}"
+                                   for u in alive[track_id]))
+                generalist_unit_logged = True
             for uid in alive[track_id]:
                 paid[uid] = paid.get(uid, 0.0) + max(0.0, each - own.get(uid, 0.0))
             # The top-ups actually paid; credit serving income as in the legacy path.
@@ -1422,6 +1452,8 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             log.info("track %s: provisional keep-alive for uids %s, each %.5f of the miner part",
                      track_id, ids, each_prov)
         if track_id in halted:
+            if track_id == "generalist" and generalist_podium_used is not None:
+                generalist_podium_used["paused"] = True   # the ordinary paused path runs; no podium record is claimed
             # Use the same budget as the unpaused rank path. The additional paused-rank
             # keep-alive floors must not reduce the title's baseline a second time.
             if not (feed_mode and track_id == "generalist"):
@@ -1457,6 +1489,26 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
                         award_approved_at(track_id, member) if award_approved_at is not None else None)
                     paid[member] = max(paid.get(member, 0.0), amount)
             continue
+        if track_id == "generalist" and generalist_podium is not None:
+            # Round 2 podium (gr2_podium.py): keep-alive and provisional pay are settled above; the podium is paid from the
+            # rest of the pool. Nothing is promoted: a slot that is not payable burns its own share.
+            ka_paid = min(slot_share, max(0.0, slot_share - rank_share))
+            eligible = {slot: uid for slot, uid in generalist_podium.eligible.items()
+                        if uid != owner_uid and (award_ok is None or award_ok(track_id, uid))}
+            fractions = _gr2_podium.payout_fractions(generalist_podium.window, generalist_podium.shares, eligible) \
+                if eligible else {}
+            pay = _gr2_podium.payout_after_keepalive(slot_share, ka_paid, fractions)
+            for uid, amount in pay.items():
+                paid[uid] = paid.get(uid, 0.0) + amount
+            if generalist_podium_used is not None:
+                base_pool = miner_part * (slot_share - ka_paid)
+                generalist_podium_used.update(
+                    window=generalist_podium.window, pool=miner_part * slot_share, keepalive=miner_part * ka_paid,
+                    eligible=dict(eligible), podium={uid: miner_part * amount for uid, amount in pay.items()},
+                    burn=max(0.0, base_pool * (1.0 - math.fsum(fractions.values()))))
+            log.debug("generalist podium %s: pool %.6f keep-alive %.6f of the miner part, paid slots %s",
+                     generalist_podium.window, slot_share, ka_paid, sorted(eligible))
+            continue
         ranked_pay = ranks_of.get(track_id) or rank_shares(tracks.get(track_id, ()), floors.get(track_id))
         if keep_share and award_ok is not None and now is not None:
             tr = tracks.get(track_id)
@@ -1471,6 +1523,8 @@ def combine_weights(serving: Mapping[int, float], engine_champion: Optional[int]
             if award_ok is not None and not award_ok(track_id, uid):
                 continue
             paid[uid] = paid.get(uid, 0.0) + rank_share * share
+    if log_generalist_unit and not generalist_unit_logged:
+        log.info("generalist keep-alive unit: none")
     paid.pop(owner_uid, None)  # never to the owner UID: its share stays with the inference part
     claimed = math.fsum(paid.values())
     if target is not None:

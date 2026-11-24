@@ -395,9 +395,23 @@ def _engine_competition(cfg):
 
     e = cfg.engine
     if e.runner == "remote":
-        return _remote_competition(cfg, e)
-    engine, adapter, _ = build_local_stack(e, cfg.spec_sealed_dir, os.environ, award_gate=_award_gate(e))
-    return engine, CompetitionDriver(engine, adapter, background=True)
+        engine, driver = _remote_competition(cfg, e)
+    else:
+        engine, adapter, _ = build_local_stack(e, cfg.spec_sealed_dir, os.environ, award_gate=_award_gate(e))
+        driver = CompetitionDriver(engine, adapter, background=True)
+    engine.podium_reader = _podium_reader()
+    return engine, driver
+
+
+def _podium_reader():
+    """Round 2 Generalist podium (gr2_podium_reader.py): only with REAX_GR2_PODIUM=1; default OFF = the old weights."""
+    from . import gr2_podium_reader
+
+    if not gr2_podium_reader.enabled(os.environ):
+        return None
+    log.info("generalist podium: ON (REAX_GR2_PODIUM); window and sha256 from %s, fragments below %s",
+             gr2_podium_reader.COMPETITIONS_URL, gr2_podium_reader.FRAGMENT_URL.rsplit("/", 1)[0] + "/")
+    return gr2_podium_reader.PodiumReader()
 
 
 def _award_gate(e):

@@ -31,6 +31,9 @@ from . import competition_split as _csplit
 from . import ka_override as _kao
 from . import ka_feed as _ka_feed
 from . import ka_feed_lastgood as _ka_feed_lastgood
+from . import gr2_podium as _gr2_podium
+from . import gr2_podium_reader as _podium
+from . import gr2_podium_record as _podium_record
 from . import need as _need
 from .competition_split import (
     COMPETITIONS_START_UTC, SPLIT_PROFILE, NoSpecialistEvaluator, SpecialistEvaluator, active_tracks, combine_weights,
@@ -124,7 +127,16 @@ def probe_writable(d: str) -> None:
         os.unlink(tmp)
 
 
+# Start of the first Round 2 podium window (UTC midnight of its date); see _podium_resolution.
+_PODIUM_OPENING_TS = datetime.fromisoformat(_gr2_podium.OPENING_WINDOW + "T00:00:00+00:00").timestamp()
+
+
 class EngineCompetition:
+    # Round 2 Generalist podium (gr2_podium_reader.py): a ``PodiumReader`` switches the podium on (cli.py, REAX_GR2_PODIUM,
+    # default OFF = None); with None nothing is fetched or recorded and the weights are exactly the ones without it.
+    podium_reader: Optional[Any] = None
+    _podium_record: Optional[dict] = None
+
     def __init__(self, runner: Runner, reference_refs: Mapping[str, str], state_path: str,
                  tracks: Optional[Mapping[str, TrackParams]] = None, reward: Optional[RewardParams] = None,
                  interval_s: float = 6 * 3600, max_evals: int = 4, clock=time.monotonic,
@@ -863,6 +875,7 @@ class EngineCompetition:
         nothing to pay, ``base`` is returned unchanged (= the 1.1 weights)."""
         self._owner_alloc_plan = None
         self._keepalive_used = None  # observational only (post8.11): set below with the vector it describes
+        self._podium_record = None   # set below, from the same computation as the vector it describes
         if not self.active():
             return dict(base)
         champion: Optional[int] = None
@@ -1078,7 +1091,11 @@ class EngineCompetition:
                 _ka_lastgood.save(lastgood_path, lastgood_saved_at, {}, snap, self._spec_award_ok(snap))
             self._keepalive_used = used
             return dict(base)  # nothing to pay: exactly the 1.1 weights
+        podium_res = self._podium_resolution(ids, now, snap)
+        podium_plan = podium_res.plan if podium_res is not None else None
+        podium_used: dict[str, Any] = {}
         def mix(owner_allocation):
+            podium_used.clear()
             return combine_weights(base, champion, frac, scores, self.profile, owner_uid=snap.owner_uid,
                                    burn_fraction=burn_fraction, award_ok=self._spec_award_ok(snap), keepalive=alive,
                                    provisional=prov, engine_waiting=waiting, keep_share=self.keep_share,
@@ -1088,8 +1105,12 @@ class EngineCompetition:
                                    engine_runout=engine_runout, owner_allocation=owner_allocation,
                                    generalist_feed_uids=feed_uids, generalist_lastgood=lastgood,
                                    generalist_ka_used=ka_used,
+                                   # Allocation variants use identical KA inputs; emit once on the plain mix.
+                                   log_generalist_unit=owner_allocation is None,
+                                   generalist_podium=podium_plan, generalist_podium_used=podium_used,
                                    award_approved_at=self._spec_award_time(snap), engine_approved_at=engine_approved_at)
         plain = mix(None)  # exactly the post8.8 vector
+        self._podium_record = self._podium_part(podium_res, podium_used, snap)  # the podium parts do not depend on the allocation
         if lastgood_path and state_ok is True and "generalist" in ids and not _ka_feed.active(now):
             _ka_lastgood.save(lastgood_path, lastgood_saved_at, ka_used, snap, self._spec_award_ok(snap))
         if lastgood is not None:
@@ -1117,6 +1138,49 @@ class EngineCompetition:
     def allocation_plan(self):
         """The owner-allocation plan of the latest ``weights`` call (owner_alloc.Plan) or None."""
         return getattr(self, "_owner_alloc_plan", None)
+
+    def _podium_resolution(self, ids, now, snap):
+        """The podium of this weight set, or None when it is off or the Generalist track does not run (never raises)."""
+        reader = self.podium_reader
+        if reader is None:
+            return None
+        if "generalist" not in ids:
+            return _podium.Resolved("no-window", None, None, None, None)   # nothing to pay; recorded as such
+        try:
+            res = _podium.resolve(reader.read(), now.timestamp(), snap.neurons)
+        except Exception as exc:  # noqa: BLE001 - the podium share burns, the weights are still set
+            log.error("generalist podium: %s while resolving; the podium share burns", type(exc).__name__)
+            res = _podium.Resolved("burn", "internal_error", None, None, _gr2_podium.PodiumPlan())
+        if res.kind == "burn" and now.timestamp() < _PODIUM_OPENING_TS:
+            # Before the opening window no fragment can be paid, so a failed read (row outage, 404, malformed file) must
+            # not burn today's Generalist pay: the ordinary rank path runs, exactly the flag-OFF vector, and no record.
+            log.warning("generalist podium: burned:%s before the opening window %s; ordinary rank path, no burn",
+                        res.reason, _gr2_podium.OPENING_WINDOW)
+            return None
+        for slot, why in res.dropped:
+            log.warning("generalist podium: slot %s is not payable (%s); its share burns", slot, why)
+        return res
+
+    def _podium_part(self, res, used, snap) -> Optional[dict]:
+        if res is None:
+            return None
+        if used.get("paused"):
+            log.warning("generalist podium: the generalist track is paused; the ordinary paused path ran, no podium record")
+            return None
+        try:
+            return _podium_record.partial(res.kind, res.reason, res.window, res.sha256, snap.block, used)
+        except Exception as exc:  # noqa: BLE001 - observational
+            log.error("generalist podium record not built: %r", exc)
+            return None
+
+    def podium_prefetcher(self):
+        """The blocking network read of the podium reader (run it in a thread before ``weights``), or None when off."""
+        reader = self.podium_reader
+        return reader.prefetch if reader is not None else None
+
+    def podium_record(self):
+        """The set-bound podium record part of the latest ``weights`` call (gr2_podium_record.partial), or None."""
+        return self._podium_record
 
     def keepalive_used(self):
         """``(block, keepalive, protected)`` exactly as the latest ``weights`` call passed them to ``combine_weights``

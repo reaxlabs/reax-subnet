@@ -55,6 +55,7 @@
 | `REAX_EU_MARKET_FILE` | none (no price: the contract tier pays nothing) | daily alpha/TAO and TAO/EUR quotes + inference-share estimate (`tools/eu_tier_quote.py`) |
 | `REAX_EU_TIER_STATE_PATH` / `REAX_EU_TIER_RECEIPTS_DIR` | `eu-tier-state.json` / `eu-tier-receipts/` next to `REAX_STATE_PATH` | contract-tier hour ledger and the public daily receipts (written only while an operator is active) |
 | `REAX_SET_WEIGHTS` | `1` | `0` = shadow mode |
+| `REAX_GR2_PODIUM` | off | `1` = pay the Round 2 Generalist podium from the public fragment (`src/reax_subnet/gr2_podium_reader.py`: window and sha256 from the generalist row of reax.co competitions.json, file verified before parsing, unusable fragment = podium share burned, weights still set) and append one line per weight set to `gr2-podium-sets.jsonl` next to `REAX_STATE_PATH` (`gr2_podium_record.py`). Off: no fetch, no record, the old vector byte for byte |
 | `REAX_WEIGHTS_INTERVAL_BLOCKS` | `360` | minimum blocks between weight submissions (the chain rate limit also applies) |
 | `REAX_ALLOW_PRIVATE_IPS` | `0` | local test networks only; link-local addresses stay blocked |
 | `REAX_BURN_FRACTION` | `0` | share of every weight vector for the owner UID; identical on all validators |

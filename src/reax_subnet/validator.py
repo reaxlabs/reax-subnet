@@ -286,9 +286,11 @@ class Validator:
         if self._weights_task is not None and not self._weights_task.done():
             log.warning("previous set_weights call still running; not submitting again")
             return False
+        await self._podium_warm()  # network read of the Round 2 podium in a thread (a no-op unless REAX_GR2_PODIUM is on)
         weights = self.compute_weights(snap)
         plan = self._allocation_plan()  # same computation: no await in between
         ka_record = self._keepalive_record()  # likewise; logged with the send, observational only
+        podium_record = self._podium_part()  # likewise; written with the outcome of the send (gr2_podium_record.py)
         if not weights:
             log.warning("no qualifying miner and no owner uid; not setting weights")
             return False
@@ -337,6 +339,9 @@ class Validator:
             self._weights_task.add_done_callback(
                 lambda fut: allocation.finish(True if not fut.cancelled() and fut.exception() is None else None))
         self._weights_task.add_done_callback(_consume)
+        if podium_record is not None:
+            self._weights_task.add_done_callback(
+                lambda fut: self._podium_write(podium_record, snap.block, weights, fut))
         # Also record late success after the bounded wait. A failure never consumes the trigger.
         self._weights_task.add_done_callback(lambda fut: self._record_weight_submission(fut, snap, weights))
         try:
@@ -378,6 +383,40 @@ class Validator:
         except Exception as exc:  # noqa: BLE001 - never stop weight setting
             log.error("owner allocation plan unavailable: %r; weights without allocation", exc)
             return None
+
+    def podium_prefetcher(self):
+        """Blocking read of the Round 2 podium inputs (a callable run in a thread before compute_weights), or None."""
+        return None
+
+    def podium_record(self):
+        """The set-bound podium record part behind the last compute_weights (gr2_podium_record.partial), or None."""
+        return None
+
+    async def _podium_warm(self) -> None:
+        try:
+            fetch = self.podium_prefetcher()
+            if fetch is not None:
+                await asyncio.to_thread(fetch)
+        except Exception as exc:  # noqa: BLE001 - never stop weight setting; the podium read then burns on its own
+            log.warning("generalist podium prefetch failed: %r", exc)
+
+    def _podium_part(self):
+        try:
+            return self.podium_record()
+        except Exception as exc:  # noqa: BLE001 - observational only, never stop weight setting
+            log.error("generalist podium record unavailable: %r", exc)
+            return None
+
+    def _podium_write(self, part, set_block: int, weights: dict[int, float], fut: asyncio.Future) -> None:
+        """Append the set-bound podium record once the outcome of the chain call is known. Never raises."""
+        try:
+            from . import gr2_podium_record
+
+            submitted = not fut.cancelled() and fut.exception() is None
+            record = gr2_podium_record.build(part, set_block, weights, submitted)
+            gr2_podium_record.append(gr2_podium_record.path_for(self.cfg.state_path), record)
+        except Exception as exc:  # noqa: BLE001
+            log.error("generalist podium record for set %s not written: %r", set_block, exc)
 
     def keepalive_record(self):
         """``(block, keepalive, protected)`` behind the last compute_weights; ordinary validators have none."""
