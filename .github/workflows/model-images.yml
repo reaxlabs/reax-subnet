@@ -1,0 +1,183 @@
+# Publishes the per-model runtime images ghcr.io/reaxlabs/reax-model-<id> by COPYING prebuilt images, byte for byte.
+# Nothing is built here. The images are built and smoked off-GitHub, pushed to a short-lived staging registry (ttl.sh),
+# and this workflow copies each one by its sha256 manifest digest. The GHCR digest is therefore the digest that was built
+# and smoked; the workflow fails if the source bytes or the copied digest do not match the input digest.
+#   - workflow_dispatch only, main only, reaxlabs/reax-subnet only; no checkout, no third-party actions.
+#   - crane is a pinned release tarball, sha256-checked before use.
+#   - An existing target tag is never moved: same digest = no-op, different digest = failure.
+#   - publish=false (default) validates the sources and the targets and writes the summary, but copies nothing.
+# New GHCR packages start private: the summary reports an anonymous pull check per image (reported, not enforced).
+name: Model images (copy by digest)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Target tag for every image copied in this run (e.g. r2-e6540a0). Not 'latest'; never overwritten."
+        type: string
+        required: true
+      publish:
+        description: "Copy to GHCR. false = validate and report only."
+        type: boolean
+        default: false
+      laya:
+        description: "Source ttl.sh/<name>[:<tag>]@sha256:<64 hex> for reax-model-laya (empty = skip)"
+        type: string
+        default: ""
+      kev_4b:
+        description: "Source for reax-model-kev-4b (empty = skip)"
+        type: string
+        default: ""
+      torchcast_decision_4b:
+        description: "Source for reax-model-torchcast-decision-4b (empty = skip)"
+        type: string
+        default: ""
+      d3:
+        description: "Source for reax-model-d3 (empty = skip)"
+        type: string
+        default: ""
+      clef:
+        description: "Source for reax-model-clef (empty = skip)"
+        type: string
+        default: ""
+      elephant_1:
+        description: "Source for reax-model-elephant-1 (empty = skip)"
+        type: string
+        default: ""
+      karpo_decision_31b:
+        description: "Source for reax-model-karpo-decision-31b (empty = skip)"
+        type: string
+        default: ""
+      blink_v0_3:
+        description: "Source for reax-model-blink-v0.3 (empty = skip)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-images
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    if: github.repository == 'reaxlabs/reax-subnet' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - { id: laya, input: laya }
+          - { id: kev-4b, input: kev_4b }
+          - { id: torchcast-decision-4b, input: torchcast_decision_4b }
+          - { id: d3, input: d3 }
+          - { id: clef, input: clef }
+          - { id: elephant-1, input: elephant_1 }
+          - { id: karpo-decision-31b, input: karpo_decision_31b }
+          - { id: blink-v0.3, input: blink_v0_3 }
+    env:
+      # Inputs reach the shell only through env, never through ${{ }} inside run scripts.
+      SRC: ${{ inputs[matrix.input] }}
+      TAG: ${{ inputs.tag }}
+      PUBLISH: ${{ inputs.publish }}
+      ID: ${{ matrix.id }}
+      DST_REPO: ghcr.io/reaxlabs/reax-model-${{ matrix.id }}
+      CRANE_VERSION: v0.22.1
+      CRANE_SHA256: 0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0
+    steps:
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          if [ -z "$SRC" ]; then
+            echo "no source for $ID: skipped"
+            echo "SKIP=1" >> "$GITHUB_ENV"
+            printf '| image | target | manifest digest | config digest | state |\n|---|---|---|---|---|\n' >> "$GITHUB_STEP_SUMMARY"
+            echo "| $ID | skipped (no source) | | | |" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          re_src='^ttl\.sh/[a-z0-9][a-z0-9._-]{0,127}(:[A-Za-z0-9_][A-Za-z0-9._-]{0,127})?@sha256:[0-9a-f]{64}$'
+          re_tag='^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'
+          if ! [[ "$SRC" =~ $re_src ]]; then echo "::error::source for $ID must be ttl.sh/<name>[:<tag>]@sha256:<64 hex>"; exit 1; fi
+          if ! [[ "$TAG" =~ $re_tag ]] || [ "$TAG" = latest ]; then echo "::error::invalid target tag"; exit 1; fi
+          echo "WANT=${SRC##*@}" >> "$GITHUB_ENV"
+
+      - name: Install crane (pinned, sha256-checked)
+        if: env.SKIP != '1'
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/crane.tgz" \
+            "https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz"
+          echo "${CRANE_SHA256}  $RUNNER_TEMP/crane.tgz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/crane"
+          tar -xzf "$RUNNER_TEMP/crane.tgz" -C "$RUNNER_TEMP/crane" crane
+          echo "$RUNNER_TEMP/crane" >> "$GITHUB_PATH"
+
+      - name: Check the source (bytes hash to the input digest; one linux/amd64 image)
+        if: env.SKIP != '1'
+        run: |
+          set -euo pipefail
+          crane manifest "$SRC" > "$RUNNER_TEMP/src-manifest.json"
+          got="sha256:$(sha256sum < "$RUNNER_TEMP/src-manifest.json" | cut -d' ' -f1)"
+          if [ "$got" != "$WANT" ]; then echo "::error::source manifest hashes to $got, not $WANT"; exit 1; fi
+          mt=$(jq -r '.mediaType // empty' "$RUNNER_TEMP/src-manifest.json")
+          case "$mt" in
+            application/vnd.oci.image.manifest.v1+json|application/vnd.docker.distribution.manifest.v2+json) ;;
+            *) echo "::error::source is not a single image manifest (mediaType '$mt')"; exit 1;;
+          esac
+          plat=$(crane config "$SRC" | jq -r '.os + "/" + .architecture')
+          if [ "$plat" != linux/amd64 ]; then echo "::error::source platform is $plat, not linux/amd64"; exit 1; fi
+          echo "CONFIG=$(jq -r .config.digest "$RUNNER_TEMP/src-manifest.json")" >> "$GITHUB_ENV"
+          echo "SIZE=$(jq '[.layers[].size] | add' "$RUNNER_TEMP/src-manifest.json")" >> "$GITHUB_ENV"
+
+      - name: Log in to GHCR
+        if: env.SKIP != '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GH_TOKEN" | crane auth login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Check the target tag (never moved)
+        if: env.SKIP != '1'
+        run: |
+          set -euo pipefail
+          if cur=$(crane digest "$DST_REPO:$TAG" 2>/dev/null); then
+            if [ "$cur" = "$WANT" ]; then
+              echo "$DST_REPO:$TAG already is $WANT: nothing to copy"
+              echo "ALREADY=1" >> "$GITHUB_ENV"
+            else
+              echo "::error::$DST_REPO:$TAG exists with $cur, not $WANT; tags are never moved, choose a new tag"; exit 1
+            fi
+          fi
+
+      - name: Copy by digest
+        if: env.SKIP != '1' && env.ALREADY != '1' && env.PUBLISH == 'true'
+        run: crane copy "$SRC" "$DST_REPO:$TAG"
+
+      - name: Verify the copy and report
+        if: env.SKIP != '1'
+        run: |
+          set -euo pipefail
+          state="dry run (not copied)"
+          anon="n/a"
+          if [ "$PUBLISH" = true ] || [ "${ALREADY:-}" = 1 ]; then
+            dst=$(crane digest "$DST_REPO:$TAG")
+            if [ "$dst" != "$WANT" ]; then echo "::error::$DST_REPO:$TAG is $dst, not $WANT"; exit 1; fi
+            back="sha256:$(crane manifest "$DST_REPO@$WANT" | sha256sum | cut -d' ' -f1)"
+            if [ "$back" != "$WANT" ]; then echo "::error::GHCR manifest bytes hash to $back, not $WANT"; exit 1; fi
+            state="copied, digest verified"
+            [ "${ALREADY:-}" = 1 ] && state="already present, digest verified"
+            # Anonymous pull check (new packages start private; an org owner sets visibility in the package settings).
+            name="reaxlabs/reax-model-$ID"
+            tok=$(curl -s "https://ghcr.io/token?service=ghcr.io&scope=repository:${name}:pull" | jq -r '.token // empty' || true)
+            anon=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${tok}" \
+              -H "Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json" \
+              "https://ghcr.io/v2/${name}/manifests/${WANT}" || true)
+          fi
+          echo "$ID $DST_REPO@$WANT config=$CONFIG layers_bytes=$SIZE state=$state anon_http=$anon"
+          printf '| image | target | manifest digest | config digest | state |\n|---|---|---|---|---|\n' >> "$GITHUB_STEP_SUMMARY"
+          echo "| $ID | \`$DST_REPO:$TAG\` | \`$WANT\` | \`$CONFIG\` | $state; anonymous pull HTTP $anon |" >> "$GITHUB_STEP_SUMMARY"
